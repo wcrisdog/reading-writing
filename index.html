@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>入心 - 智能阅读写作平台</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1>入心 📝</h1>
+            <p class="subtitle">智能阅读写作平台 - AI-Powered Reading & Writing Platform</p>
+        </div>
+    </header>
+
+    <nav class="main-nav">
+        <div class="container">
+            <button class="nav-btn active" data-mode="composition">800字作文 / 800-Word Essay</button>
+            <button class="nav-btn" data-mode="diary">日记本 / Diary</button>
+            <button class="nav-btn" data-mode="free">自由写作 / Free Writing</button>
+        </div>
+    </nav>
+
+    <main class="container">
+        <div class="workspace">
+            <aside class="sidebar">
+                <div class="ai-panel">
+                    <h3>🤖 AI 写作助手 / AI Writing Assistant</h3>
+                    
+                    <div class="language-toggle">
+                        <label>
+                            <input type="radio" name="language" value="zh" checked>
+                            中文 Chinese
+                        </label>
+                        <label>
+                            <input type="radio" name="language" value="en">
+                            English
+                        </label>
+                    </div>
+
+                    <div class="ai-features">
+                        <button class="ai-btn" id="getSuggestion">
+                            💡 获取写作建议<br><small>Get Writing Suggestions</small>
+                        </button>
+                        <button class="ai-btn" id="improveText">
+                            ✨ 改进文本<br><small>Improve Text</small>
+                        </button>
+                        <button class="ai-btn" id="checkGrammar">
+                            ✓ 语法检查<br><small>Grammar Check</small>
+                        </button>
+                        <button class="ai-btn" id="expandIdeas">
+                            🎯 扩展思路<br><small>Expand Ideas</small>
+                        </button>
+                    </div>
+
+                    <div class="ai-output" id="aiOutput">
+                        <p class="placeholder">AI 建议将显示在这里<br>AI suggestions will appear here</p>
+                    </div>
+                </div>
+
+                <div class="stats-panel">
+                    <h4>📊 统计信息 / Statistics</h4>
+                    <div class="stats">
+                        <p>字符数 / Characters: <span id="charCount">0</span></p>
+                        <p>字数 / Words: <span id="wordCount">0</span></p>
+                        <p>段落 / Paragraphs: <span id="paraCount">0</span></p>
+                    </div>
+                </div>
+            </aside>
+
+            <section class="editor-area">
+                <div class="editor-header">
+                    <input type="text" id="titleInput" class="title-input" placeholder="标题 / Title...">
+                    <div class="editor-tools">
+                        <button class="tool-btn" id="saveBtn" title="保存 Save">💾</button>
+                        <button class="tool-btn" id="clearBtn" title="清空 Clear">🗑️</button>
+                        <button class="tool-btn" id="exportBtn" title="导出 Export">📥</button>
+                    </div>
+                </div>
+
+                <div class="template-info" id="templateInfo">
+                    <p>📝 800字作文模式 - 建议字数: 800字左右</p>
+                </div>
+
+                <textarea id="mainEditor" class="main-editor" placeholder="开始书写你的文字... Start writing your text..."></textarea>
+
+                <div class="editor-footer">
+                    <button class="secondary-btn" id="autoSaveToggle">
+                        自动保存: <span id="autoSaveStatus">开启</span> / Auto-save: <span id="autoSaveStatusEn">ON</span>
+                    </button>
+                    <span class="last-saved">上次保存 / Last saved: <span id="lastSaved">从未</span></span>
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>© 2024 入心 - 助力人们更好地完成阅读写作任务 | Helping people accomplish reading and writing tasks better</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
