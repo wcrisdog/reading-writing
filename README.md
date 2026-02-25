@@ -35,6 +35,19 @@
 ## 使用方法 / How to Use
 
 ### 在线使用 / Online Usage
+
+本项目已通过 GitHub Pages 自动部署，可直接访问：
+
+**🌐 在线访问地址 / Live URL:** https://wcrisdog.github.io/reading-writing/
+
+> 每次推送到 `main` 分支时，网站会自动更新部署。
+> The site is automatically redeployed on every push to the `main` branch.
+
+如需手动启用 GitHub Pages / To manually enable GitHub Pages:
+1. 进入仓库 **Settings → Pages** / Go to repo **Settings → Pages**
+2. Source 选择 **GitHub Actions**
+3. 保存后等待 Actions 完成部署 / Save and wait for the Actions workflow to finish
+
 1. 打开 `index.html` 文件在浏览器中
 2. 选择写作模式（800字作文、日记本或自由写作）
 3. 选择语言（中文或英文）
