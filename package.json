@@ -1,0 +1,11 @@
+{
+  "name": "reading-writing",
+  "version": "1.0.0",
+  "description": "AI-powered writing platform",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vercel dev",
+    "build": "echo 'No build step'"
+  },
+  "dependencies": {}
+}
