@@ -20,18 +20,114 @@ npx http-server
 # 然后访问 / Then visit: http://localhost:8000
 ```
 
-## 功能说明 / Features
+## 核心功能说明 / Features Guide
 
-### 1. 选择写作模式 / Choose Writing Mode
+### 1. 选择写作类型 / Choose Writing Type
 
-点击顶部的模式按钮切换不同的写作模板：
-Click the mode buttons at the top to switch between writing templates:
+点击顶部的按钮选择你要写的文章类型：
+Click the buttons at the top to select your essay type:
 
-- **800字作文 / 800-Word Essay**: 适合练习作文写作 / For essay practice
-- **日记本 / Diary**: 记录日常生活 / For daily journaling
-- **自由写作 / Free Writing**: 无限制创作 / For unrestricted writing
+- **议论文 / Argumentative Essay** (高中/High School)
+  - 展现清晰的论点和有力的论证
+  - Present clear arguments and powerful evidence
+  
+- **记叙文 / Narrative Essay** (高中/High School)
+  - 讲述生动的故事和人物形象
+  - Tell vivid stories with character development
+  
+- **学术论文 / Academic Paper** (大学/研究生 - University/Graduate)
+  - 进行深入的学术研究和严格的论证
+  - Conduct rigorous academic research and analysis
 
-### 2. 选择语言 / Select Language
+### 2. 🚀 启动引导 / Launch Guidance
+
+当你点击"启动引导"按钮时：
+When you click "Launch Guidance":
+
+1. **AI将向你提问** - AI asks you targeted questions about:
+   - 你的中心观点或研究课题 / Your central thesis or research topic
+   - 你倾向的表达方式 / Your preferred writing style
+   - 你的目标读者 / Your target audience
+
+2. **自动生成大纲** - After answering, get:
+   - 根据类型定制的文章大纲 / A customized outline for your essay type
+   - 清晰的章节划分 / Clear section divisions
+   - 每个章节的写作空间 / Space to write for each section
+
+3. **按部就班地写作** - Follow the outline:
+   - 点击每个章节来展开编辑框 / Click each section to expand and write
+   - 按顺序完成各个部分 / Complete sections in order
+   - 保持思路清晰和结构完整 / Maintain clarity and structure
+
+### 3. 📚 素材推荐 / Material Recommendation
+
+点击"素材推荐"获取该文章类型的相关素材：
+Click "Material Recommendation" to get relevant materials:
+
+**议论文的素材包括：**
+- 名言警句 - 强化观点的论据
+- 历史事例 - 真实的历史案例
+- 科学事实 - 可信的科学依据
+- 社会现象 - 当代社会例证
+
+**记叙文的素材包括：**
+- 场景描写 - 营造文章氛围的环境描写
+- 人物刻画 - 塑造人物形象的方法
+- 心理描写 - 表现人物内心的技巧
+- 细节描写 - 令人印象深刻的细节
+
+**学术论文的素材包括：**
+- 理论框架 - 支撑研究的理论基础
+- 研究方法 - 科学的研究方法论
+- 数据来源 - 可靠的数据获取渠道
+- 写作标准 - 学术规范和格式要求
+
+### 4. 💡 灵感提示 / Inspiration Tips
+
+系统会自动监测你的写作进度：
+The system automatically monitors your progress:
+
+**当你卡顿时：**
+- 如果长时间没有输入，系统会提醒你
+- 根据你已写内容提供针对性的建议
+- 建议包括：如何开头、如何论证、如何展开细节等
+
+**根据进度提示：**
+- 当写作量达到目标的一半时：迎接不同的建议
+- 帮助你梳理已有内容、优化逻辑关系
+- 督促你朝着目标加速前进
+
+### 5. 🔍 逻辑修补 / Logic Repair
+
+点击"逻辑修补"进行深层次的文章审视：
+Click "Logic Repair" for in-depth article review:
+
+**系统会问你一系列问题，帮助你发现问题：**
+
+*议论文的问题：*
+- 每个观点后是否都有具体论据支撑？
+- 你的论据来源是否可信？
+- 有没有考虑过反方观点？如何驳斥它们？
+- 你的结论是否呼应开篇？
+- 段落之间的逻辑关系是否清晰？
+
+*记叙文的问题：*
+- 哪些地方的描写还不够生动？
+- 人物的性格和感情变化是否逼真？
+- 事件的先后顺序是否合理？
+- 关键场景（高潮、转折点）是否充分展开？
+- 读者能理解你想表达的主题吗？
+
+*学术论文的问题：*
+- 你的文献理解是否准确？
+- 理论与实证研究是否紧密相连？
+- 数据和结论之间有逻辑漏洞吗？
+- 你是否承认了研究的局限性？
+- 整篇论文的论证链条是否完整？
+
+**这不是代写，而是引导你自己发现和改正问题！**
+
+### 6. 选择语言 / Select Language
 
 在AI助手面板中选择语言：
 Select your language in the AI Assistant panel:
@@ -39,28 +135,7 @@ Select your language in the AI Assistant panel:
 - **中文 Chinese**: 中文界面和提示 / Chinese interface and suggestions
 - **English**: 英文界面和提示 / English interface and suggestions
 
-### 3. 使用AI助手 / Use AI Assistant
-
-AI助手提供四种类型的帮助：
-The AI Assistant provides four types of help:
-
-#### 💡 获取写作建议 / Get Writing Suggestions
-- 提供写作技巧和方法 / Provides writing tips and techniques
-- 帮助改善文章结构 / Helps improve article structure
-
-#### ✨ 改进文本 / Improve Text
-- 优化表达方式 / Optimizes expression
-- 提升文章质量 / Enhances article quality
-
-#### ✓ 语法检查 / Grammar Check
-- 检查语法错误 / Checks grammar errors
-- 标点符号建议 / Punctuation suggestions
-
-#### 🎯 扩展思路 / Expand Ideas
-- 拓展写作思路 / Expands writing ideas
-- 丰富文章内容 / Enriches content
-
-### 4. 实时统计 / Real-time Statistics
+### 7. 实时统计 / Real-time Statistics
 
 右侧统计面板显示：
 The statistics panel on the right shows:
@@ -71,7 +146,7 @@ The statistics panel on the right shows:
   - 英文模式：单词数量 / English mode: Word count
 - **段落 / Paragraphs**: 段落数量 / Paragraph count
 
-### 5. 保存和导出 / Save and Export
+### 8. 保存和导出 / Save and Export
 
 #### 自动保存 / Auto-save
 - 默认开启，每2秒自动保存 / Enabled by default, saves every 2 seconds
@@ -98,6 +173,27 @@ The platform uses standard text editing shortcuts:
 - `Ctrl/Cmd + A`: 全选 / Select all
 - `Ctrl/Cmd + C`: 复制 / Copy
 - `Ctrl/Cmd + V`: 粘贴 / Paste
+
+## 写作贴士 / Writing Tips
+
+### 议论文Tips
+1. 开篇要明确你的观点，吸引读者注意
+2. 每一段都要有中心句，围绕它展开论证
+3. 使用多种论证方式，使论证更有说服力
+4. 结尾要强化你的主要观点
+
+### 记叙文Tips
+1. 详细描写开头和结尾，为故事框架
+2. 充分利用素材推荐中的描写技巧
+3. 突出故事的转折点，这是最吸引人的部分
+4. 在故事结尾表达你的感悟和启示
+
+### 学术论文Tips
+1. 充分阅读相关文献，建立坚实的理论基础
+2. 清晰地说明你的研究问题和假设
+3. 详细描述你的研究方法，确保可重复性
+4. 统计结果时保持严谨，避免过度解读
+
 - `Ctrl/Cmd + Z`: 撤销 / Undo
 - `Ctrl/Cmd + Shift + Z`: 重做 / Redo
 

@@ -16,9 +16,9 @@
 
     <nav class="main-nav">
         <div class="container">
-            <button class="nav-btn active" data-mode="composition">800字作文 / 800-Word Essay</button>
-            <button class="nav-btn" data-mode="diary">日记本 / Diary</button>
-            <button class="nav-btn" data-mode="free">自由写作 / Free Writing</button>
+            <button class="nav-btn active" data-type="argumentative" data-level="high-school">议论文 / Argumentative Essay</button>
+            <button class="nav-btn" data-type="narrative" data-level="high-school">记叙文 / Narrative Essay</button>
+            <button class="nav-btn" data-type="academic" data-level="university">学术论文 / Academic Paper</button>
         </div>
     </nav>
 
@@ -39,24 +39,31 @@
                         </label>
                     </div>
 
-                    <div class="ai-features">
-                        <button class="ai-btn" id="getSuggestion">
-                            💡 获取写作建议<br><small>Get Writing Suggestions</small>
-                        </button>
-                        <button class="ai-btn" id="improveText">
-                            ✨ 改进文本<br><small>Improve Text</small>
-                        </button>
-                        <button class="ai-btn" id="checkGrammar">
-                            ✓ 语法检查<br><small>Grammar Check</small>
-                        </button>
-                        <button class="ai-btn" id="expandIdeas">
-                            🎯 扩展思路<br><small>Expand Ideas</small>
-                        </button>
-                    </div>
+                    <!-- Launch Guidance Modal Trigger -->
+                    <button class="ai-btn" id="launchGuidance">
+                        🚀 启动引导<br><small>Launch Guidance</small>
+                    </button>
 
-                    <div class="ai-output" id="aiOutput">
-                        <p class="placeholder">AI 建议将显示在这里<br>AI suggestions will appear here</p>
-                    </div>
+                    <!-- Material Recommendation -->
+                    <button class="ai-btn" id="getMaterials">
+                        📚 素材推荐<br><small>Material Recommendation</small>
+                    </button>
+
+                    <!-- Inspiration Tips -->
+                    <button class="ai-btn" id="getInspiration">
+                        💡 灵感提示<br><small>Inspiration Tips</small>
+                    </button>
+
+                    <!-- Logic Repair (Questioning) -->
+                    <button class="ai-btn" id="logicRepair">
+                        🔍 逻辑修补<br><small>Logic Repair</small>
+                    </button>
+                </div>
+
+                <!-- Materials Panel -->
+                <div class="ai-panel materials-panel" id="materialsPanel" style="display:none;">
+                    <h4>📚 推荐素材 / Recommended Materials</h4>
+                    <div id="materialsList"></div>
                 </div>
 
                 <div class="stats-panel">
@@ -66,6 +73,15 @@
                         <p>字数 / Words: <span id="wordCount">0</span></p>
                         <p>段落 / Paragraphs: <span id="paraCount">0</span></p>
                     </div>
+                </div>
+
+                <div class="stats-panel">
+                    <h4>📝 写作计划 / Writing Plan</h4>
+                    <div id="outlinePanel"></div>
+                </div>
+
+                <div class="ai-output" id="aiOutput">
+                    <p class="placeholder">AI 建议将显示在这里<br>AI suggestions will appear here</p>
                 </div>
             </aside>
 
@@ -80,7 +96,7 @@
                 </div>
 
                 <div class="template-info" id="templateInfo">
-                    <p>📝 800字作文模式 - 建议字数: 800字左右</p>
+                    <p>📝 议论文 - 初高中学生</p>
                 </div>
 
                 <textarea id="mainEditor" class="main-editor" placeholder="开始书写你的文字... Start writing your text..."></textarea>
@@ -94,6 +110,24 @@
             </section>
         </div>
     </main>
+
+    <!-- Launch Guidance Modal -->
+    <div id="guidanceModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <button class="modal-close" id="closeModal">✕</button>
+            <h2>🚀 启动引导 / Launch Guidance</h2>
+            <div id="guidanceContent"></div>
+        </div>
+    </div>
+
+    <!-- Logic Repair Modal -->
+    <div id="logicModal" class="modal" style="display:none;">
+        <div class="modal-content">
+            <button class="modal-close" id="closeLogicModal">✕</button>
+            <h2>🔍 逻辑修补 / Logic Repair</h2>
+            <div id="logicContent"></div>
+        </div>
+    </div>
 
     <footer>
         <div class="container">
