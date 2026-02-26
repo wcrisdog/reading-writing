@@ -5,10 +5,10 @@ class AIService {
     constructor() {
         // 使用后端API代理（GitHub Pages + Vercel）
         // 开发环境：本地测试时使用localhost
-        // 生产环境：自动使用相对路径调用Vercel Functions
+        // 生产环境：固定使用Vercel域名，避免GitHub Pages出现404
         this.apiEndpoint = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
             ? 'http://localhost:3000/api/qianwen'  // 本地开发测试
-            : '/api/qianwen';  // 生产环境（Vercel）
+            : 'https://reading-writing.vercel.app/api/qianwen';  // 生产环境（Vercel）
         
         console.log('✨ AI服务已初始化，API密钥由后端管理');
     }
@@ -156,19 +156,20 @@ Please generate a complete outline in this format.`;
      * 生成灵感提示
      */
     async generateInspiration(essayType, language, currentText, wordCount, targetWords) {
-        const progress = (wordCount / targetWords * 100).toFixed(0);
-        const isStalled = wordCount < targetWords / 2;
+        const hasTarget = Number.isFinite(targetWords) && targetWords > 0;
+        const progress = hasTarget ? (wordCount / targetWords * 100).toFixed(0) : null;
+        const isStalled = hasTarget ? wordCount < targetWords / 2 : wordCount < 300;
 
         const promptMap = {
             'argumentative': language === 'zh'
-                ? `用户正在写议论文，当前已写${wordCount}字（目标${targetWords}字，完成${progress}%）。当前内容：${currentText.substring(0, 200)}... ${isStalled ? '用户似乎遇到了困难。' : '用户正在稳步推进。'}请给出一条简短的写作建议或灵感提示（不超过50字）。`
-                : `User is writing an argumentative essay, currently ${wordCount} words (target ${targetWords}, ${progress}% complete). Content: ${currentText.substring(0, 200)}... ${isStalled ? 'User seems stuck.' : 'User is progressing well.'} Provide a brief writing tip (max 50 words).`,
+                ? `用户正在写议论文，当前已写${wordCount}字${hasTarget ? `（目标${targetWords}字，完成${progress}%）` : '（无字数上限）'}。当前内容：${currentText.substring(0, 200)}... ${isStalled ? '用户似乎遇到了困难。' : '用户正在稳步推进。'}请给出一条简短的写作建议或灵感提示（不超过50字）。`
+                : `User is writing an argumentative essay, currently ${wordCount} words${hasTarget ? ` (target ${targetWords}, ${progress}% complete)` : ' (no word limit)'}. Content: ${currentText.substring(0, 200)}... ${isStalled ? 'User seems stuck.' : 'User is progressing well.'} Provide a brief writing tip (max 50 words).`,
             'narrative': language === 'zh'
-                ? `用户正在写记叙文，当前已写${wordCount}字（目标${targetWords}字，完成${progress}%）。当前内容：${currentText.substring(0, 200)}... ${isStalled ? '用户似乎遇到了困难。' : '用户正在稳步推进。'}请给出一条简短的写作建议或灵感提示（不超过50字）。`
-                : `User is writing a narrative essay, currently ${wordCount} words (target ${targetWords}, ${progress}% complete). Content: ${currentText.substring(0, 200)}... ${isStalled ? 'User seems stuck.' : 'User is progressing well.'} Provide a brief writing tip (max 50 words).`,
+                ? `用户正在写记叙文，当前已写${wordCount}字${hasTarget ? `（目标${targetWords}字，完成${progress}%）` : '（无字数上限）'}。当前内容：${currentText.substring(0, 200)}... ${isStalled ? '用户似乎遇到了困难。' : '用户正在稳步推进。'}请给出一条简短的写作建议或灵感提示（不超过50字）。`
+                : `User is writing a narrative essay, currently ${wordCount} words${hasTarget ? ` (target ${targetWords}, ${progress}% complete)` : ' (no word limit)'}. Content: ${currentText.substring(0, 200)}... ${isStalled ? 'User seems stuck.' : 'User is progressing well.'} Provide a brief writing tip (max 50 words).`,
             'academic': language === 'zh'
-                ? `用户正在写学术论文，当前已写${wordCount}字（目标${targetWords}字，完成${progress}%）。当前内容：${currentText.substring(0, 200)}... ${isStalled ? '用户似乎遇到了困难。' : '用户正在稳步推进。'}请给出一条简短的学术写作建议（不超过50字）。`
-                : `User is writing an academic paper, currently ${wordCount} words (target ${targetWords}, ${progress}% complete). Content: ${currentText.substring(0, 200)}... ${isStalled ? 'User seems stuck.' : 'User is progressing well.'} Provide a brief academic writing tip (max 50 words).`
+                ? `用户正在写学术论文，当前已写${wordCount}字${hasTarget ? `（目标${targetWords}字，完成${progress}%）` : '（无字数上限）'}。当前内容：${currentText.substring(0, 200)}... ${isStalled ? '用户似乎遇到了困难。' : '用户正在稳步推进。'}请给出一条简短的学术写作建议（不超过50字）。`
+                : `User is writing an academic paper, currently ${wordCount} words${hasTarget ? ` (target ${targetWords}, ${progress}% complete)` : ' (no word limit)'}. Content: ${currentText.substring(0, 200)}... ${isStalled ? 'User seems stuck.' : 'User is progressing well.'} Provide a brief academic writing tip (max 50 words).`
         };
 
         const messages = [

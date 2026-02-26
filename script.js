@@ -59,7 +59,7 @@ const essayTypes = {
             name: '学术论文',
             level: '大学/研究生',
             description: '严谨论证、深度研究的学术性文章',
-            targetWords: 3000,
+            targetWords: null,
             placeholder: '进行学术研究和论证...\n\n论文结构：\n1. 研究背景和意义\n2. 理论分析和方法\n3. 实证研究和发现\n4. 结论和展望',
             sections: ['摘要', '引言', '文献综述', '理论框架', '研究方法', '结果分析', '讨论', '结论']
         },
@@ -67,7 +67,7 @@ const essayTypes = {
             name: 'Academic Paper',
             level: 'University/Graduate',
             description: 'A rigorous scholarly paper with evidence-based arguments',
-            targetWords: 3000,
+            targetWords: null,
             placeholder: 'Conduct academic research...\n\nStructure:\n1. Research background\n2. Literature review\n3. Methodology\n4. Results and analysis\n5. Conclusion',
             sections: ['Abstract', 'Introduction', 'Literature Review', 'Methodology', 'Results', 'Discussion', 'Conclusion']
         }
@@ -612,6 +612,7 @@ async function checkInspirationNeeded() {
 
     try {
         const targetWords = essayTypes[currentType][currentLanguage].targetWords;
+        const hasTarget = Number.isFinite(targetWords) && targetWords > 0;
         
         // 调用AI服务
         const result = await aiService.generateInspiration(
@@ -623,14 +624,18 @@ async function checkInspirationNeeded() {
         );
         
         const aiTip = result.message;
-        const progress = (wordCount / targetWords * 100).toFixed(0);
+        const progress = hasTarget ? (wordCount / targetWords * 100).toFixed(0) : null;
         
         aiOutput.innerHTML = `
             <p class="suggestion">💡 ${aiTip}</p>
             <p class="progress-info">📊 ${
-                currentLanguage === 'zh'
-                    ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
-                    : `Progress: ${wordCount}/${targetWords} words (${progress}%)`
+                hasTarget
+                    ? (currentLanguage === 'zh'
+                        ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
+                        : `Progress: ${wordCount}/${targetWords} words (${progress}%)`)
+                    : (currentLanguage === 'zh'
+                        ? `当前字数: ${wordCount} 字`
+                        : `Current words: ${wordCount}`)
             }</p>
         `;
         
@@ -770,6 +775,7 @@ function updateTemplate() {
     const template = essayTypes[currentType][currentLanguage];
     templateInfo.innerHTML = `<p>📝 ${template.name} - ${template.level} | ${template.description}</p>`;
     mainEditor.placeholder = template.placeholder;
+    updateStats();
 }
 
 // =========== 统计信息更新 ===========
@@ -793,15 +799,22 @@ function updateStats() {
     
     // 计算目标和进度
     const targetWords = essayTypes[currentType][currentLanguage].targetWords;
-    const progress = Math.min(100, ((words / targetWords) * 100).toFixed(1));
-    document.getElementById('progressPercent').textContent = progress + '%';
-    document.getElementById('progressBar').style.width = progress + '%';
-    
-    // 更新目标信息
-    const targetInfo = currentLanguage === 'zh' 
-        ? `目标: ${targetWords}字 (还需${Math.max(0, targetWords - words)}字)` 
-        : `Target: ${targetWords} words (${Math.max(0, targetWords - words)} more)`;
-    document.getElementById('targetInfo').textContent = targetInfo;
+    if (Number.isFinite(targetWords) && targetWords > 0) {
+        const progress = Math.min(100, ((words / targetWords) * 100).toFixed(1));
+        document.getElementById('progressPercent').textContent = progress + '%';
+        document.getElementById('progressBar').style.width = progress + '%';
+        
+        const targetInfo = currentLanguage === 'zh' 
+            ? `目标: ${targetWords}字 (还需${Math.max(0, targetWords - words)}字)` 
+            : `Target: ${targetWords} words (${Math.max(0, targetWords - words)} more)`;
+        document.getElementById('targetInfo').textContent = targetInfo;
+    } else {
+        document.getElementById('progressPercent').textContent = currentLanguage === 'zh' ? '—' : '—';
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('targetInfo').textContent = currentLanguage === 'zh'
+            ? '目标: 无限制'
+            : 'Target: No limit';
+    }
     
     // 计算写作时长
     if (text.length > 0) {
