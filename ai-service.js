@@ -2,39 +2,85 @@
 
 class AIService {
     constructor() {
-        // API端点 - 开发时使用本地，部署后自动使用Vercel
-        this.apiEndpoint = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3000/api/qianwen'  // 本地开发
-            : '/api/qianwen';  // 生产环境
+        // 直接调用Aliyun Qianwen API（无需后端服务）
+        this.qianwenEndpoint = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation';
+        this.checkApiKey();
     }
 
     /**
-     * 调用AI API
+     * 检查并提示用户设置API密钥
+     */
+    checkApiKey() {
+        if (!config.hasApiKey()) {
+            const setupCompleted = config.showSetupPrompt();
+            if (!setupCompleted) {
+                console.warn('⚠️ 未设置API密钥，AI功能暂时不可用');
+            }
+        }
+    }
+
+    /**
+     * 获取API密钥
+     */
+    getApiKey() {
+        return config.getApiKey();
+    }
+
+    /**
+     * 调用Aliyun Qianwen API (直接调用，无需后端)
      * @param {Array} messages - 对话消息数组
      * @param {string} type - 请求类型
      * @param {string} essayType - 文章类型
      */
     async callAI(messages, type, essayType) {
         try {
-            const response = await fetch(this.apiEndpoint, {
+            const apiKey = this.getApiKey();
+            
+            if (!apiKey) {
+                throw new Error('未设置API密钥。请刷新页面并在弹窗中输入你的Qianwen API Key。');
+            }
+
+            const response = await fetch(this.qianwenEndpoint, {
                 method: 'POST',
                 headers: {
+                    'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    messages,
-                    type,
-                    essayType
+                    model: 'qwen-turbo',
+                    input: {
+                        messages: messages
+                    },
+                    parameters: {
+                        temperature: 0.7,
+                        max_tokens: 1500
+                    }
                 })
             });
 
             if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.message || '调用AI服务失败');
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.message || `API错误: ${response.status}`);
             }
 
             const data = await response.json();
-            return data;
+            
+            // Qianwen API 返回格式转换
+            if (data.output && data.output.text) {
+                return {
+                    success: true,
+                    text: data.output.text,
+                    usage: data.usage
+                };
+            } else if (data.output && data.output.choices && data.output.choices[0]) {
+                return {
+                    success: true,
+                    text: data.output.choices[0].message.content,
+                    usage: data.usage
+                };
+            }
+            
+            throw new Error('AI服务返回格式异常');
 
         } catch (error) {
             console.error('AI服务调用错误:', error);
