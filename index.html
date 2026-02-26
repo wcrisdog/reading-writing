@@ -67,11 +67,24 @@
                 </div>
 
                 <div class="stats-panel">
-                    <h4>📊 统计信息 / Statistics</h4>
+                    <h4>📊 写作统计 / Writing Statistics</h4>
                     <div class="stats">
                         <p>字符数 / Characters: <span id="charCount">0</span></p>
                         <p>字数 / Words: <span id="wordCount">0</span></p>
                         <p>段落 / Paragraphs: <span id="paraCount">0</span></p>
+                        <p>完成度 / Progress: <span id="progressPercent">0%</span></p>
+                        <div class="progress-bar">
+                            <div id="progressBar" class="progress-fill" style="width: 0%"></div>
+                        </div>
+                        <p class="stat-detail">
+                            <span id="targetInfo">目标: 800字 / Target: 800 words</span>
+                        </p>
+                        <p class="stat-detail">
+                            写作时长 / Writing time: <span id="writingTime">0分钟</span>
+                        </p>
+                        <p class="stat-detail">
+                            写作速度 / Speed: <span id="writingSpeed">-</span>
+                        </p>
                     </div>
                 </div>
 
@@ -135,7 +148,6 @@
         </div>
     </footer>
 
-    <script src="config.js"></script>
     <script src="ai-service.js"></script>
     <script src="script.js"></script>
 </body>

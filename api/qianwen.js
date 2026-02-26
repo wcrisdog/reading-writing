@@ -18,12 +18,13 @@ export default async function handler(req, res) {
     }
 
     // 从环境变量获取API密钥（在Vercel中配置）
-    const API_KEY = process.env.QIANWEN_API_KEY;
+    // 如果环境变量未设置，使用备用密钥（仅供开发测试）
+    const API_KEY = process.env.QIANWEN_API_KEY || 'YOUR_API_KEY_HERE';
     
-    if (!API_KEY) {
+    if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
         return res.status(500).json({ 
             error: '服务器配置错误：未设置API密钥',
-            message: '请在Vercel环境变量中添加 QIANWEN_API_KEY'
+            message: '请在Vercel环境变量中添加 QIANWEN_API_KEY，或在代码中设置备用密钥'
         });
     }
 

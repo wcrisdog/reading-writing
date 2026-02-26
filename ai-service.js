@@ -1,86 +1,51 @@
 // AI服务模块 - 处理所有与AI相关的API调用
+// 注意：API Key由开发端在后端管理，用户无需配置
 
 class AIService {
     constructor() {
-        // 直接调用Aliyun Qianwen API（无需后端服务）
-        this.qianwenEndpoint = 'https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation';
-        this.checkApiKey();
+        // 使用后端API代理（GitHub Pages + Vercel）
+        // 开发环境：本地测试时使用localhost
+        // 生产环境：自动使用相对路径调用Vercel Functions
+        this.apiEndpoint = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+            ? 'http://localhost:3000/api/qianwen'  // 本地开发测试
+            : '/api/qianwen';  // 生产环境（Vercel）
+        
+        console.log('✨ AI服务已初始化，API密钥由后端管理');
     }
 
     /**
-     * 检查并提示用户设置API密钥
-     */
-    checkApiKey() {
-        if (!config.hasApiKey()) {
-            const setupCompleted = config.showSetupPrompt();
-            if (!setupCompleted) {
-                console.warn('⚠️ 未设置API密钥，AI功能暂时不可用');
-            }
-        }
-    }
-
-    /**
-     * 获取API密钥
-     */
-    getApiKey() {
-        return config.getApiKey();
-    }
-
-    /**
-     * 调用Aliyun Qianwen API (直接调用，无需后端)
+     * 调用后端AI API
      * @param {Array} messages - 对话消息数组
      * @param {string} type - 请求类型
      * @param {string} essayType - 文章类型
      */
     async callAI(messages, type, essayType) {
         try {
-            const apiKey = this.getApiKey();
-            
-            if (!apiKey) {
-                throw new Error('未设置API密钥。请刷新页面并在弹窗中输入你的Qianwen API Key。');
-            }
-
-            const response = await fetch(this.qianwenEndpoint, {
+            const response = await fetch(this.apiEndpoint, {
                 method: 'POST',
                 headers: {
-                    'Authorization': `Bearer ${apiKey}`,
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    model: 'qwen-turbo',
-                    input: {
-                        messages: messages
-                    },
-                    parameters: {
-                        temperature: 0.7,
-                        max_tokens: 1500
-                    }
+                    messages,
+                    type,
+                    essayType
                 })
             });
 
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                throw new Error(errorData.message || `API错误: ${response.status}`);
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error || error.message || `API错误: ${response.status}`);
             }
 
             const data = await response.json();
             
-            // Qianwen API 返回格式转换
-            if (data.output && data.output.text) {
-                return {
-                    success: true,
-                    text: data.output.text,
-                    usage: data.usage
-                };
-            } else if (data.output && data.output.choices && data.output.choices[0]) {
-                return {
-                    success: true,
-                    text: data.output.choices[0].message.content,
-                    usage: data.usage
-                };
-            }
-            
-            throw new Error('AI服务返回格式异常');
+            // 返回统一格式
+            return {
+                success: data.success,
+                message: data.message,
+                usage: data.usage
+            };
 
         } catch (error) {
             console.error('AI服务调用错误:', error);
@@ -92,13 +57,72 @@ class AIService {
      * 生成启动引导的问题回应
      */
     async generateGuidanceResponse(essayType, language, userAnswers) {
+        const essayTypeNames = {
+            'argumentative': { zh: '议论文', en: 'argumentative essay' },
+            'narrative': { zh: '记叙文', en: 'narrative essay' },
+            'academic': { zh: '学术论文', en: 'academic paper' }
+        };
+        
+        const essayTypeName = language === 'zh' 
+            ? essayTypeNames[essayType].zh 
+            : essayTypeNames[essayType].en;
+        
         const systemPrompt = language === 'zh' 
-            ? `你是一个写作指导专家。用户正在写${essayType === 'argumentative' ? '议论文' : essayType === 'narrative' ? '记叙文' : '学术论文'}。根据用户的回答，生成一个详细的写作大纲建议。`
-            : `You are a writing guidance expert. The user is writing ${essayType === 'argumentative' ? 'an argumentative essay' : essayType === 'narrative' ? 'a narrative essay' : 'an academic paper'}. Based on the user's answers, generate a detailed writing outline.`;
+            ? `你是一位资深的写作指导专家，擅长帮助学生构建清晰的写作框架。
+你的任务是：根据用户对于${essayTypeName}的回答，生成一份详细、实用、有指导性的写作大纲。
+
+要求：
+1. 大纲要分成4-6个主要部分，每部分标明标题和要点
+2. 每个部分要提供2-3个具体的写作建议或提示
+3. 要考虑用户的回答，使大纲个性化
+4. 语言要清晰易懂，可操作性强
+5. 适当添加emoji使大纲更生动
+
+输出格式示例：
+📝 一、引言部分
+   - 要点1：...
+   - 要点2：...
+   建议：...
+
+📝 二、主体部分（第一论点）
+   - 要点1：...
+   - 要点2：...
+   建议：...
+   
+请按此格式生成完整大纲。`
+            : `You are an experienced writing instructor who excels at helping students build clear writing frameworks.
+
+Your task: Based on the user's answers about their ${essayTypeName}, generate a detailed, practical, and instructive writing outline.
+
+Requirements:
+1. Divide the outline into 4-6 main sections with clear titles and key points
+2. Provide 2-3 specific writing suggestions for each section
+3. Personalize the outline based on user's answers
+4. Use clear, actionable language
+5. Add appropriate emojis to make it engaging
+
+Output format example:
+📝 I. Introduction
+   - Point 1: ...
+   - Point 2: ...
+   Suggestion: ...
+
+📝 II. Body (First Argument)
+   - Point 1: ...
+   - Point 2: ...
+   Suggestion: ...
+
+Please generate a complete outline in this format.`;
+
+        const answersText = userAnswers.map(a => `${a.question} → ${a.answer}`).join('\n');
+        
+        const userPrompt = language === 'zh'
+            ? `用户的背景信息：\n${answersText}\n\n请根据以上信息，为用户生成一份详细的${essayTypeName}写作大纲。`
+            : `User's background:\n${answersText}\n\nBased on the above information, generate a detailed ${essayTypeName} outline for the user.`;
 
         const messages = [
             { role: 'system', content: systemPrompt },
-            { role: 'user', content: `用户的回答：${JSON.stringify(userAnswers)}。请生成写作大纲建议。` }
+            { role: 'user', content: userPrompt }
         ];
 
         return await this.callAI(messages, 'guidance', essayType);

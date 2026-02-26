@@ -12,6 +12,9 @@ let contentHistory = [];
 let lastActivityTime = Date.now();
 let guidanceStep = 0;
 let currentOutline = null;
+let writingStartTime = null; // 写作开始时间
+let totalWritingTime = 0; // 总写作时长（秒）
+let lastStatsUpdate = Date.now();
 
 // =========== 写作类型配置 ===========
 const essayTypes = {
@@ -782,10 +785,59 @@ function updateStats() {
     }
 
     const paragraphs = text.split('\n').filter(p => p.trim().length > 0).length;
-
+    
+    // 更新基础统计
     charCount.textContent = chars;
     wordCount.textContent = words;
     paraCount.textContent = paragraphs;
+    
+    // 计算目标和进度
+    const targetWords = essayTypes[currentType][currentLanguage].targetWords;
+    const progress = Math.min(100, ((words / targetWords) * 100).toFixed(1));
+    document.getElementById('progressPercent').textContent = progress + '%';
+    document.getElementById('progressBar').style.width = progress + '%';
+    
+    // 更新目标信息
+    const targetInfo = currentLanguage === 'zh' 
+        ? `目标: ${targetWords}字 (还需${Math.max(0, targetWords - words)}字)` 
+        : `Target: ${targetWords} words (${Math.max(0, targetWords - words)} more)`;
+    document.getElementById('targetInfo').textContent = targetInfo;
+    
+    // 计算写作时长
+    if (text.length > 0) {
+        if (!writingStartTime) {
+            writingStartTime = Date.now();
+        }
+        
+        // 累计写作时间（只在有输入时累计）
+        const now = Date.now();
+        if (now - lastStatsUpdate < 5000) { // 5秒内有活动视为连续写作
+            totalWritingTime += (now - lastStatsUpdate) / 1000;
+        }
+        lastStatsUpdate = now;
+        
+        const minutes = Math.floor(totalWritingTime / 60);
+        const timeText = currentLanguage === 'zh'
+            ? `${minutes}分钟`
+            : `${minutes} min`;
+        document.getElementById('writingTime').textContent = timeText;
+        
+        // 计算写作速度（字/分钟）
+        if (minutes > 0) {
+            const speed = Math.round(words / minutes);
+            const speedText = currentLanguage === 'zh'
+                ? `${speed} 字/分钟`
+                : `${speed} words/min`;
+            document.getElementById('writingSpeed').textContent = speedText;
+        }
+    } else {
+        // 重置时间
+        writingStartTime = null;
+        totalWritingTime = 0;
+        lastStatsUpdate = Date.now();
+        document.getElementById('writingTime').textContent = currentLanguage === 'zh' ? '0分钟' : '0 min';
+        document.getElementById('writingSpeed').textContent = '-';
+    }
 }
 
 // =========== 保存功能 ===========
