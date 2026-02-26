@@ -11,8 +11,5 @@
       "src": "/api/(.*)",
       "dest": "/api/$1"
     }
-  ],
-  "env": {
-    "QIANWEN_API_KEY": "@qianwen_api_key"
-  }
+  ]
 }
