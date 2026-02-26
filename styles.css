@@ -611,3 +611,67 @@ footer p {
         opacity: 1;
     }
 }
+/* Loading状态 */
+.loading {
+    text-align: center;
+    padding: 2rem;
+    color: var(--primary-color);
+    font-size: 1rem;
+    animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+/* AI生成的内容样式 */
+.ai-materials,
+.ai-outline {
+    background: #f0f9ff;
+    border-left: 4px solid var(--primary-color);
+    padding: 1.5rem;
+    border-radius: 8px;
+    animation: fadeIn 0.5s ease;
+}
+
+.ai-materials h5,
+.ai-outline h5 {
+    color: var(--primary-color);
+    margin-bottom: 1rem;
+    font-weight: 600;
+}
+
+.material-content,
+.outline-content {
+    color: var(--dark-color);
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
+
+.fallback-notice {
+    background: #fff3cd;
+    color: #856404;
+    padding: 0.75rem;
+    border-radius: 4px;
+    margin-bottom: 1rem;
+}
+
+.progress-info {
+    margin-top: 1rem;
+    padding: 0.75rem;
+    background: #e3f2fd;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    color: var(--primary-color);
+}
+
+.question-label {
+    color: #7f8c8d;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}

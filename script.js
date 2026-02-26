@@ -386,17 +386,21 @@ function setupEventListeners() {
 }
 
 // =========== 启动引导功能 ===========
+let userGuidanceAnswers = [];
+
 function startGuidance() {
     const modal = document.getElementById('guidanceModal');
     const content = document.getElementById('guidanceContent');
     guidanceStep = 0;
+    userGuidanceAnswers = [];
     showGuidanceQuestion(content, modal);
 }
 
 function showGuidanceQuestion(container, modal) {
     const questions = guidanceQuestions[currentType][currentLanguage];
     if (guidanceStep >= questions.length) {
-        generateOutlineFromAnswers();
+        // 收集完所有答案，生成大纲
+        generateOutlineFromAnswers(userGuidanceAnswers);
         closeGuidanceModal();
         return;
     }
@@ -411,7 +415,7 @@ function showGuidanceQuestion(container, modal) {
 
     q.options.forEach((option, idx) => {
         html += `
-            <button class="option-btn" data-step="${guidanceStep}" data-option="${idx}">
+            <button class="option-btn" data-step="${guidanceStep}" data-option="${option}">
                 ${option}
             </button>
         `;
@@ -423,6 +427,11 @@ function showGuidanceQuestion(container, modal) {
     // 选项点击事件
     container.querySelectorAll('.option-btn').forEach(btn => {
         btn.addEventListener('click', () => {
+            const answer = btn.dataset.option;
+            userGuidanceAnswers.push({
+                question: q.question,
+                answer: answer
+            });
             guidanceStep++;
             showGuidanceQuestion(container, modal);
         });
@@ -431,7 +440,43 @@ function showGuidanceQuestion(container, modal) {
     modal.style.display = 'flex';
 }
 
-function generateOutlineFromAnswers() {
+async function generateOutlineFromAnswers(userAnswers = null) {
+    // 显示加载状态
+    outlinePanel.innerHTML = '<p class="loading">🔄 ' + 
+        (currentLanguage === 'zh' ? 'AI正在为你生成个性化大纲...' : 'AI is generating personalized outline...') + 
+        '</p>';
+    
+    try {
+        // 尝试调用AI生成个性化大纲
+        if (userAnswers) {
+            const result = await aiService.generateGuidanceResponse(
+                currentType,
+                currentLanguage,
+                userAnswers
+            );
+            
+            const aiOutline = result.message;
+            
+            // 显示AI生成的大纲
+            outlinePanel.innerHTML = `
+                <div class="ai-outline">
+                    <h5>📋 ${currentLanguage === 'zh' ? 'AI个性化大纲' : 'AI Personalized Outline'}</h5>
+                    <div class="outline-content">${aiOutline.replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
+            
+            showNotification(
+                currentLanguage === 'zh' 
+                    ? '✓ AI大纲已生成，根据你的需求定制' 
+                    : '✓ AI outline generated based on your needs'
+            );
+            return;
+        }
+    } catch (error) {
+        console.error('AI大纲生成失败，使用默认模板:', error);
+    }
+    
+    // 如果AI失败，使用默认大纲
     const type = essayTypes[currentType][currentLanguage];
     const sections = type.sections;
     const placeholder = currentLanguage === 'zh' ? '在这里添加内容...' : 'Add content here...';
@@ -471,30 +516,57 @@ function closeGuidanceModal() {
 }
 
 // =========== 素材推荐 ===========
-function showMaterials() {
-    const materials = materialLibrary[currentType][currentLanguage].materials;
-    let html = '';
-
-    materials.forEach(group => {
-        html += `
-            <div class="material-group">
-                <h5>${group.category}</h5>
-                <ul>
-        `;
-        group.examples.forEach(example => {
-            html += `<li>"${example}"</li>`;
-        });
-        html += `</ul></div>`;
-    });
-
-    materialsList.innerHTML = html;
+async function showMaterials() {
+    // 显示加载状态
+    materialsList.innerHTML = '<p class="loading">🔄 ' + (currentLanguage === 'zh' ? 'AI正在为你推荐素材...' : 'AI is recommending materials...') + '</p>';
     materialsPanel.style.display = 'block';
 
-    showNotification(
-        currentLanguage === 'zh'
-            ? '✓ 已加载推荐素材'
-            : '✓ Materials loaded'
-    );
+    try {
+        // 获取当前文章的主题（从标题或内容推断）
+        const topic = titleInput.value || (currentLanguage === 'zh' ? '写作主题' : 'writing topic');
+        
+        // 调用AI服务
+        const result = await aiService.generateMaterials(currentType, currentLanguage, topic);
+        
+        // 解析AI返回的素材
+        const aiResponse = result.message;
+        
+        // 显示AI推荐的素材
+        materialsList.innerHTML = `
+            <div class="ai-materials">
+                <div class="material-content">${aiResponse.replace(/\n/g, '<br>')}</div>
+            </div>
+        `;
+        
+        showNotification(
+            currentLanguage === 'zh'
+                ? '✓ AI素材推荐已生成'
+                : '✓ AI materials generated'
+        );
+        
+    } catch (error) {
+        console.error('素材推荐失败:', error);
+        
+        // 降级到本地素材库
+        const materials = materialLibrary[currentType][currentLanguage].materials;
+        let html = '<p class="fallback-notice">⚠️ ' + 
+            (currentLanguage === 'zh' ? '使用本地素材库（AI暂时不可用）' : 'Using local materials (AI unavailable)') + 
+            '</p>';
+
+        materials.forEach(group => {
+            html += `
+                <div class="material-group">
+                    <h5>${group.category}</h5>
+                    <ul>
+            `;
+            group.examples.forEach(example => {
+                html += `<li>"${example}"</li>`;
+            });
+            html += `</ul></div>`;
+        });
+
+        materialsList.innerHTML = html;
+    }
 }
 
 // =========== 灵感提示和卡顿检测 ===========
@@ -514,31 +586,72 @@ function setupKeystrokeTracking() {
     }, 30000);
 }
 
-function checkInspirationNeeded() {
+async function checkInspirationNeeded() {
     const text = mainEditor.value;
+    
+    if (!text || text.length < 50) {
+        showNotification(
+            currentLanguage === 'zh'
+                ? '请先写入一些内容，AI才能提供针对性建议'
+                : 'Please write some content first for personalized tips'
+        );
+        return;
+    }
+    
     const wordCount = currentLanguage === 'zh'
         ? text.replace(/[^\u4e00-\u9fa5]/g, '').length
         : text.trim().split(/\s+/).filter(w => w).length;
 
-    const tips = inspirationTips[currentType][currentLanguage];
-    let tip;
+    // 显示加载状态
+    aiOutput.innerHTML = '<p class="loading">🔄 ' + 
+        (currentLanguage === 'zh' ? 'AI正在分析你的文章，生成灵感提示...' : 'AI is analyzing your writing...') + 
+        '</p>';
 
-    if (wordCount < essayTypes[currentType][currentLanguage].targetWords / 2) {
-        tip = tips.stallTips[Math.floor(Math.random() * tips.stallTips.length)];
-    } else {
-        tip = tips.progressTips[Math.floor(Math.random() * tips.progressTips.length)];
+    try {
+        const targetWords = essayTypes[currentType][currentLanguage].targetWords;
+        
+        // 调用AI服务
+        const result = await aiService.generateInspiration(
+            currentType, 
+            currentLanguage, 
+            text, 
+            wordCount, 
+            targetWords
+        );
+        
+        const aiTip = result.message;
+        const progress = (wordCount / targetWords * 100).toFixed(0);
+        
+        aiOutput.innerHTML = `
+            <p class="suggestion">💡 ${aiTip}</p>
+            <p class="progress-info">📊 ${
+                currentLanguage === 'zh'
+                    ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
+                    : `Progress: ${wordCount}/${targetWords} words (${progress}%)`
+            }</p>
+        `;
+        
+        showNotification(
+            currentLanguage === 'zh'
+                ? '💡 AI灵感提示已生成'
+                : '💡 AI inspiration generated'
+        );
+        
+    } catch (error) {
+        console.error('灵感提示失败:', error);
+        
+        // 降级到本地提示
+        const tips = inspirationTips[currentType][currentLanguage];
+        const tip = wordCount < essayTypes[currentType][currentLanguage].targetWords / 2
+            ? tips.stallTips[Math.floor(Math.random() * tips.stallTips.length)]
+            : tips.progressTips[Math.floor(Math.random() * tips.progressTips.length)];
+        
+        aiOutput.innerHTML = `<p class="suggestion">${tip}</p>`;
     }
-
-    aiOutput.innerHTML = `<p class="suggestion">${tip}</p>`;
-    showNotification(
-        currentLanguage === 'zh'
-            ? '💡 灵感提示已为你准备好'
-            : '💡 Inspiration tip ready for you'
-    );
 }
 
 // =========== 逻辑修补 ===========
-function startLogicRepair() {
+async function startLogicRepair() {
     if (mainEditor.value.length === 0) {
         showNotification(
             currentLanguage === 'zh'
@@ -550,40 +663,99 @@ function startLogicRepair() {
 
     const modal = document.getElementById('logicModal');
     const content = document.getElementById('logicContent');
-    const questions = logicRepairQuestions[currentType][currentLanguage];
-    let questionIdx = 0;
+    
+    // 显示加载状态
+    content.innerHTML = '<p class="loading">🔄 ' + 
+        (currentLanguage === 'zh' ? 'AI正在分析你的文章逻辑...' : 'AI is analyzing your article logic...') + 
+        '</p>';
+    modal.style.display = 'flex';
 
-    function showLogicQuestion() {
-        if (questionIdx >= questions.length) {
+    try {
+        // 调用AI生成针对性问题
+        const result = await aiService.generateLogicQuestions(
+            currentType,
+            currentLanguage,
+            mainEditor.value
+        );
+        
+        const aiQuestions = result.message;
+        
+        // 将AI返回的问题按行分割
+        const questionsList = aiQuestions.split('\n').filter(q => q.trim().length > 0);
+        let questionIdx = 0;
+
+        function showLogicQuestion() {
+            if (questionIdx >= questionsList.length) {
+                content.innerHTML = `
+                    <div class="logic-complete">
+                        <p>${currentLanguage === 'zh' 
+                            ? '✓ AI逻辑修补问题已全部展示。请根据这些问题反思并改进你的文章。' 
+                            : '✓ All AI logic repair questions shown. Reflect and improve your article.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const q = questionsList[questionIdx];
             content.innerHTML = `
-                <div class="logic-complete">
-                    <p>${currentLanguage === 'zh' ? '✓ 你已经完成了逻辑修补检查。根据上述问题反思并改进你的文章。' : '✓ You have completed the logic repair review. Reflect and improve your article.'}</p>
+                <div class="logic-question">
+                    <p class="question-label">${currentLanguage === 'zh' ? '问题' : 'Question'} ${questionIdx + 1}/${questionsList.length}</p>
+                    <p class="question-text">${q}</p>
+                    <textarea class="logic-answer" placeholder="${currentLanguage === 'zh' ? '在这里记录你的思考...' : 'Record your thoughts here...'}"></textarea>
+                    <div class="logic-buttons">
+                        <button class="secondary-btn" id="nextQuestion">
+                            ${currentLanguage === 'zh' ? '下一个问题' : 'Next'}
+                        </button>
+                    </div>
                 </div>
             `;
-            return;
+
+            document.getElementById('nextQuestion').addEventListener('click', () => {
+                questionIdx++;
+                showLogicQuestion();
+            });
         }
 
-        const q = questions[questionIdx];
-        content.innerHTML = `
-            <div class="logic-question">
-                <p class="question-text">${q}</p>
-                <textarea class="logic-answer" placeholder="${currentLanguage === 'zh' ? '在这里记录你的想法...' : 'Record your thoughts here...'}"></textarea>
-                <div class="logic-buttons">
-                    <button class="secondary-btn" id="nextQuestion">
-                        ${currentLanguage === 'zh' ? '下一个问题' : 'Next'}
-                    </button>
+        showLogicQuestion();
+        
+    } catch (error) {
+        console.error('逻辑修补失败:', error);
+        
+        // 降级到本地问题库
+        const questions = logicRepairQuestions[currentType][currentLanguage];
+        let questionIdx = 0;
+
+        function showLogicQuestion() {
+            if (questionIdx >= questions.length) {
+                content.innerHTML = `
+                    <div class="logic-complete">
+                        <p>${currentLanguage === 'zh' ? '✓ 你已经完成了逻辑修补检查。' : '✓ Logic repair complete.'}</p>
+                    </div>
+                `;
+                return;
+            }
+
+            const q = questions[questionIdx];
+            content.innerHTML = `
+                <div class="logic-question">
+                    <p class="question-text">${q}</p>
+                    <textarea class="logic-answer" placeholder="${currentLanguage === 'zh' ? '在这里记录你的想法...' : 'Record your thoughts here...'}"></textarea>
+                    <div class="logic-buttons">
+                        <button class="secondary-btn" id="nextQuestion">
+                            ${currentLanguage === 'zh' ? '下一个问题' : 'Next'}
+                        </button>
+                    </div>
                 </div>
-            </div>
-        `;
+            `;
 
-        document.getElementById('nextQuestion').addEventListener('click', () => {
-            questionIdx++;
-            showLogicQuestion();
-        });
+            document.getElementById('nextQuestion').addEventListener('click', () => {
+                questionIdx++;
+                showLogicQuestion();
+            });
+        }
+
+        showLogicQuestion();
     }
-
-    showLogicQuestion();
-    modal.style.display = 'flex';
 }
 
 function closeLogicModal() {
