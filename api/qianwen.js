@@ -19,7 +19,7 @@ export default async function handler(req, res) {
 
     // 从环境变量获取API密钥（在Vercel中配置）
     // 如果环境变量未设置，使用备用密钥（仅供开发测试）
-    const API_KEY = process.env.QIANWEN_API_KEY || 'YOUR_API_KEY_HERE';
+    const API_KEY = process.env.QIANWEN_API_KEY || 'sk-e88b8aa3aa5b4f69bc69af0269854496';
     
     if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
         return res.status(500).json({ 
