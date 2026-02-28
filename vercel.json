@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/qianwen.js",
+      "src": "api/*.js",
       "use": "@vercel/node"
     }
   ],
@@ -13,7 +13,10 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/$1"
+      "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "QIANWEN_API_KEY": "@qianwen_api_key"
+  }
 }
