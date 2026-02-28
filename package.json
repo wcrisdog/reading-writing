@@ -1,11 +1,15 @@
 {
   "name": "reading-writing",
   "version": "1.0.0",
+  "type": "module",
   "description": "AI-powered writing platform",
-  "main": "index.js",
+  "main": "index.html",
   "scripts": {
     "dev": "vercel dev",
-    "build": "echo 'No build step'"
+    "build": "echo 'Building static site'"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "engines": {
+    "node": "18.x"
+  }
 }

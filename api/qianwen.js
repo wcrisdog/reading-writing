@@ -1,15 +1,12 @@
-// Vercel Serverless Function - 通义千问API代理
-// 用于处理前端的AI请求，避免暴露API密钥
-
-export default async function handler(req, res) {
+module.exports = async (req, res) => {
     // 只允许POST请求
     if (req.method !== 'POST') {
-        return res.status(405).json({ error: 'Method not allowed' });
+        return res.status(405).json({ error: '方法不允许' });
     }
 
     // 允许跨域请求
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'POST');
+    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 
     // 处理OPTIONS预检请求
@@ -17,69 +14,59 @@ export default async function handler(req, res) {
         return res.status(200).end();
     }
 
-    // 从环境变量获取API密钥（在Vercel中配置）
-    // 如果环境变量未设置，使用备用密钥（仅供开发测试）
-    const API_KEY = process.env.QIANWEN_API_KEY || 'sk-e88b8aa3aa5b4f69bc69af0269854496';
-    
-    if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
-        return res.status(500).json({ 
-            error: '服务器配置错误：未设置API密钥',
-            message: '请在Vercel环境变量中添加 QIANWEN_API_KEY，或在代码中设置备用密钥'
-        });
-    }
-
-    const { messages, type, essayType } = req.body;
-
     try {
-        // 调用通义千问API
+        const { messages, type, essayType } = req.body;
+
+        // 获取API密钥
+        const API_KEY = process.env.QIANWEN_API_KEY;
+        
+        if (!API_KEY) {
+            return res.status(500).json({ 
+                error: '服务器配置错误：API密钥未设置',
+                message: '请在Vercel环境变量中添加 QIANWEN_API_KEY'
+            });
+        }
+
+        console.log(`[${new Date().toISOString()}] 调用千问API - 类型: ${type}, 文章类型: ${essayType}`);
+
         const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
                 'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'qwen-turbo', // 使用qwen-turbo模型（免费额度较多）
-                input: {
-                    messages: messages
-                },
-                parameters: {
-                    result_format: 'message',
-                    temperature: 0.7, // 创意程度
-                    top_p: 0.8,
-                    max_tokens: 1500,
-                }
+                model: 'qwen-turbo',
+                messages: messages,
+                max_tokens: 1500,
+                temperature: 0.7,
             })
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            console.error('通义千问API错误:', errorData);
-            return res.status(response.status).json({
-                error: '调用AI服务失败',
-                details: errorData
+            const errorText = await response.text();
+            console.error('千问API错误响应:', errorText);
+            return res.status(response.status).json({ 
+                error: '千问API调用失败',
+                details: errorText
             });
         }
 
         const data = await response.json();
-        
-        // 提取AI回复内容
-        const aiMessage = data.output?.choices?.[0]?.message?.content || data.output?.text || '抱歉，无法生成回复';
 
-        // 返回结果
         return res.status(200).json({
             success: true,
-            message: aiMessage,
+            message: data.output.text,
             type: type,
             essayType: essayType,
-            usage: data.usage // 返回token使用情况
+            usage: data.usage
         });
 
     } catch (error) {
-        console.error('处理请求时出错:', error);
+        console.error('服务器错误:', error);
         return res.status(500).json({
             error: '服务器内部错误',
             message: error.message
         });
     }
-}
+};
