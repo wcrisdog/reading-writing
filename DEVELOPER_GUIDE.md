@@ -13,17 +13,17 @@
 1. 访问阿里云百炼：https://dashscope.aliyuncs.com/
 2. 登录并获取你的 API Key（格式：`sk-xxxxxx`）
 
-#### 2. 修改后端代码
+#### 2. 后端密钥管理（推荐环境变量）
 
-在 `api/qianwen.js` 第23行，将 `YOUR_API_KEY_HERE` 替换为你的实际API密钥：
+`api/qianwen.js` 默认只读取环境变量：
 
 ```javascript
-const API_KEY = process.env.QIANWEN_API_KEY || 'sk-your-actual-api-key-here';
+const API_KEY = process.env.QIANWEN_API_KEY;
 ```
 
 **⚠️ 安全提示：**
-- 如果不希望在代码中硬编码API密钥，请使用Vercel环境变量（见下方步骤3）
-- 确保 `.env` 文件已在 `.gitignore` 中，不要提交到Git
+- 不要在仓库中硬编码 API Key
+- 在 Vercel 项目设置中添加 `QIANWEN_API_KEY`
 
 #### 3. 部署到 Vercel
 
@@ -62,14 +62,16 @@ vercel --prod
 
 #### 4. 配置前端
 
-部署成功后，Vercel会提供一个URL（如 `https://your-project.vercel.app`）
+部署成功后，Vercel会提供一个URL（如 `https://your-project.vercel.app`）。
 
-**如果前端也部署在Vercel：** 无需额外配置，相对路径 `/api/qianwen` 会自动工作
+**如果前端也部署在Vercel：** 无需额外配置，前端默认调用同源 `/api/qianwen`。
 
-**如果前端部署在GitHub Pages：** 需要修改 `ai-service.js` 第10行：
+**如果前端部署在GitHub Pages：** 在 `index.html` 里、`ai-service.js` 之前添加：
 
-```javascript
-this.apiEndpoint = 'https://your-project.vercel.app/api/qianwen';
+```html
+<script>
+    window.__AI_API_BASE_URL = 'https://your-project.vercel.app';
+</script>
 ```
 
 ### 方式二：使用其他平台
@@ -223,7 +225,7 @@ fetch('https://your-project.vercel.app/api/qianwen', {
 
 **解决：**
 1. 检查Vercel环境变量是否正确设置
-2. 或在代码中硬编码密钥进行测试
+2. 在 Vercel 项目设置中重新保存 `QIANWEN_API_KEY`
 3. 确认密钥格式正确（以 `sk-` 开头）
 
 ### 问题3：CORS  错误
@@ -265,7 +267,7 @@ res.setHeader('Access-Control-Allow-Origin', '*');
 ## ✅ 完成检查清单
 
 - [ ] 获取阿里云API密钥
-- [ ] 修改 `api/qianwen.js` 或设置Vercel环境变量
+- [ ] 在 Vercel 中设置 `QIANWEN_API_KEY`
 - [ ] 部署到Vercel或其他平台
 - [ ] 测试API接口（curl或浏览器）
 - [ ] 访问前端网站测试AI功能

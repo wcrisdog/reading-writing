@@ -29,19 +29,27 @@ module.exports = async (req, res) => {
             });
         }
 
-        const { messages, type, essayType } = req.body;
+        const payload = typeof req.body === 'string' ? JSON.parse(req.body || '{}') : (req.body || {});
+        const { messages, type, essayType } = payload;
+
+        if (!Array.isArray(messages) || messages.length === 0) {
+            return res.status(400).json({
+                error: 'Invalid Request',
+                message: 'messages 必须是非空数组'
+            });
+        }
 
         console.log(`✅ 收到请求 - 类型: ${type}, 文章: ${essayType}`);
 
-        // 调用千问API
-        const response = await fetch('https://dashscope.aliyuncs.com/api/v1/services/aigc/text-generation/generation', {
+        // 调用通义千问 OpenAI 兼容接口
+        const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${API_KEY}`,
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: 'qwen-turbo',
+                model: 'qwen-plus',
                 messages: messages,
                 max_tokens: 2000,
                 temperature: 0.7,
@@ -59,14 +67,16 @@ module.exports = async (req, res) => {
         }
 
         const data = await response.json();
+        const message = data?.choices?.[0]?.message?.content || '';
 
         console.log('✅ 千问API响应成功');
         
         return res.status(200).json({
             success: true,
-            message: data.output?.text || '',
+            message,
             type: type,
-            essayType: essayType
+            essayType: essayType,
+            usage: data?.usage || null
         });
 
     } catch (error) {

@@ -64,18 +64,18 @@
 
 **🌐 在线地址 / Live URL:** https://your-deployment.vercel.app
 
-> ⚠️ 首次部署需要按照 [DEPLOY.md](DEPLOY.md) 配置AI API密钥
+> ⚠️ 首次部署请先阅读 [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) 并配置 `QIANWEN_API_KEY`
 
 ### 部署你自己的版本 / Deploy Your Own
 
 想要使用完整的AI功能？按照以下步骤部署：
 
-1. **申请API密钥** - 参考 [DEPLOY.md](DEPLOY.md) 获取阿里云通义千问API密钥（免费100万tokens）
+1. **申请API密钥** - 参考 [DEVELOPER_GUIDE.md](DEVELOPER_GUIDE.md) 获取阿里云通义千问API密钥（免费100万tokens）
 2. **一键部署到Vercel** - 完全免费，自动HTTPS，全球CDN
 3. **配置环境变量** - 在Vercel中添加API密钥
 4. **分享给朋友** - 任何人都可以通过链接访问！
 
-详细部署步骤请查看：**[📖 DEPLOY.md - 完整部署指南](DEPLOY.md)**
+详细部署步骤请查看：**[📖 DEVELOPER_GUIDE.md - 完整部署指南](DEVELOPER_GUIDE.md)**
 
 ### 本地开发 / Local Development
 
@@ -120,8 +120,13 @@ npx http-server
 ```
 reading-writing/
 ├── index.html      # 主页面 / Main page
+├── ai-service.js   # AI 请求封装 / AI service layer
 ├── styles.css      # 样式文件 / Styles
 ├── script.js       # JavaScript 逻辑 / JavaScript logic
+├── api/
+│   └── qianwen.js  # Vercel Serverless API / Qianwen proxy
+├── vercel.json     # Vercel 配置 / Vercel config
+├── DEVELOPER_GUIDE.md # 部署与开发指南 / Deployment guide
 └── README.md       # 说明文档 / Documentation
 ```
 

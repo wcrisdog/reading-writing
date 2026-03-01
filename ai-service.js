@@ -3,12 +3,12 @@
 
 class AIService {
     constructor() {
-        // 使用后端API代理（GitHub Pages + Vercel）
-        // 开发环境：本地测试时使用localhost
-        // 生产环境：固定使用Vercel域名，避免GitHub Pages出现404
-        this.apiEndpoint = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-            ? 'http://localhost:3000/api/qianwen'  // 本地开发测试
-            : 'https://reading-writing.vercel.app/api/qianwen';  // 生产环境（Vercel）
+        // 默认使用同源 API，确保 Vercel 部署时无需硬编码域名
+        // 如需跨域（例如前端托管在 GitHub Pages），可在页面注入 window.__AI_API_BASE_URL
+        const customBaseUrl = (window.__AI_API_BASE_URL || '').trim().replace(/\/$/, '');
+        this.apiEndpoint = customBaseUrl
+            ? `${customBaseUrl}/api/qianwen`
+            : '/api/qianwen';
         
         console.log('✨ AI服务已初始化，API密钥由后端管理');
     }
