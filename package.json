@@ -5,7 +5,7 @@
   "main": "index.html",
   "scripts": {
     "dev": "vercel dev",
-    "build": "echo 'Static site - no build needed'"
+    "build": "mkdir -p public && cp index.html styles.css script.js ai-service.js public/"
   },
   "keywords": ["writing", "ai"],
   "author": "",
