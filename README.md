@@ -208,4 +208,4 @@ MIT License
 
 ---
 
-© 2024 入心 - 助力人们更好地完成阅读写作任务 | Helping people accomplish reading and writing tasks better
+© 2026 入心 - 助力人们更好地完成阅读写作任务 | Helping people accomplish reading and writing tasks better
