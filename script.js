@@ -792,20 +792,25 @@ const logicRepairQuestions = {
     }
 };
 
-// =========== DOM 元素 ===========
-const mainEditor = document.getElementById('mainEditor');
-const titleInput = document.getElementById('titleInput');
-const charCount = document.getElementById('charCount');
-const wordCount = document.getElementById('wordCount');
-const paraCount = document.getElementById('paraCount');
-const templateInfo = document.getElementById('templateInfo');
-const aiOutput = document.getElementById('aiOutput');
-const outlinePanel = document.getElementById('outlinePanel');
-const materialsList = document.getElementById('materialsList');
-const materialsPanel = document.getElementById('materialsPanel');
+// =========== DOM 元素（全局变量声明）===========
+let mainEditor, titleInput, charCount, wordCount, paraCount;
+let templateInfo, aiOutput, outlinePanel, materialsList, materialsPanel;
 
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
+    // 获取 DOM 元素
+    mainEditor = document.getElementById('mainEditor');
+    titleInput = document.getElementById('titleInput');
+    charCount = document.getElementById('charCount');
+    wordCount = document.getElementById('wordCount');
+    paraCount = document.getElementById('paraCount');
+    templateInfo = document.getElementById('templateInfo');
+    aiOutput = document.getElementById('aiOutput');
+    outlinePanel = document.getElementById('outlinePanel');
+    materialsList = document.getElementById('materialsList');
+    materialsPanel = document.getElementById('materialsPanel');
+    
+    // 初始化应用
     loadSavedContent();
     updateTemplate();
     setupEventListeners();
