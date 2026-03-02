@@ -707,3 +707,429 @@ footer p {
     font-size: 0.9rem;
     margin-bottom: 0.5rem;
 }
+/* 启动引导样式增强 */
+.guidance-textarea {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
+    font-family: inherit;
+    font-size: 1rem;
+    resize: vertical;
+    transition: border-color 0.3s ease;
+}
+
+.guidance-textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.1);
+}
+
+.guidance-next-btn {
+    width: 100%;
+    padding: 1rem;
+    margin-top: 1rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.guidance-next-btn:hover {
+    background: #357abd;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+}
+
+.ai-feedback-container,
+.ai-feedback-result {
+    padding: 1.5rem;
+    background: #f0f9ff;
+    border-left: 4px solid var(--primary-color);
+    border-radius: 8px;
+    animation: fadeIn 0.5s ease;
+}
+
+.ai-suggestion {
+    padding: 1rem;
+    background: white;
+    border-radius: 6px;
+    line-height: 1.8;
+    margin-bottom: 1rem;
+    color: var(--dark-color);
+}
+
+.feedback-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+
+.guidance-accept-btn,
+.guidance-modify-btn {
+    flex: 1;
+    padding: 0.875rem;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.guidance-accept-btn {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.guidance-accept-btn:hover {
+    background: #45b869;
+    transform: translateY(-2px);
+}
+
+.guidance-modify-btn {
+    background: var(--accent-color);
+    color: white;
+}
+
+.guidance-modify-btn:hover {
+    background: #e08e0b;
+    transform: translateY(-2px);
+}
+
+.modification-input {
+    padding: 1rem;
+}
+
+.modification-label {
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+    color: var(--dark-color);
+}
+
+.guidance-resubmit-btn,
+.guidance-skip-btn {
+    width: 100%;
+    padding: 0.875rem;
+    margin-top: 1rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 0.95rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.guidance-skip-btn {
+    background: #95a5a6;
+}
+
+.guidance-skip-btn:hover {
+    background: #7f8c8d;
+}
+
+.detailed-outline {
+    background: #f0f9ff;
+    border: 2px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    animation: fadeIn 0.5s ease;
+}
+
+.detailed-outline h5 {
+    color: var(--primary-color);
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+}
+
+.outline-hint {
+    margin-top: 1.5rem;
+    padding: 1rem;
+    background: #fff3cd;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #856404;
+}
+
+/* 素材卡片样式 */
+.materials-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border-color);
+}
+
+.materials-header h5 {
+    font-size: 1rem;
+    color: var(--dark-color);
+    margin: 0;
+}
+
+.refresh-materials-btn {
+    padding: 0.5rem 1rem;
+    background: white;
+    border: 2px solid var(--primary-color);
+    color: var(--primary-color);
+    border-radius: var(--radius);
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.refresh-materials-btn:hover {
+    background: var(--primary-color);
+    color: white;
+    transform: scale(1.05);
+}
+
+.material-card {
+    background: white;
+    border: 2px solid var(--border-color);
+    border-radius: var(--radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    transition: all 0.3s ease;
+    animation: slideUp 0.4s ease;
+}
+
+.material-card:hover {
+    border-color: var(--primary-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    transform: translateY(-2px);
+}
+
+.material-card.material-used {
+    border-color: var(--secondary-color);
+    background: #f0fff4;
+}
+
+.material-card.material-expanded .material-usage,
+.material-card.material-expanded .material-scene {
+    display: block !important;
+}
+
+.material-category {
+    display: inline-block;
+    background: var(--primary-color);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: 500;
+    margin-bottom: 0.75rem;
+}
+
+.material-content {
+    color: var(--dark-color);
+    line-height: 1.6;
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+}
+
+.material-usage {
+    background: #f0f9ff;
+    padding: 0.75rem;
+    border-left: 3px solid var(--primary-color);
+    border-radius: 4px;
+    margin-top: 0.75rem;
+    font-size: 0.9rem;
+    display: none;
+}
+
+.material-usage strong {
+    color: var(--primary-color);
+}
+
+.material-usage p {
+    margin-top: 0.5rem;
+    color: #555;
+    line-height: 1.6;
+}
+
+.material-scene {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    background: #fff3cd;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    color: #856404;
+    display: none;
+}
+
+.material-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+}
+
+.material-use-btn,
+.material-expand-btn {
+    flex: 1;
+    padding: 0.5rem;
+    border: none;
+    border-radius: 4px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.material-use-btn {
+    background: var(--secondary-color);
+    color: white;
+}
+
+.material-use-btn:hover {
+    background: #45b869;
+    transform: scale(1.05);
+}
+
+.material-expand-btn {
+    background: var(--light-color);
+    color: var(--dark-color);
+}
+
+.material-expand-btn:hover {
+    background: var(--border-color);
+}
+
+/* 灵感提示样式 */
+.stall-notice {
+    padding: 1rem;
+    background: #fff3cd;
+    border-left: 4px solid var(--accent-color);
+    border-radius: 6px;
+    color: #856404;
+    margin-bottom: 1rem;
+    animation: fadeIn 0.5s ease;
+}
+
+.inspiration-tip {
+    background: #f0f9ff;
+    border: 2px solid var(--primary-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    animation: slideUp 0.5s ease;
+}
+
+.tip-header {
+    font-weight: 600;
+    color: var(--primary-color);
+    margin-bottom: 0.75rem;
+    font-size: 1rem;
+}
+
+.inspiration-tip .suggestion {
+    background: white;
+    padding: 1rem;
+    border-radius: 6px;
+    line-height: 1.8;
+    color: var(--dark-color);
+    margin-bottom: 1rem;
+}
+
+/* 逻辑修补增强样式 */
+.logic-question {
+    animation: slideUp 0.4s ease;
+}
+
+.question-hint {
+    background: #f0f9ff;
+    padding: 0.875rem;
+    border-left: 3px solid var(--primary-color);
+    border-radius: 6px;
+    margin: 1rem 0;
+    font-size: 0.9rem;
+    color: #555;
+    line-height: 1.6;
+}
+
+.logic-feedback {
+    background: #f0fff4;
+    border: 2px solid var(--secondary-color);
+    border-radius: 8px;
+    padding: 1.5rem;
+    animation: fadeIn 0.5s ease;
+}
+
+.feedback-header {
+    font-weight: 600;
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+    font-size: 1rem;
+}
+
+.feedback-content {
+    background: white;
+    padding: 1rem;
+    border-radius: 6px;
+    line-height: 1.8;
+    color: var(--dark-color);
+    margin-bottom: 1rem;
+}
+
+.feedback-hint {
+    background: #fff3cd;
+    padding: 0.875rem;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    color: #856404;
+    margin-bottom: 1rem;
+}
+
+.logic-complete h3 {
+    color: var(--secondary-color);
+    margin-bottom: 1rem;
+}
+
+.summary-hint {
+    background: #f0f9ff;
+    padding: 1rem;
+    border-left: 3px solid var(--primary-color);
+    border-radius: 6px;
+    margin: 1rem 0;
+    font-size: 0.95rem;
+    color: #555;
+    line-height: 1.6;
+}
+
+.primary-btn {
+    padding: 0.875rem 1.5rem;
+    background: var(--primary-color);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    font-size: 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.primary-btn:hover {
+    background: #357abd;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+}
+
+/* 响应式设计优化 */
+@media (max-width: 768px) {
+    .material-card {
+        padding: 0.875rem;
+    }
+    
+    .material-actions {
+        flex-direction: column;
+    }
+    
+    .feedback-actions {
+        flex-direction: column;
+    }
+}
