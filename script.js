@@ -798,6 +798,8 @@ let templateInfo, aiOutput, outlinePanel, materialsList, materialsPanel;
 
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOMContentLoaded event triggered');
+    
     // 获取 DOM 元素
     mainEditor = document.getElementById('mainEditor');
     titleInput = document.getElementById('titleInput');
@@ -810,19 +812,31 @@ document.addEventListener('DOMContentLoaded', () => {
     materialsList = document.getElementById('materialsList');
     materialsPanel = document.getElementById('materialsPanel');
     
+    console.log('✅ DOM elements fetched:', {
+        mainEditor: !!mainEditor,
+        titleInput: !!titleInput,
+        templateInfo: !!templateInfo,
+        aiOutput: !!aiOutput
+    });
+    
     // 初始化应用
     loadSavedContent();
     updateTemplate();
     setupEventListeners();
     updateStats();
     setupKeystrokeTracking();
+    
+    console.log('✅ Initialization complete');
 });
 
 // =========== 事件监听设置 ===========
 function setupEventListeners() {
+    console.log('🔧 setupEventListeners started');
+    
     // 写作类型切换
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
+            console.log('📌 nav-btn clicked:', e.target.dataset.type);
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
             e.target.classList.add('active');
             currentType = e.target.dataset.type;
@@ -834,6 +848,7 @@ function setupEventListeners() {
     // 语言切换
     document.querySelectorAll('input[name="language"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
+            console.log('🌍 language changed:', e.target.value);
             currentLanguage = e.target.value;
             updateTemplate();
         });
@@ -864,10 +879,52 @@ function setupEventListeners() {
     const getInspirationBtn = document.getElementById('getInspiration');
     const logicRepairBtn = document.getElementById('logicRepair');
     
-    if (launchGuidanceBtn) launchGuidanceBtn.addEventListener('click', startGuidance);
-    if (getMaterialsBtn) getMaterialsBtn.addEventListener('click', showMaterials);
-    if (getInspirationBtn) getInspirationBtn.addEventListener('click', checkInspirationNeeded);
-    if (logicRepairBtn) logicRepairBtn.addEventListener('click', startLogicRepair);
+    console.log('🎯 Button elements:', {
+        launchGuidance: !!launchGuidanceBtn,
+        getMaterials: !!getMaterialsBtn,
+        getInspiration: !!getInspirationBtn,
+        logicRepair: !!logicRepairBtn
+    });
+    
+    if (launchGuidanceBtn) {
+        console.log('✅ Adding launchGuidance click listener');
+        launchGuidanceBtn.addEventListener('click', () => {
+            console.log('🚀 launchGuidance clicked');
+            startGuidance();
+        });
+    } else {
+        console.error('❌ launchGuidanceBtn not found!');
+    }
+    
+    if (getMaterialsBtn) {
+        console.log('✅ Adding getMaterials click listener');
+        getMaterialsBtn.addEventListener('click', () => {
+            console.log('📚 getMaterials clicked');
+            showMaterials();
+        });
+    } else {
+        console.error('❌ getMaterialsBtn not found!');
+    }
+    
+    if (getInspirationBtn) {
+        console.log('✅ Adding getInspiration click listener');
+        getInspirationBtn.addEventListener('click', () => {
+            console.log('💡 getInspiration clicked');
+            checkInspirationNeeded();
+        });
+    } else {
+        console.error('❌ getInspirationBtn not found!');
+    }
+    
+    if (logicRepairBtn) {
+        console.log('✅ Adding logicRepair click listener');
+        logicRepairBtn.addEventListener('click', () => {
+            console.log('🔍 logicRepair clicked');
+            startLogicRepair();
+        });
+    } else {
+        console.error('❌ logicRepairBtn not found!');
+    }
 
     // 模态框关闭
     const closeModalBtn = document.getElementById('closeModal');
@@ -890,6 +947,11 @@ function setupEventListeners() {
     const guidanceModal = document.getElementById('guidanceModal');
     const logicModal = document.getElementById('logicModal');
     
+    console.log('📋 Modals:', {
+        guidanceModal: !!guidanceModal,
+        logicModal: !!logicModal
+    });
+    
     if (guidanceModal) {
         guidanceModal.addEventListener('click', (e) => {
             if (e.target.id === 'guidanceModal') closeGuidanceModal();
@@ -901,13 +963,7 @@ function setupEventListeners() {
         });
     }
     
-    console.log('事件监听器设置完成');
-    console.log('按钮元素检查:', {
-        launchGuidance: !!launchGuidanceBtn,
-        getMaterials: !!getMaterialsBtn,
-        getInspiration: !!getInspirationBtn,
-        logicRepair: !!logicRepairBtn
-    });
+    console.log('✅ setupEventListeners completed');
 }
 
 // =========== 启动引导功能（6步详细流程）===========
@@ -2102,3 +2158,85 @@ style.textContent = `
     }
 `;
 document.head.appendChild(style);
+
+// 诊断函数 - 用于调试事件监听器问题
+function runDiagnostics() {
+    console.log('=== 🔍 开始诊断 ===');
+    console.log('');
+    
+    // 检查 DOM 元素
+    console.log('📋 1. DOM 元素检查:');
+    const buttons = {
+        '启动引导': 'launchGuidance',
+        '素材推荐': 'getMaterials',
+        '灵感提示': 'getInspiration',
+        '逻辑修补': 'logicRepair',
+        '保存': 'saveBtn',
+        '清空': 'clearBtn',
+        '导出': 'exportBtn',
+        '自动保存': 'autoSaveToggle'
+    };
+    
+    Object.entries(buttons).forEach(([name, id]) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            console.log(`  ✅ ${name} (${id}): 找到`);
+            console.log(`     - 显示状态: ${btn.style.display || '默认'}`);
+            console.log(`     - 禁用状态: ${btn.disabled}`);
+            console.log(`     - pointer-events: ${window.getComputedStyle(btn).pointerEvents}`);
+        } else {
+            console.log(`  ❌ ${name} (${id}): 未找到`);
+        }
+    });
+    
+    console.log('');
+    console.log('📋 2. 事件监听器检查:');
+    Object.entries(buttons).forEach(([name, id]) => {
+        const btn = document.getElementById(id);
+        if (btn) {
+            const listeners = getEventListeners(btn);
+            if (listeners && listeners.click) {
+                console.log(`  ✅ ${name}: 有 ${listeners.click.length} 个 click 监听器`);
+            } else {
+                console.log(`  ⚠️ ${name}: 没有找到 click 监听器`);
+            }
+        }
+    });
+    
+    console.log('');
+    console.log('📋 3. 函数检查:');
+    const functions = [
+        'startGuidance',
+        'showMaterials',
+        'checkInspirationNeeded',
+        'startLogicRepair',
+        'saveContent',
+        'clearContent',
+        'exportContent'
+    ];
+    
+    functions.forEach(fnName => {
+        if (typeof window[fnName] === 'function') {
+            console.log(`  ✅ ${fnName}: 存在`);
+        } else {
+            console.log(`  ❌ ${fnName}: 未找到`);
+        }
+    });
+    
+    console.log('');
+    console.log('📋 4. 全局变量检查:');
+    console.log(`  - currentType: ${currentType}`);
+    console.log(`  - currentLanguage: ${currentLanguage}`);
+    console.log(`  - currentLevel: ${currentLevel}`);
+    console.log(`  - autoSaveEnabled: ${autoSaveEnabled}`);
+    
+    console.log('');
+    console.log('📋 5. 手动测试点击:');
+    console.log('  执行: document.getElementById("launchGuidance").click()');
+    console.log('');
+    console.log('=== 诊断完成 ===');
+}
+
+// 使诊断函数在全局作用域可用
+window.runDiagnostics = runDiagnostics;
+console.log('💡 诊断函数已加载，在控制台输入: runDiagnostics() 来运行诊断');
