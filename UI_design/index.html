@@ -1,0 +1,493 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>写作学习平台 - AI写作导师</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h1>✍️ WritePal</h1>
+                <p>AI写作导师</p>
+            </div>
+            
+            <nav class="nav-menu">
+                <button class="nav-btn active" data-tab="dashboard">
+                    <span>📊</span> 仪表板
+                </button>
+                <button class="nav-btn" data-tab="outline">
+                    <span>📋</span> 大纲生成
+                </button>
+                <button class="nav-btn" data-tab="materials">
+                    <span>📚</span> 素材推荐
+                </button>
+                <button class="nav-btn" data-tab="inspiration">
+                    <span>💡</span> 灵感提示
+                </button>
+                <button class="nav-btn" data-tab="guide">
+                    <span>🎓</span> 学习指南
+                </button>
+                <button class="nav-btn" data-tab="editor">
+                    <span>✏️</span> 写作
+                </button>
+            </nav>
+
+            <div class="user-progress">
+                <h3>学习进度</h3>
+                <div class="progress-item">
+                    <label>本周活跃度</label>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: 65%"></div>
+                    </div>
+                    <span class="progress-text">65%</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区域 -->
+        <main class="main-content">
+            <!-- 仪表板 -->
+            <section id="dashboard" class="content-section active">
+                <header class="section-header">
+                    <h2>欢迎来到写作学习平台</h2>
+                    <p>这里是你的私人写作导师，帮助你成为更好的写手</p>
+                </header>
+
+                <div class="dashboard-grid">
+                    <div class="dashboard-card">
+                        <h3>📝 开始新项目</h3>
+                        <p>创建一篇新文章并获得个性化的写作指导</p>
+                        <button class="btn btn-primary" onclick="startWritingSession()">开始写作</button>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <h3>🎯 最近的项目</h3>
+                        <div id="recent-projects" class="projects-list">
+                            <p class="empty-state">还没有项目，开始创建一个吧！</p>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <h3>📊 学习统计</h3>
+                        <div class="stats">
+                            <div class="stat-item">
+                                <span class="stat-value">12</span>
+                                <span class="stat-label">已完成文章</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">47</span>
+                                <span class="stat-label">学习时长(小时)</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">24</span>
+                                <span class="stat-label">获得建议数</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-card">
+                        <h3>💡 写作小贴士</h3>
+                        <div id="tips-container">
+                            <p id="daily-tip" class="tip-text"></p>
+                        </div>
+                        <button class="btn btn-secondary" onclick="showNextTip()">下一条建议</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 大纲生成 -->
+            <section id="outline" class="content-section">
+                <header class="section-header">
+                    <h2>🎬 大纲生成助手</h2>
+                    <p>根据你的想法生成结构化的文章大纲，帮助你理清思路</p>
+                </header>
+
+                <div class="outline-container">
+                    <form id="outline-form" class="form-section">
+                        <div class="form-group">
+                            <label for="article-topic">文章主题</label>
+                            <input 
+                                type="text" 
+                                id="article-topic" 
+                                placeholder="例如：如何提高写作水平"
+                                class="form-input"
+                            >
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="article-type">文章类型</label>
+                                <select id="article-type" class="form-input">
+                                    <option value="">选择类型</option>
+                                    <option value="blog">博客文章</option>
+                                    <option value="essay">评论文章</option>
+                                    <option value="tutorial">教程指南</option>
+                                    <option value="story">故事叙事</option>
+                                    <option value="research">研究报告</option>
+                                    <option value="review">评测评论</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="outline-depth">大纲深度</label>
+                                <select id="outline-depth" class="form-input">
+                                    <option value="simple">简单 (3-4个部分)</option>
+                                    <option value="medium" selected>中等 (5-7个部分)</option>
+                                    <option value="detailed">详尽 (8-10个部分)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label for="target-audience">目标读者</label>
+                            <input 
+                                type="text" 
+                                id="target-audience" 
+                                placeholder="例如：初学者、专业人士、所有人"
+                                class="form-input"
+                            >
+                        </div>
+
+                        <div class="form-group">
+                            <label for="key-points">主要观点（可选）</label>
+                            <textarea 
+                                id="key-points" 
+                                placeholder="输入你想要包含的主要观点或想法（每行一个）"
+                                class="form-textarea"
+                            ></textarea>
+                        </div>
+
+                        <button type="button" class="btn btn-primary" onclick="generateOutline()">
+                            生成大纲
+                        </button>
+                    </form>
+
+                    <div id="outline-output" class="output-section" style="display: none;">
+                        <div class="guidance-box">
+                            <h3>💬 写作指导</h3>
+                            <div id="outline-guidance" class="guidance-text"></div>
+                        </div>
+
+                        <div class="outline-display">
+                            <h3>📋 生成的大纲</h3>
+                            <div id="generated-outline" class="outline-list"></div>
+                        </div>
+
+                        <div class="action-buttons">
+                            <button class="btn btn-secondary" onclick="editOutline()">编辑大纲</button>
+                            <button class="btn btn-secondary" onclick="downloadOutline()">下载大纲</button>
+                            <button class="btn btn-primary" onclick="startWritingFromOutline()">开始写作</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 素材推荐 -->
+            <section id="materials" class="content-section">
+                <header class="section-header">
+                    <h2>📚 素材推荐系统</h2>
+                    <p>获取写作所需的参考资料、案例、数据和灵感来源</p>
+                </header>
+
+                <div class="materials-container">
+                    <div class="materials-form">
+                        <div class="form-group">
+                            <label for="material-topic">写作主题</label>
+                            <input 
+                                type="text" 
+                                id="material-topic" 
+                                placeholder="描述你正在写的内容"
+                                class="form-input"
+                            >
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="material-type">素材类型</label>
+                                <select id="material-type" class="form-input">
+                                    <option value="">全部类型</option>
+                                    <option value="statistics">数据统计</option>
+                                    <option value="case-study">案例研究</option>
+                                    <option value="quote">引言名言</option>
+                                    <option value="example">实际例子</option>
+                                    <option value="source">参考来源</option>
+                                </select>
+                            </div>
+
+                            <div class="form-group">
+                                <label for="material-difficulty">内容难度</label>
+                                <select id="material-difficulty" class="form-input">
+                                    <option value="">任意难度</option>
+                                    <option value="beginner">初级</option>
+                                    <option value="intermediate">中级</option>
+                                    <option value="advanced">高级</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="button" class="btn btn-primary" onclick="recommendMaterials()">
+                            推荐素材
+                        </button>
+                    </div>
+
+                    <div id="materials-output" class="materials-grid" style="display: none;">
+                        <div class="materials-toolbar">
+                            <button class="btn btn-secondary" onclick="refreshMaterials()">刷新素材</button>
+                        </div>
+                        <div id="materials-list" class="grid"></div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 灵感提示 -->
+            <section id="inspiration" class="content-section">
+                <header class="section-header">
+                    <h2>💡 灵感提示引擎</h2>
+                    <p>当你感到困顿时，获取针对性的写作提示和建议</p>
+                </header>
+
+                <div class="inspiration-container">
+                    <div class="inspiration-tools">
+                        <h3>选择你需要的帮助</h3>
+                        
+                        <div class="tool-grid">
+                            <button class="tool-card" onclick="getInspirationForProblem('opening')">
+                                <span class="icon">🎯</span>
+                                <span class="title">开头困难</span>
+                                <p>如何写出吸引人的开头</p>
+                            </button>
+
+                            <button class="tool-card" onclick="getInspirationForProblem('middle')">
+                                <span class="icon">📝</span>
+                                <span class="title">中段展开</span>
+                                <p>如何组织和展开核心内容</p>
+                            </button>
+
+                            <button class="tool-card" onclick="getInspirationForProblem('closing')">
+                                <span class="icon">✨</span>
+                                <span class="title">结尾收尾</span>
+                                <p>如何写出有力的结尾</p>
+                            </button>
+
+                            <button class="tool-card" onclick="getInspirationForProblem('transition')">
+                                <span class="icon">🔗</span>
+                                <span class="title">段落衔接</span>
+                                <p>如何增强段落之间的联系</p>
+                            </button>
+
+                            <button class="tool-card" onclick="getInspirationForProblem('voice')">
+                                <span class="icon">🎤</span>
+                                <span class="title">写作语气</span>
+                                <p>如何确立适当的写作语气</p>
+                            </button>
+
+                            <button class="tool-card" onclick="getInspirationForProblem('engagement')">
+                                <span class="icon">👥</span>
+                                <span class="title">读者互动</span>
+                                <p>如何让文章更有吸引力</p>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div id="inspiration-output" class="inspiration-response" style="display: none;">
+                        <div id="inspiration-content" class="response-content"></div>
+                        <button class="btn btn-secondary" onclick="getNewInspirationIdea()">获取另一个想法</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 学习指南 -->
+            <section id="guide" class="content-section">
+                <header class="section-header">
+                    <h2>🎓 写作学习指南</h2>
+                    <p>提升写作技能的结构化学习路径</p>
+                </header>
+
+                <div class="guide-container">
+                    <div class="guide-modules">
+                        <div class="guide-module">
+                            <h3>基础模块</h3>
+                            <div class="lesson-list">
+                                <button class="lesson-card" onclick="showLesson('clarity')">
+                                    <span class="lesson-number">1</span>
+                                    <div class="lesson-content">
+                                        <h4>清晰表达</h4>
+                                        <p>学习如何用简洁的语言表达复杂的思想</p>
+                                    </div>
+                                </button>
+
+                                <button class="lesson-card" onclick="showLesson('structure')">
+                                    <span class="lesson-number">2</span>
+                                    <div class="lesson-content">
+                                        <h4>文章结构</h4>
+                                        <p>掌握经典的写作框架和结构</p>
+                                    </div>
+                                </button>
+
+                                <button class="lesson-card" onclick="showLesson('style')">
+                                    <span class="lesson-number">3</span>
+                                    <div class="lesson-content">
+                                        <h4>写作风格</h4>
+                                        <p>发展独特的写作风格和声音</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="guide-module">
+                            <h3>进阶模块</h3>
+                            <div class="lesson-list">
+                                <button class="lesson-card" onclick="showLesson('persuasion')">
+                                    <span class="lesson-number">4</span>
+                                    <div class="lesson-content">
+                                        <h4>说服性写作</h4>
+                                        <p>学习如何用文字进行有效的论证</p>
+                                    </div>
+                                </button>
+
+                                <button class="lesson-card" onclick="showLesson('storytelling')">
+                                    <span class="lesson-number">5</span>
+                                    <div class="lesson-content">
+                                        <h4>故事叙述</h4>
+                                        <p>掌握引人入胜的叙述技巧</p>
+                                    </div>
+                                </button>
+
+                                <button class="lesson-card" onclick="showLesson('editing')">
+                                    <span class="lesson-number">6</span>
+                                    <div class="lesson-content">
+                                        <h4>编辑修订</h4>
+                                        <p>学习如何润色和完善你的写作</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="guide-module">
+                            <h3>专项训练</h3>
+                            <div class="lesson-list">
+                                <button class="lesson-card" onclick="showLesson('vocabulary')">
+                                    <span class="lesson-number">7</span>
+                                    <div class="lesson-content">
+                                        <h4>词汇扩展</h4>
+                                        <p>扩大你的词汇库，提高表达精准性</p>
+                                    </div>
+                                </button>
+
+                                <button class="lesson-card" onclick="showLesson('grammar')">
+                                    <span class="lesson-number">8</span>
+                                    <div class="lesson-content">
+                                        <h4>语法应用</h4>
+                                        <p>掌握正确的语法，增强文章的专业性</p>
+                                    </div>
+                                </button>
+
+                                <button class="lesson-card" onclick="showLesson('feedback')">
+                                    <span class="lesson-number">9</span>
+                                    <div class="lesson-content">
+                                        <h4>反馈应用</h4>
+                                        <p>学习如何接收和应用写作反馈</p>
+                                    </div>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div id="lesson-content" class="lesson-display" style="display: none;">
+                        <div class="lesson-details">
+                            <h3 id="lesson-title"></h3>
+                            <div id="lesson-body"></div>
+                            <button class="btn btn-secondary" onclick="closeLessonContent()">关闭</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- 写作编辑器 -->
+            <section id="editor" class="content-section">
+                <header class="section-header">
+                    <h2>✏️ 写作界面</h2>
+                    <p>启动引导、写作与优化一体化的智能编辑环境</p>
+                </header>
+
+                <div class="editor-container">
+                    <div class="editor-sidebar">
+                        <div class="start-guide">
+                            <h3>启动引导</h3>
+                            <div class="form-group">
+                                <label for="doc-type-select">选择文体</label>
+                                <select id="doc-type-select" class="form-input">
+                                    <option value="">请选择</option>
+                                    <option value="议论文">议论文</option>
+                                    <option value="记叙文">记叙文</option>
+                                    <option value="学术论文">学术论文</option>
+                                </select>
+                            </div>
+                            <button class="btn btn-primary" onclick="startWritingSession()">开始引导</button>
+                        </div>
+
+                        <div class="guidance-panel" id="guidance-panel">
+                            <h3>系统问答</h3>
+                            <div id="guidance-content" class="guidance-chat"></div>
+                            <div class="guidance-input-area">
+                                <input type="text" id="guidance-input" class="form-input" placeholder="输入你的回答...">
+                                <button class="btn btn-secondary" onclick="handleGuidanceSubmit()">提交</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="editor-main">
+                        <div class="editor-toolbar">
+                            <button class="btn btn-secondary" onclick="triggerInspirationManually()">求助</button>
+                            <button class="btn btn-secondary" onclick="optimizeText()">优化修补</button>
+                        </div>
+                        <textarea id="writing-area" class="writing-area" placeholder="在这里开始写作..." oninput="resetInactivityTimer()"></textarea>
+                    </div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- 项目编辑器模态框 -->
+    <div id="project-editor" class="modal" style="display: none;">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>创建新项目</h2>
+                <button class="close-btn" onclick="closeProjectEditor()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="project-form">
+                    <div class="form-group">
+                        <label for="project-name">项目标题</label>
+                        <input type="text" id="project-name" class="form-input" placeholder="给你的写作项目起个标题">
+                    </div>
+
+                    <div class="form-group">
+                        <label for="project-description">项目描述</label>
+                        <textarea id="project-description" class="form-textarea" placeholder="简要描述这个项目的内容和目标"></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="project-deadline">完成截期（可选）</label>
+                        <input type="date" id="project-deadline" class="form-input">
+                    </div>
+
+                    <div class="form-row">
+                        <button type="button" class="btn btn-secondary" onclick="closeProjectEditor()">取消</button>
+                        <button type="button" class="btn btn-primary" onclick="createNewProject()">创建项目</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- 通知 -->
+    <div id="notification" class="notification" style="display: none;"></div>
+
+    <script src="js/app.js"></script>
+</body>
+</html>
