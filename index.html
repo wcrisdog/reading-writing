@@ -7,8 +7,13 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <!-- 侧边栏折叠按钮 -->
+    <button class="sidebar-toggle" id="sidebarToggle" title="切换侧边栏">
+        <span class="toggle-icon">✕</span>
+    </button>
+
     <div class="container">
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="logo">
                 <h1>✍️ WritePal</h1>
                 <p>AI写作导师</p>
@@ -50,48 +55,68 @@
         </aside>
 
         <section class="middle-panel">
-            <div class="features-section">
-                <h3>🤖 AI 核心功能</h3>
-                <div class="feature-buttons">
-                    <button class="feature-btn" id="launchGuidance">
-                        <span class="feature-icon">🚀</span>
-                        <div class="feature-text">
-                            <strong>启动引导</strong>
-                            <small>Launch Guidance</small>
-                        </div>
-                    </button>
-                    <button class="feature-btn" id="getMaterials">
-                        <span class="feature-icon">📚</span>
-                        <div class="feature-text">
-                            <strong>素材推荐</strong>
-                            <small>Material Recommendation</small>
-                        </div>
-                    </button>
-                    <button class="feature-btn" id="getInspiration">
-                        <span class="feature-icon">💡</span>
-                        <div class="feature-text">
-                            <strong>灵感提示</strong>
-                            <small>Inspiration Tips</small>
-                        </div>
-                    </button>
-                    <button class="feature-btn" id="logicRepair">
-                        <span class="feature-icon">🔍</span>
-                        <div class="feature-text">
-                            <strong>逻辑修补</strong>
-                            <small>Logic Repair</small>
-                        </div>
-                    </button>
+            <h3>🤖 AI 核心功能</h3>
+            <div class="feature-buttons">
+                <button class="feature-btn" id="launchGuidance">
+                    <span class="feature-icon">🚀</span>
+                    <div class="feature-text">
+                        <strong>启动引导</strong>
+                        <small>Launch Guidance</small>
+                    </div>
+                </button>
+                <button class="feature-btn" id="getMaterials">
+                    <span class="feature-icon">📚</span>
+                    <div class="feature-text">
+                        <strong>素材推荐</strong>
+                        <small>Material Recommendation</small>
+                    </div>
+                </button>
+                <button class="feature-btn" id="getInspiration">
+                    <span class="feature-icon">💡</span>
+                    <div class="feature-text">
+                        <strong>灵感提示</strong>
+                        <small>Inspiration Tips</small>
+                    </div>
+                </button>
+                <button class="feature-btn" id="logicRepair">
+                    <span class="feature-icon">🔍</span>
+                    <div class="feature-text">
+                        <strong>逻辑修补</strong>
+                        <small>Logic Repair</small>
+                    </div>
+                </button>
+            </div>
+        </section>
+
+        <section class="editor-panel">
+            <div class="editor-header">
+                <input type="text" id="titleInput" class="title-input" placeholder="标题 / Title...">
+                <div class="editor-tools">
+                    <button class="tool-btn" id="saveBtn" title="保存 Save">💾</button>
+                    <button class="tool-btn" id="clearBtn" title="清空 Clear">🗑️</button>
+                    <button class="tool-btn" id="exportBtn" title="导出 Export">📥</button>
                 </div>
             </div>
 
-            <div class="ai-suggestions">
+            <textarea id="mainEditor" class="main-editor" placeholder="开始书写你的文字... Start writing your text..."></textarea>
+
+            <div class="editor-footer">
+                <button class="secondary-btn" id="autoSaveToggle">
+                    自动保存: <span id="autoSaveStatus">开启</span> / Auto-save: <span id="autoSaveStatusEn">ON</span>
+                </button>
+                <span class="last-saved">上次保存 / Last saved: <span id="lastSaved">从未</span></span>
+            </div>
+        </section>
+
+        <aside class="info-panel">
+            <div class="info-card">
                 <h3>💬 AI 写作建议</h3>
                 <div id="aiOutput" class="ai-output">
                     <p class="placeholder">AI 建议将显示在这里<br>AI suggestions will appear here</p>
                 </div>
             </div>
 
-            <div class="stats-card">
+            <div class="info-card">
                 <h3>📊 实时统计</h3>
                 <div class="stats-grid">
                     <div class="stat-item">
@@ -116,36 +141,16 @@
                 </div>
             </div>
 
-            <div class="materials-section" id="materialsPanel" style="display:none;">
+            <div class="info-card" id="materialsPanel" style="display:none;">
                 <h3>📚 推荐素材</h3>
                 <div id="materialsList"></div>
             </div>
 
-            <div class="outline-section">
+            <div class="info-card">
                 <h3>📝 写作计划</h3>
                 <div id="outlinePanel"></div>
             </div>
-        </section>
-
-        <section class="editor-panel">
-            <div class="editor-header">
-                <input type="text" id="titleInput" class="title-input" placeholder="标题 / Title...">
-                <div class="editor-tools">
-                    <button class="tool-btn" id="saveBtn" title="保存 Save">💾</button>
-                    <button class="tool-btn" id="clearBtn" title="清空 Clear">🗑️</button>
-                    <button class="tool-btn" id="exportBtn" title="导出 Export">📥</button>
-                </div>
-            </div>
-
-            <textarea id="mainEditor" class="main-editor" placeholder="开始书写你的文字... Start writing your text..."></textarea>
-
-            <div class="editor-footer">
-                <button class="secondary-btn" id="autoSaveToggle">
-                    自动保存: <span id="autoSaveStatus">开启</span> / Auto-save: <span id="autoSaveStatusEn">ON</span>
-                </button>
-                <span class="last-saved">上次保存 / Last saved: <span id="lastSaved">从未</span></span>
-            </div>
-        </section>
+        </aside>
     </div>
 
     <!-- Launch Guidance Modal -->
@@ -169,6 +174,28 @@
     <script src="ai-service.js"></script>
     <script src="script.js"></script>
     <script>
+        // 侧边栏折叠控制
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebarToggle = document.getElementById('sidebarToggle');
+            const sidebar = document.getElementById('sidebar');
+            const container = document.querySelector('.container');
+            
+            if (sidebarToggle && sidebar) {
+                sidebarToggle.addEventListener('click', function() {
+                    sidebar.classList.toggle('collapsed');
+                    container.classList.toggle('sidebar-collapsed');
+                    
+                    // 切换图标
+                    const icon = this.querySelector('.toggle-icon');
+                    if (sidebar.classList.contains('collapsed')) {
+                        icon.textContent = '☰';
+                    } else {
+                        icon.textContent = '✕';
+                    }
+                });
+            }
+        });
+        
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
     </script>
     <script defer src="/_vercel/insights/script.js"></script>
