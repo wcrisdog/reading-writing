@@ -41,6 +41,10 @@ export default async function handler(req, res) {
 
         console.log(`✅ 收到请求 - 类型: ${type}, 文章: ${essayType}`);
 
+        // 根据请求类型调整参数
+        const isDetailedOutline = type === 'detailed-outline';
+        const maxTokens = isDetailedOutline ? 1500 : 2000;
+        
         // 调用通义千问 OpenAI 兼容接口
         const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
             method: 'POST',
@@ -51,8 +55,9 @@ export default async function handler(req, res) {
             body: JSON.stringify({
                 model: 'qwen-plus',
                 messages: messages,
-                max_tokens: 2000,
+                max_tokens: maxTokens,
                 temperature: 0.7,
+                stream: false
             })
         });
 

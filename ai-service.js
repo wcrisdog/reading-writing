@@ -124,65 +124,41 @@ Output format:
             : essayTypeNames[essayType].en;
         
         const systemPrompt = language === 'zh' 
-            ? `你是一位资深的写作指导专家。根据用户在启动引导中的所有回答，生成一份非常详细的${essayTypeName}写作大纲。
+            ? `你是写作指导专家。根据用户回答，生成简洁实用的${essayTypeName}大纲。
+
+格式（4-5个部分）：
+📝 部分标题（建议字数）
+   核心要点：...
+   💡 关键点：...
+   📚 素材：[具体事例/名言]
 
 要求：
-1. 大纲要分成4-6个主要部分，每部分标明标题和要点
-2. **在各个分论点/段落下标注：**
-   - 适配素材（名言、事例、数据等）
-   - 恰当篇幅推荐（建议字数）
-   - 重要论证点/描写重点
-3. 要充分考虑用户的回答，使大纲个性化
-4. 语言要清晰易懂，可操作性强
-5. 适当添加emoji使大纲更生动
+- 个性化，符合用户回答
+- 语言简洁，可操作
+- 标注篇幅和素材`
+            : `You are a writing instructor. Generate a concise ${essayTypeName} outline based on user's answers.
 
-输出格式示例（议论文）：
-📝 一、引言部分（建议100-150字）
-   核心要点：提出中心论点，引发读者思考
-   💡 重要论证点：开门见山，观点鲜明
-   📚 适配素材：可引用[某名言]作为引入
-   
-📝 二、第一分论点：[具体角度]（建议200-250字）
-   核心要点：从[某角度]论证观点
-   💡 重要论证点：案例要典型，分析要深入
-   📚 适配素材：[具体事例]、[相关数据]
-   
-请按此格式生成完整大纲。`
-            : `You are an experienced writing instructor. Based on all the user's answers in the launch guidance, generate a very detailed ${essayTypeName} writing outline.
+Format (4-5 sections):
+📝 Section Title (suggested words)
+   Key points: ...
+   💡 Focus: ...
+   📚 Materials: [specific examples/quotes]
 
 Requirements:
-1. Divide the outline into 4-6 main sections with clear titles and key points
-2. **Mark under each sub-argument/paragraph:**
-   - Suitable materials (quotes, examples, data, etc.)
-   - Appropriate word count recommendation
-   - Key argumentation points/descriptive focus
-3. Fully consider user's answers for personalization
-4. Use clear, actionable language
-5. Add appropriate emojis for engagement
-
-Output format example (argumentative essay):
-📝 I. Introduction (Suggested 100-150 words)
-   Key points: Present central argument, engage readers
-   💡 Key argumentation points: Direct and clear viewpoint
-   📚 Suitable materials: Quote [specific quote] as introduction
-   
-📝 II. First Sub-argument: [specific angle] (Suggested 200-250 words)
-   Key points: Argue from [certain angle]
-   💡 Key argumentation points: Typical cases, deep analysis
-   📚 Suitable materials: [specific examples], [relevant data]
-   
-Please generate a complete outline in this format.`;
+- Personalized to user's answers
+- Concise and actionable
+- Include word counts and materials`;
 
         const answersText = userAnswers.map(a => {
             if (a.step) {
-                return `Step ${a.step}: ${a.question} → ${a.answer}`;
+                return `${a.step}. ${a.answer}`;
             }
-            return `${a.question} → ${a.answer}`;
-        }).join('\n\n');
+            return a.answer;
+        }).join(' | ');
         
         const userPrompt = language === 'zh'
-            ? `用户在启动引导中的完整回答：\n${answersText}\n\n请根据以上所有信息，为用户生成一份包含【适配素材】【篇幅推荐】【重要论证点】的详细${essayTypeName}写作大纲。`
-            : `User's complete answers in launch guidance:\n${answersText}\n\nBased on all the above information, generate a detailed ${essayTypeName} outline including [suitable materials] [word count recommendations] [key argumentation points].`;
+            ? `用户回答：${answersText}\n\n生成${essayTypeName}大纲，包含【素材】【字数】【要点】。`
+            : `User answers: ${answersText}\n\nGenerate ${essayTypeName} outline with [materials] [word count] [key points].`;
 
         const messages = [
             { role: 'system', content: systemPrompt },
