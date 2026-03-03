@@ -7,8 +7,8 @@ class AIService {
         // 如需跨域（例如前端托管在 GitHub Pages），可在页面注入 window.__AI_API_BASE_URL
         const customBaseUrl = (window.__AI_API_BASE_URL || '').trim().replace(/\/$/, '');
         this.apiEndpoint = customBaseUrl
-            ? `${customBaseUrl}/api/qianwen`
-            : '/api/qianwen';
+            ? `${customBaseUrl}/api/qianwen/`
+            : '/api/qianwen/';
         
         console.log('✨ AI服务已初始化，API密钥由后端管理');
     }
