@@ -26,25 +26,15 @@
                 </button>
             </nav>
 
-            <div class="ai-panel">
-                <h3>🤖 AI 写作助手</h3>
-                <div class="language-toggle">
-                    <label>
-                        <input type="radio" name="language" value="zh" checked>
-                        中文
-                    </label>
-                    <label>
-                        <input type="radio" name="language" value="en">
-                        English
-                    </label>
-                </div>
-
-                <div class="ai-features">
-                    <button class="ai-btn" id="launchGuidance">🚀 启动引导<br><small>Launch Guidance</small></button>
-                    <button class="ai-btn" id="getMaterials">📚 素材推荐<br><small>Material Recommendation</small></button>
-                    <button class="ai-btn" id="getInspiration">💡 灵感提示<br><small>Inspiration Tips</small></button>
-                    <button class="ai-btn" id="logicRepair">🔍 逻辑修补<br><small>Logic Repair</small></button>
-                </div>
+            <div class="language-toggle">
+                <label>
+                    <input type="radio" name="language" value="zh" checked>
+                    中文
+                </label>
+                <label>
+                    <input type="radio" name="language" value="en">
+                    English
+                </label>
             </div>
 
             <div class="user-progress">
@@ -59,92 +49,103 @@
             </div>
         </aside>
 
-        <main class="main-content">
-            <section class="content-section active">
-                <header class="section-header">
-                    <h2>欢迎来到写作学习平台</h2>
-                    <p>这里是你的私人写作导师，帮助你成为更好的写手</p>
-                </header>
+        <section class="middle-panel">
+            <div class="features-section">
+                <h3>🤖 AI 核心功能</h3>
+                <div class="feature-buttons">
+                    <button class="feature-btn" id="launchGuidance">
+                        <span class="feature-icon">🚀</span>
+                        <div class="feature-text">
+                            <strong>启动引导</strong>
+                            <small>Launch Guidance</small>
+                        </div>
+                    </button>
+                    <button class="feature-btn" id="getMaterials">
+                        <span class="feature-icon">📚</span>
+                        <div class="feature-text">
+                            <strong>素材推荐</strong>
+                            <small>Material Recommendation</small>
+                        </div>
+                    </button>
+                    <button class="feature-btn" id="getInspiration">
+                        <span class="feature-icon">💡</span>
+                        <div class="feature-text">
+                            <strong>灵感提示</strong>
+                            <small>Inspiration Tips</small>
+                        </div>
+                    </button>
+                    <button class="feature-btn" id="logicRepair">
+                        <span class="feature-icon">🔍</span>
+                        <div class="feature-text">
+                            <strong>逻辑修补</strong>
+                            <small>Logic Repair</small>
+                        </div>
+                    </button>
+                </div>
+            </div>
 
-                <div class="dashboard-grid">
-                    <div class="dashboard-card">
-                        <h3>📝 开始新项目</h3>
-                        <p>创建一篇新文章并获得个性化的写作指导</p>
-                        <button class="btn btn-primary" onclick="document.getElementById('launchGuidance').click()">开始写作</button>
+            <div class="ai-suggestions">
+                <h3>💬 AI 写作建议</h3>
+                <div id="aiOutput" class="ai-output">
+                    <p class="placeholder">AI 建议将显示在这里<br>AI suggestions will appear here</p>
+                </div>
+            </div>
+
+            <div class="stats-card">
+                <h3>📊 实时统计</h3>
+                <div class="stats-grid">
+                    <div class="stat-item">
+                        <span class="stat-value" id="charCount">0</span>
+                        <span class="stat-label">字符数</span>
                     </div>
-
-                    <div class="dashboard-card">
-                        <h3>🎯 模板信息</h3>
-                        <div id="templateInfo" class="template-info">
-                            <p>📝 议论文 - 初高中学生</p>
-                        </div>
-                        <p id="targetInfo">目标: 800字 / Target: 800 words</p>
+                    <div class="stat-item">
+                        <span class="stat-value" id="wordCount">0</span>
+                        <span class="stat-label">字数</span>
                     </div>
-
-                    <div class="dashboard-card">
-                        <h3>📊 学习统计</h3>
-                        <div class="stats">
-                            <div class="stat-item">
-                                <span class="stat-value" id="charCount">0</span>
-                                <span class="stat-label">字符数</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-value" id="wordCount">0</span>
-                                <span class="stat-label">字数</span>
-                            </div>
-                            <div class="stat-item">
-                                <span class="stat-value" id="paraCount">0</span>
-                                <span class="stat-label">段落</span>
-                            </div>
-                        </div>
-                        <div class="progress-info">
-                            写作时长: <span id="writingTime">0分钟</span> ｜ 写作速度: <span id="writingSpeed">-</span>
-                        </div>
-                    </div>
-
-                    <div class="dashboard-card">
-                        <h3>💡 写作建议</h3>
-                        <div id="aiOutput" class="ai-output">
-                            <p class="placeholder">AI 建议将显示在这里<br>AI suggestions will appear here</p>
-                        </div>
+                    <div class="stat-item">
+                        <span class="stat-value" id="paraCount">0</span>
+                        <span class="stat-label">段落</span>
                     </div>
                 </div>
-
-                <div class="editor-container">
-                    <div class="editor-main">
-                        <div class="editor-header">
-                            <input type="text" id="titleInput" class="title-input" placeholder="标题 / Title...">
-                            <div class="editor-tools">
-                                <button class="tool-btn" id="saveBtn" title="保存 Save">💾</button>
-                                <button class="tool-btn" id="clearBtn" title="清空 Clear">🗑️</button>
-                                <button class="tool-btn" id="exportBtn" title="导出 Export">📥</button>
-                            </div>
-                        </div>
-
-                        <textarea id="mainEditor" class="main-editor" placeholder="开始书写你的文字... Start writing your text..."></textarea>
-
-                        <div class="editor-footer">
-                            <button class="secondary-btn" id="autoSaveToggle">
-                                自动保存: <span id="autoSaveStatus">开启</span> / Auto-save: <span id="autoSaveStatusEn">ON</span>
-                            </button>
-                            <span class="last-saved">上次保存 / Last saved: <span id="lastSaved">从未</span></span>
-                        </div>
-                    </div>
-
-                    <div class="editor-sidebar">
-                        <div class="guide-module">
-                            <h3>📝 写作计划</h3>
-                            <div id="outlinePanel"></div>
-                        </div>
-
-                        <div class="guide-module materials-panel" id="materialsPanel" style="display:none;">
-                            <h3>📚 推荐素材</h3>
-                            <div id="materialsList"></div>
-                        </div>
-                    </div>
+                <div class="template-info" id="templateInfo">
+                    <p>📝 议论文 - 初高中学生</p>
                 </div>
-            </section>
-        </main>
+                <div class="time-info">
+                    <p id="targetInfo">目标: 800字</p>
+                    <p>时长: <span id="writingTime">0分钟</span> ｜ 速度: <span id="writingSpeed">-</span></p>
+                </div>
+            </div>
+
+            <div class="materials-section" id="materialsPanel" style="display:none;">
+                <h3>📚 推荐素材</h3>
+                <div id="materialsList"></div>
+            </div>
+
+            <div class="outline-section">
+                <h3>📝 写作计划</h3>
+                <div id="outlinePanel"></div>
+            </div>
+        </section>
+
+        <section class="editor-panel">
+            <div class="editor-header">
+                <input type="text" id="titleInput" class="title-input" placeholder="标题 / Title...">
+                <div class="editor-tools">
+                    <button class="tool-btn" id="saveBtn" title="保存 Save">💾</button>
+                    <button class="tool-btn" id="clearBtn" title="清空 Clear">🗑️</button>
+                    <button class="tool-btn" id="exportBtn" title="导出 Export">📥</button>
+                </div>
+            </div>
+
+            <textarea id="mainEditor" class="main-editor" placeholder="开始书写你的文字... Start writing your text..."></textarea>
+
+            <div class="editor-footer">
+                <button class="secondary-btn" id="autoSaveToggle">
+                    自动保存: <span id="autoSaveStatus">开启</span> / Auto-save: <span id="autoSaveStatusEn">ON</span>
+                </button>
+                <span class="last-saved">上次保存 / Last saved: <span id="lastSaved">从未</span></span>
+            </div>
+        </section>
     </div>
 
     <!-- Launch Guidance Modal -->
