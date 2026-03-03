@@ -1,6 +1,6 @@
-// ✅ 使用标准 CommonJS 导出
+// Vercel Serverless Function for Qianwen API
 
-module.exports = async (req, res) => {
+export default async function handler(req, res) {
     // 设置CORS头
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Origin', '*');
@@ -86,4 +86,4 @@ module.exports = async (req, res) => {
             message: error.message
         });
     }
-};
+}
