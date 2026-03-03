@@ -840,42 +840,73 @@ function setupEventListeners() {
     });
 
     // 文本编辑
-    mainEditor.addEventListener('input', () => {
-        updateStats();
-        lastActivityTime = Date.now();
-        if (autoSaveEnabled) {
-            debouncedSave();
-        }
-    });
+    if (mainEditor) {
+        mainEditor.addEventListener('input', () => {
+            updateStats();
+            lastActivityTime = Date.now();
+            if (autoSaveEnabled) {
+                debouncedSave();
+            }
+        });
+    }
 
-    titleInput.addEventListener('input', () => {
-        if (autoSaveEnabled) {
-            debouncedSave();
-        }
-    });
+    if (titleInput) {
+        titleInput.addEventListener('input', () => {
+            if (autoSaveEnabled) {
+                debouncedSave();
+            }
+        });
+    }
 
     // 新功能按钮
-    document.getElementById('launchGuidance').addEventListener('click', startGuidance);
-    document.getElementById('getMaterials').addEventListener('click', showMaterials);
-    document.getElementById('getInspiration').addEventListener('click', checkInspirationNeeded);
-    document.getElementById('logicRepair').addEventListener('click', startLogicRepair);
+    const launchGuidanceBtn = document.getElementById('launchGuidance');
+    const getMaterialsBtn = document.getElementById('getMaterials');
+    const getInspirationBtn = document.getElementById('getInspiration');
+    const logicRepairBtn = document.getElementById('logicRepair');
+    
+    if (launchGuidanceBtn) launchGuidanceBtn.addEventListener('click', startGuidance);
+    if (getMaterialsBtn) getMaterialsBtn.addEventListener('click', showMaterials);
+    if (getInspirationBtn) getInspirationBtn.addEventListener('click', checkInspirationNeeded);
+    if (logicRepairBtn) logicRepairBtn.addEventListener('click', startLogicRepair);
 
     // 模态框关闭
-    document.getElementById('closeModal')?.addEventListener('click', closeGuidanceModal);
-    document.getElementById('closeLogicModal')?.addEventListener('click', closeLogicModal);
+    const closeModalBtn = document.getElementById('closeModal');
+    const closeLogicModalBtn = document.getElementById('closeLogicModal');
+    if (closeModalBtn) closeModalBtn.addEventListener('click', closeGuidanceModal);
+    if (closeLogicModalBtn) closeLogicModalBtn.addEventListener('click', closeLogicModal);
 
     // 工具按钮
-    document.getElementById('saveBtn').addEventListener('click', saveContent);
-    document.getElementById('clearBtn').addEventListener('click', clearContent);
-    document.getElementById('exportBtn').addEventListener('click', exportContent);
-    document.getElementById('autoSaveToggle').addEventListener('click', toggleAutoSave);
+    const saveBtn = document.getElementById('saveBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const exportBtn = document.getElementById('exportBtn');
+    const autoSaveToggle = document.getElementById('autoSaveToggle');
+    
+    if (saveBtn) saveBtn.addEventListener('click', saveContent);
+    if (clearBtn) clearBtn.addEventListener('click', clearContent);
+    if (exportBtn) exportBtn.addEventListener('click', exportContent);
+    if (autoSaveToggle) autoSaveToggle.addEventListener('click', toggleAutoSave);
 
     // 点击模态框背景关闭
-    document.getElementById('guidanceModal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'guidanceModal') closeGuidanceModal();
-    });
-    document.getElementById('logicModal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'logicModal') closeLogicModal();
+    const guidanceModal = document.getElementById('guidanceModal');
+    const logicModal = document.getElementById('logicModal');
+    
+    if (guidanceModal) {
+        guidanceModal.addEventListener('click', (e) => {
+            if (e.target.id === 'guidanceModal') closeGuidanceModal();
+        });
+    }
+    if (logicModal) {
+        logicModal.addEventListener('click', (e) => {
+            if (e.target.id === 'logicModal') closeLogicModal();
+        });
+    }
+    
+    console.log('事件监听器设置完成');
+    console.log('按钮元素检查:', {
+        launchGuidance: !!launchGuidanceBtn,
+        getMaterials: !!getMaterialsBtn,
+        getInspiration: !!getInspirationBtn,
+        logicRepair: !!logicRepairBtn
     });
 }
 
