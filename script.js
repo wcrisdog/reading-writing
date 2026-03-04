@@ -585,6 +585,22 @@ let mainEditor, titleInput, charCount, wordCount, paraCount;
 let templateInfo, aiOutput, outlinePanel, logicPanel, materialsList, materialsPanel;
 let targetWordsSelect, targetSelectorWrap, targetSelectorLabel;
 
+function showOutlineResultModal(contentHtml) {
+    const modal = document.getElementById('outlineResultModal');
+    const content = document.getElementById('outlineResultContent');
+    if (!modal || !content) return;
+
+    content.innerHTML = contentHtml;
+    modal.style.display = 'flex';
+}
+
+function closeOutlineResultModal() {
+    const modal = document.getElementById('outlineResultModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 DOMContentLoaded event triggered');
@@ -743,8 +759,18 @@ function setupEventListeners() {
     // 模态框关闭
     const closeModalBtn = document.getElementById('closeModal');
     const closeLogicModalBtn = document.getElementById('closeLogicModal');
+    const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
+    const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
     if (closeModalBtn) closeModalBtn.addEventListener('click', closeGuidanceModal);
     if (closeLogicModalBtn) closeLogicModalBtn.addEventListener('click', closeLogicModal);
+    if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
+    if (startWritingFromOutlineBtn) {
+        startWritingFromOutlineBtn.addEventListener('click', () => {
+            closeOutlineResultModal();
+            switchRightPanel('outline');
+            mainEditor?.focus();
+        });
+    }
 
     // 工具按钮
     const saveBtn = document.getElementById('saveBtn');
@@ -760,6 +786,7 @@ function setupEventListeners() {
     // 点击模态框背景关闭
     const guidanceModal = document.getElementById('guidanceModal');
     const logicModal = document.getElementById('logicModal');
+    const outlineResultModal = document.getElementById('outlineResultModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
@@ -774,6 +801,11 @@ function setupEventListeners() {
     if (logicModal) {
         logicModal.addEventListener('click', (e) => {
             if (e.target.id === 'logicModal') closeLogicModal();
+        });
+    }
+    if (outlineResultModal) {
+        outlineResultModal.addEventListener('click', (e) => {
+            if (e.target.id === 'outlineResultModal') closeOutlineResultModal();
         });
     }
     
@@ -814,11 +846,12 @@ function startGuidance() {
 async function showGuidanceQuestion(container, modal) {
     const questions = guidanceQuestions[currentType][currentLanguage];
     if (guidanceStep >= questions.length) {
-        // 收集完所有答案，生成完整大纲
-        // 显示大纲加载界面
+        // 收集完所有答案，生成完整大纲并弹出结果
         outlinePanel.style.display = 'block';
-        await generateDetailedOutline(userGuidanceAnswers);
+        const outlineHtml = await generateDetailedOutline(userGuidanceAnswers);
         closeGuidanceModal();
+        switchRightPanel('outline');
+        showOutlineResultModal(outlineHtml);
         return;
     }
 
@@ -1001,7 +1034,7 @@ async function generateDetailedOutline(userAnswers) {
         const aiOutline = result.message;
         
         // 显示AI生成的详细大纲
-        outlinePanel.innerHTML = `
+        const outlineHtml = `
             <div class="detailed-outline">
                 <h5>📋 ${currentLanguage === 'zh' ? '完整写作大纲' : 'Complete Writing Outline'}</h5>
                 <div class="outline-content">${aiOutline.replace(/\n/g, '<br>')}</div>
@@ -1012,18 +1045,21 @@ async function generateDetailedOutline(userAnswers) {
                 </div>
             </div>
         `;
+        outlinePanel.innerHTML = outlineHtml;
         
         showNotification(
             currentLanguage === 'zh' 
                 ? '✓ 详细大纲已生成' 
                 : '✓ Detailed outline generated'
         );
+
+        return outlineHtml;
         
     } catch (error) {
         console.error('详细大纲生成失败:', error);
         
         // 降级到基础大纲
-        await generateOutlineFromAnswers(userAnswers);
+        return await generateOutlineFromAnswers(userAnswers);
     }
 }
 
@@ -1045,19 +1081,20 @@ async function generateOutlineFromAnswers(userAnswers = null) {
             const aiOutline = result.message;
             
             // 显示AI生成的大纲
-            outlinePanel.innerHTML = `
+            const outlineHtml = `
                 <div class="ai-outline">
                     <h5>📋 ${currentLanguage === 'zh' ? 'AI个性化大纲' : 'AI Personalized Outline'}</h5>
                     <div class="outline-content">${aiOutline.replace(/\n/g, '<br>')}</div>
                 </div>
             `;
+            outlinePanel.innerHTML = outlineHtml;
             
             showNotification(
                 currentLanguage === 'zh' 
                     ? '✓ AI大纲已生成，根据你的需求定制' 
                     : '✓ AI outline generated based on your needs'
             );
-            return;
+            return outlineHtml;
         }
     } catch (error) {
         console.error('AI大纲生成失败，使用默认模板:', error);
@@ -1095,6 +1132,8 @@ async function generateOutlineFromAnswers(userAnswers = null) {
             ? '✓ 大纲已生成，你可以按照大纲逐步撰写' 
             : '✓ Outline generated. Write according to the outline'
     );
+
+    return outlineHTML;
 }
 
 function closeGuidanceModal() {
@@ -1901,8 +1940,25 @@ function syncTargetSelector() {
 
     if (!canSetTarget) return;
 
+    const targetWordOptionsByType = {
+        argumentative: [600, 800, 1000, 1200],
+        narrative: [200, 400, 600, 800, 1000]
+    };
+
+    const options = targetWordOptionsByType[currentType] || [];
     const defaultValue = currentType === 'argumentative' ? 800 : 600;
-    const currentValue = targetWordsConfig[currentType] || defaultValue;
+    let currentValue = targetWordsConfig[currentType] || defaultValue;
+
+    if (!options.includes(currentValue)) {
+        currentValue = defaultValue;
+        targetWordsConfig[currentType] = defaultValue;
+        applyTargetWordsConfig();
+    }
+
+    targetWordsSelect.innerHTML = options
+        .map(value => `<option value="${value}">${value}</option>`)
+        .join('');
+
     targetSelectorLabel.textContent = currentLanguage === 'zh' ? '目标字数' : 'Target words';
     targetWordsSelect.value = String(currentValue);
 }
@@ -2042,10 +2098,64 @@ function clearContent() {
         : 'Clear all content? This cannot be undone.';
 
     if (confirm(confirmText)) {
+        clearTimeout(saveTimeout);
+
         titleInput.value = '';
         mainEditor.value = '';
+
+        // 清空AI生成内容与右侧面板
+        if (aiOutput) {
+            aiOutput.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
+                ? 'AI 建议将显示在这里<br>AI suggestions will appear here'
+                : 'AI suggestions will appear here<br>AI 建议将显示在这里'}</p>`;
+        }
+
+        if (materialsList) {
+            materialsList.innerHTML = '';
+        }
+        if (materialsPanel) {
+            materialsPanel.style.display = 'none';
+        }
+
+        if (outlinePanel) {
+            outlinePanel.innerHTML = '';
+            outlinePanel.style.display = 'block';
+        }
+
+        if (logicPanel) {
+            logicPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
+                ? '逻辑修补记录将显示在这里'
+                : 'Logic repair notes will appear here'}</p>`;
+            logicPanel.style.display = 'none';
+        }
+
+        // 清空运行时状态
+        userGuidanceAnswers = [];
+        currentAISuggestion = '';
+        guidanceStep = 0;
+        userMaterialPreferences = [];
+        userLogicAnswers = [];
+        logicRepairRecords = [];
+        currentOutline = null;
+
+        const guidanceContent = document.getElementById('guidanceContent');
+        const logicContent = document.getElementById('logicContent');
+        if (guidanceContent) guidanceContent.innerHTML = '';
+        if (logicContent) logicContent.innerHTML = '';
+
+        // 重置右侧视图
+        if (typeof switchRightPanel === 'function') {
+            switchRightPanel('outline');
+        }
+
+        // 清空持久化内容
+        contentHistory = [];
+        localStorage.removeItem('currentContent');
+        localStorage.removeItem('contentHistory');
+
+        document.getElementById('lastSaved').textContent = currentLanguage === 'zh' ? '从未' : 'Never';
         updateStats();
-        showNotification(currentLanguage === 'zh' ? '✓ 已清空' : '✓ Cleared');
+        showNotification(currentLanguage === 'zh' ? '✓ 已清空全部内容（含AI生成）' : '✓ All content cleared (including AI outputs)');
     }
 }
 
