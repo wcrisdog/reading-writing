@@ -1,4 +1,4 @@
-# 智引文思（reading-writing）
+# 智引文思（Write Bot）
 
 一个基于原生 Web + Vercel Serverless 的 AI 写作教练应用，面向议论文、记叙文、学术论文三类写作场景，强调“引导思考”而不是“直接代写”。
 
@@ -62,7 +62,6 @@ reading-writing/
 ├── api/
 │   └── qianwen.js        # Vercel Serverless API 代理
 ├── vercel.json           # Vercel 函数资源与超时配置
-├── UI_design/            # 早期 UI 原型与设计稿（非当前主运行入口）
 ├── package.json
 └── README.md
 ```
