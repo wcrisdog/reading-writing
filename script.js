@@ -107,12 +107,6 @@ const guidanceQuestions = {
                 type: 'text',
                 question: '你有没有特别想使用的素材？比如名言、事例等。',
                 placeholder: '例如：屈原的"路漫漫其修远兮"、叶嘉莹的坚持...'
-            },
-            {
-                step: 6,
-                type: 'text',
-                question: '你打算用什么样的例子来支撑第一个角度？',
-                placeholder: '例如：可以用量子力学家的长期研究经历...'
             }
         ],
         en: [
@@ -145,12 +139,6 @@ const guidanceQuestions = {
                 type: 'text',
                 question: 'Do you have any specific materials you want to use? Such as quotes or examples.',
                 placeholder: 'E.g., Confucius\' famous quote, Steve Jobs\' persistence...'
-            },
-            {
-                step: 6,
-                type: 'text',
-                question: 'What kind of example will you use to support your first angle?',
-                placeholder: 'E.g., Long-term research by quantum physicists...'
             }
         ]
     },
@@ -185,12 +173,6 @@ const guidanceQuestions = {
                 type: 'text',
                 question: '你打算如何刻画故事中的关键场景？有什么印象深刻的细节？',
                 placeholder: '例如：深夜台灯下苦读的场景，妈妈递来的热牛奶...'
-            },
-            {
-                step: 6,
-                type: 'text',
-                question: '故事最终想传达什么样的情感或启示？',
-                placeholder: '例如：坚持和努力终会带来收获，不要轻易放弃...'
             }
         ],
         en: [
@@ -223,12 +205,6 @@ const guidanceQuestions = {
                 type: 'text',
                 question: 'How do you plan to portray key scenes in the story? Any memorable details?',
                 placeholder: 'E.g., Studying late under a desk lamp, mom bringing warm milk...'
-            },
-            {
-                step: 6,
-                type: 'text',
-                question: 'What emotion or message do you ultimately want to convey through this story?',
-                placeholder: 'E.g., Persistence and effort will bring rewards, never give up...'
             }
         ]
     },
@@ -263,12 +239,6 @@ const guidanceQuestions = {
                 type: 'text',
                 question: '你的研究预期会得到什么样的结论或发现？',
                 placeholder: '例如：预期发现AI应用能提升学习效率，但需注意数据隐私...'
-            },
-            {
-                step: 6,
-                type: 'text',
-                question: '你认为这项研究有哪些局限性？未来可以如何改进？',
-                placeholder: '例如：样本量有限，未来可扩大调查范围...'
             }
         ],
         en: [
@@ -453,115 +423,6 @@ const inspirationTips = {
 };
 
 // =========== 灵感提示和智能卡顿检测 ===========
-let lastKeystrokeTime = Date.now();
-let stallDetectionInterval = null;
-let hasShownStallTip = false;
-
-function setupKeystrokeTracking() {
-    mainEditor.addEventListener('keydown', () => {
-        lastKeystrokeTime = Date.now();
-        hasShownStallTip = false; // 重置卡顿提示标记
-    });
-
-    mainEditor.addEventListener('input', () => {
-        lastKeystrokeTime = Date.now();
-        hasShownStallTip = false;
-    });
-
-    // 启动卡顿检测定时器（每15秒检测一次）
-    if (stallDetectionInterval) {
-        clearInterval(stallDetectionInterval);
-    }
-    
-    stallDetectionInterval = setInterval(() => {
-        detectWritingStall();
-    }, 15000); // 每15秒检测一次
-}
-
-function detectWritingStall() {
-    const timeSinceLastKeystroke = Date.now() - lastKeystrokeTime;
-    const text = mainEditor.value;
-    
-    // 如果用户输入了内容但超过30秒没有新输入，且尚未显示提示
-    if (timeSinceLastKeystroke > 30000 && text.length > 50 && !hasShownStallTip) {
-        // 自动触发灵感提示
-        showAutoInspirationTip();
-        hasShownStallTip = true;
-    }
-}
-
-async function showAutoInspirationTip() {
-    const text = mainEditor.value;
-    
-    if (!text || text.length < 50) {
-        return;
-    }
-    
-    // 在AI输出面板显示"检测到卡顿"的提示
-    aiOutput.innerHTML = `
-        <p class="stall-notice">🔍 ${currentLanguage === 'zh' 
-            ? '检测到你可能遇到了写作困难...' 
-            : 'Detected you might be stuck...'}</p>
-        <p class="loading">🔄 ${currentLanguage === 'zh' 
-            ? 'AI正在分析你的文章，提供灵感提示...' 
-            : 'AI is analyzing your writing for inspiration...'}</p>
-    `;
-    
-    try {
-        const wordCount = currentLanguage === 'zh'
-            ? text.replace(/[^\u4e00-\u9fa5]/g, '').length
-            : text.trim().split(/\s+/).filter(w => w).length;
-        
-        const targetWords = essayTypes[currentType][currentLanguage].targetWords;
-        
-        // 调用AI服务生成针对性灵感
-        const result = await aiService.generateContextualInspiration(
-            currentType, 
-            currentLanguage, 
-            text, 
-            wordCount, 
-            targetWords
-        );
-        
-        const aiTip = result.message;
-        const hasTarget = Number.isFinite(targetWords) && targetWords > 0;
-        const progress = hasTarget ? (wordCount / targetWords * 100).toFixed(0) : null;
-        
-        aiOutput.innerHTML = `
-            <div class="inspiration-tip">
-                <p class="tip-header">💡 ${currentLanguage === 'zh' ? 'AI灵感提示' : 'AI Inspiration'}</p>
-                <p class="suggestion">${aiTip}</p>
-                <p class="progress-info">📊 ${
-                    hasTarget
-                        ? (currentLanguage === 'zh'
-                            ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
-                            : `Progress: ${wordCount}/${targetWords} words (${progress}%)`)
-                        : (currentLanguage === 'zh'
-                            ? `当前字数: ${wordCount} 字`
-                            : `Current words: ${wordCount}`)
-                }</p>
-            </div>
-        `;
-        
-        // 播放提示音效（如果需要）
-        playNotificationSound();
-        
-    } catch (error) {
-        console.error('自动灵感提示失败:', error);
-        
-        // 使用本地提示
-        const tips = inspirationTips[currentType][currentLanguage];
-        const tip = tips.stallTips[Math.floor(Math.random() * tips.stallTips.length)];
-        
-        aiOutput.innerHTML = `
-            <div class="inspiration-tip">
-                <p class="tip-header">💡 ${currentLanguage === 'zh' ? '写作提示' : 'Writing Tip'}</p>
-                <p class="suggestion">${tip}</p>
-            </div>
-        `;
-    }
-}
-
 async function checkInspirationNeeded() {
     const text = mainEditor.value;
     
@@ -904,6 +765,8 @@ async function showGuidanceQuestion(container, modal) {
     const questions = guidanceQuestions[currentType][currentLanguage];
     if (guidanceStep >= questions.length) {
         // 收集完所有答案，生成完整大纲
+        // 显示大纲加载界面
+        outlinePanel.style.display = 'block';
         await generateDetailedOutline(userGuidanceAnswers);
         closeGuidanceModal();
         return;
@@ -921,7 +784,9 @@ async function showGuidanceQuestion(container, modal) {
         html += `
             <div class="input-container">
                 <textarea class="guidance-textarea" placeholder="${q.placeholder}" rows="4"></textarea>
-                <button class="guidance-next-btn">${currentLanguage === 'zh' ? '下一步 →' : 'Next →'}</button>
+                <div style="display: flex; gap: 12px;">
+                    <button class="guidance-next-btn" style="flex: 1;">${currentLanguage === 'zh' ? '下一步 →' : 'Next →'}</button>
+                </div>
             </div>
         `;
     } else if (q.type === 'ai-feedback') {
@@ -941,6 +806,22 @@ async function showGuidanceQuestion(container, modal) {
         // 文本输入的下一步按钮
         const nextBtn = container.querySelector('.guidance-next-btn');
         const textarea = container.querySelector('.guidance-textarea');
+        
+        // 添加返回上一步按钮的容器
+        const buttonContainer = nextBtn.parentElement;
+        if (guidanceStep > 0) {
+            const backBtn = document.createElement('button');
+            backBtn.className = 'guidance-back-btn';
+            backBtn.textContent = currentLanguage === 'zh' ? '← 上一步' : '← Back';
+            backBtn.style.marginRight = '12px';
+            backBtn.style.background = 'var(--text-secondary)';
+            backBtn.addEventListener('click', () => {
+                guidanceStep--;
+                userGuidanceAnswers.pop();
+                showGuidanceQuestion(container, modal);
+            });
+            buttonContainer.insertBefore(backBtn, nextBtn);
+        }
         
         nextBtn.addEventListener('click', () => {
             const answer = textarea.value.trim();
@@ -1193,17 +1074,37 @@ async function showMaterials() {
     `;
 
     try {
-        // 调用AI服务生成素材推荐
-        // 额外传入启动引导内容和当前正文内容，以提高推荐精准度
-        const result = await aiService.generateDetailedMaterials(
-            currentType,
-            currentLanguage,
-            topic,
-            currentLevel,
-            userMaterialPreferences,
-            userGuidanceAnswers,
-            mainEditor.value
-        );
+        // 调用AI服务生成素材推荐，添加超时控制
+        let result = null;
+        let retryCount = 0;
+        const maxRetries = 2; // 最多重试2次
+        const timeout = 30000; // 30秒超时
+        
+        while (retryCount <= maxRetries && !result) {
+            try {
+                // 创建超时Promise
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error('AI request timeout')), timeout)
+                );
+                
+                const apiPromise = aiService.generateDetailedMaterials(
+                    currentType,
+                    currentLanguage,
+                    topic,
+                    currentLevel,
+                    userMaterialPreferences,
+                    userGuidanceAnswers,
+                    mainEditor.value
+                );
+                
+                result = await Promise.race([apiPromise, timeoutPromise]);
+            } catch (error) {
+                retryCount++;
+                if (retryCount > maxRetries) throw error;
+                // 等待后重试
+                await new Promise(resolve => setTimeout(resolve, 1500));
+            }
+        }
         
         // 步骤3：以卡片形式展示素材
         displayMaterialCards(result.message, topic);
@@ -1220,30 +1121,27 @@ async function showMaterials() {
         // 改进的错误处理 - 更信息性的提示
         const errorMsg = error.message || error.toString();
         const isNetworkError = errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch');
+        const isTimeoutError = errorMsg.includes('timeout');
+        
+        let errorText = currentLanguage === 'zh' ? '服务器响应错误，请稍后重试' : 'Server error, please try later';
+        if (isNetworkError) {
+            errorText = currentLanguage === 'zh' ? '网络连接中断，请检查网络后重试' : 'Network error, please check connection';
+        } else if (isTimeoutError) {
+            errorText = currentLanguage === 'zh' ? 'AI处理超时，请稍后重试或使用本地素材' : 'AI response timeout, please try later or use local materials';
+        }
         
         materialsList.innerHTML = `
             <div class="material-error">
                 <p class="error-title">⚠️ ${currentLanguage === 'zh' ? 'AI素材推荐暂时不可用' : 'Material recommendation unavailable'}</p>
-                <p class="error-msg">${
-                    isNetworkError 
-                        ? (currentLanguage === 'zh' ? '网络连接中断，请检查网络后重试' : 'Network error, please check connection')
-                        : (currentLanguage === 'zh' ? '服务器响应错误，请稍后重试' : 'Server error, please try later')
-                }</p>
-                <button class="retry-btn" onclick="showMaterials()">
+                <p class="error-msg">${errorText}</p>
+                <button class="retry-btn" onclick="showMaterials()" style="padding: 10px 16px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
                     🔄 ${currentLanguage === 'zh' ? '重试' : 'Retry'}
                 </button>
-                <button class="fallback-btn" onclick="displayFallbackMaterials('${topic}')">
+                <button class="fallback-btn" onclick="displayFallbackMaterials('${topic}')" style="margin-left: 12px; padding: 10px 16px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
                     📚 ${currentLanguage === 'zh' ? '使用本地素材' : 'Use local materials'}
                 </button>
             </div>
         `;
-        
-        // 为fallback按钮添加样式
-        const fallbackBtn = materialsList.querySelector('.fallback-btn');
-        if (fallbackBtn) {
-            fallbackBtn.style.marginLeft = '12px';
-            fallbackBtn.style.background = 'var(--success-color)';
-        }
     }
 }
 
@@ -1475,18 +1373,27 @@ async function refreshMaterials(topic) {
 // =========== 灵感提示和卡顿检测 ===========
 function setupKeystrokeTracking() {
     let lastKeystroke = Date.now();
+    let lastInspiration = Date.now(); // 追踪上次灵感提示的时间
     
     mainEditor.addEventListener('keydown', () => {
         lastKeystroke = Date.now();
     });
 
-    // 每30秒检测一次卡顿
+    // 每5秒更新一次统计信息（实时显示）
+    setInterval(() => {
+        updateStats();
+    }, 5000);
+
+    // 每60秒检测一次卡顿（增加间隔）
     setInterval(() => {
         const timeSinceLastKeystroke = Date.now() - lastKeystroke;
-        if (timeSinceLastKeystroke > 30000 && mainEditor.value.length > 0) {
+        const timeSinceLastInspiration = Date.now() - lastInspiration;
+        // 60秒内无输入且距离上次灵感提示已超过2分钟
+        if (timeSinceLastKeystroke > 60000 && timeSinceLastInspiration > 120000 && mainEditor.value.length > 0) {
             checkInspirationNeeded();
+            lastInspiration = Date.now();
         }
-    }, 30000);
+    }, 60000);
 }
 
 async function checkInspirationNeeded() {
@@ -1550,6 +1457,9 @@ async function checkInspirationNeeded() {
                         ? `当前字数: ${wordCount} 字`
                         : `Current words: ${wordCount}`)
             }</p>
+            <button class="regenerate-inspiration-btn" onclick="checkInspirationNeeded()" style="margin-top: 12px; padding: 8px 16px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
+                🔄 ${currentLanguage === 'zh' ? '重新生成建议' : 'Regenerate'}
+            </button>
         `;
         
         showNotification(
@@ -1785,23 +1695,60 @@ async function startLogicRepair() {
 }
 
 function parseLogicQuestions(aiResponse) {
-    // 解析AI返回的问题列表
-    const lines = aiResponse.split('\n').filter(line => line.trim().length > 0);
+    // 更好地解析AI返回的问题列表
+    // 支持以数字、符号开头的问题，以及多行问题
+    const lines = aiResponse.split('\n');
     const questions = [];
+    let currentQuestion = '';
     
     for (const line of lines) {
-        // 清理行号和标点
-        const cleaned = line
-            .replace(/^[\d一二三四五六七八九十]+[、\.．。:：]\s*/, '')
-            .replace(/^[•\-\*]\s*/, '')
-            .trim();
+        const trimmed = line.trim();
+        if (!trimmed) {
+            // 空行：如果有积累的问题，保存它
+            if (currentQuestion.length > 10) {
+                questions.push(currentQuestion.trim());
+                currentQuestion = '';
+            }
+            continue;
+        }
         
-        if (cleaned.length > 10) { // 确保是有效问题
-            questions.push(cleaned);
+        // 检查是否是新问题的开始（以数字、符号开头）
+        const isNewQuestion = /^[\d一二三四五六七八九十]+[、\.．。:：]\s*/.test(trimmed);
+        
+        if (isNewQuestion && currentQuestion.length > 10) {
+            // 保存之前的问题
+            questions.push(currentQuestion.trim());
+            // 清理行号和标点，开始新问题
+            currentQuestion = trimmed.replace(/^[\d一二三四五六七八九十]+[、\.．。:：]\s*/, '').replace(/^[•\-\*]\s*/, '');
+        } else if (isNewQuestion) {
+            // 清理行号和标点
+            currentQuestion = trimmed.replace(/^[\d一二三四五六七八九十]+[、\.．。:：]\s*/, '').replace(/^[•\-\*]\s*/, '');
+        } else if (currentQuestion) {
+            // 加入现有问题
+            currentQuestion += ' ' + trimmed;
+        } else {
+            currentQuestion = trimmed;
         }
     }
     
-    return questions.length > 0 ? questions : [aiResponse];
+    // 不要忘记最后一个问题
+    if (currentQuestion.length > 10) {
+        questions.push(currentQuestion.trim());
+    }
+    
+    // 过滤掉非问题行项（问题应该是完整的句子，通常包含问号或较长的文本）
+    const filteredQuestions = questions.filter(q => {
+        return q.length > 10 && (q.includes('？') || q.includes('?') || q.length > 20);
+    });
+    
+    return filteredQuestions.length > 0 ? filteredQuestions : 
+        // 如果解析失败，尝试按行拆分
+        aiResponse.split('\n')
+            .filter(line => line.trim().length > 10)
+            .map(line => line
+                .replace(/^[\d一二三四五六七八九十]+[、\.．。:：]\s*/, '')
+                .replace(/^[•\-\*]\s*/, '')
+                .trim());
 }
 
 function closeLogicModal() {
