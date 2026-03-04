@@ -601,6 +601,20 @@ function closeOutlineResultModal() {
     }
 }
 
+function showAILoadingModal() {
+    const modal = document.getElementById('aiLoadingModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeAILoadingModal() {
+    const modal = document.getElementById('aiLoadingModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
+}
+
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 DOMContentLoaded event triggered');
@@ -761,6 +775,9 @@ function setupEventListeners() {
     const closeLogicModalBtn = document.getElementById('closeLogicModal');
     const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
     const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
+    const enlargeOutlineBtn = document.getElementById('enlargeOutlineBtn');
+    const enlargeOutlineFromPanelBtn = document.getElementById('enlargeOutlineFromPanelBtn');
+    
     if (closeModalBtn) closeModalBtn.addEventListener('click', closeGuidanceModal);
     if (closeLogicModalBtn) closeLogicModalBtn.addEventListener('click', closeLogicModal);
     if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
@@ -769,6 +786,29 @@ function setupEventListeners() {
             closeOutlineResultModal();
             switchRightPanel('outline');
             mainEditor?.focus();
+        });
+    }
+    if (enlargeOutlineBtn) {
+        enlargeOutlineBtn.addEventListener('click', () => {
+            // 获取右下角大纲的内容并在弹窗中显示
+            const outlineContent = outlinePanel.innerHTML;
+            showOutlineResultModal(outlineContent);
+        });
+    }
+    if (enlargeOutlineFromPanelBtn) {
+        enlargeOutlineFromPanelBtn.addEventListener('click', () => {
+            // 从右下角面板放大查看大纲
+            const outlineContent = outlinePanel.innerHTML;
+            if (outlineContent && outlineContent.trim()) {
+                showOutlineResultModal(outlineContent);
+            } else {
+                showNotification(
+                    currentLanguage === 'zh' 
+                        ? '暂无写作计划，请先完成启动引导' 
+                        : 'No writing plan available, please complete the guidance first',
+                    'warning'
+                );
+            }
         });
     }
 
@@ -846,12 +886,42 @@ function startGuidance() {
 async function showGuidanceQuestion(container, modal) {
     const questions = guidanceQuestions[currentType][currentLanguage];
     if (guidanceStep >= questions.length) {
-        // 收集完所有答案，生成完整大纲并弹出结果
-        outlinePanel.style.display = 'block';
-        const outlineHtml = await generateDetailedOutline(userGuidanceAnswers);
+        // 收集完所有答案，先关闭引导窗口
         closeGuidanceModal();
-        switchRightPanel('outline');
-        showOutlineResultModal(outlineHtml);
+        
+        // 显示AI正在生成的加载窗口
+        showAILoadingModal();
+        
+        try {
+            // 生成完整大纲
+            outlinePanel.style.display = 'block';
+            const outlineHtml = await generateDetailedOutline(userGuidanceAnswers);
+            
+            // 关闭加载窗口
+            closeAILoadingModal();
+            
+            // 切换到写作计划面板
+            switchRightPanel('outline');
+            
+            // 显示提示通知
+            showNotification(
+                currentLanguage === 'zh' 
+                    ? '✓ 写作计划已生成！你可以随时在右下角查看或点击放大' 
+                    : '✓ Writing plan generated! You can view it in the bottom right corner or click to enlarge',
+                'success',
+                5000
+            );
+        } catch (error) {
+            console.error('生成大纲失败:', error);
+            closeAILoadingModal();
+            showNotification(
+                currentLanguage === 'zh' 
+                    ? '⚠️ 大纲生成失败，请重试' 
+                    : '⚠️ Outline generation failed, please try again',
+                'error'
+            );
+        }
+        
         return;
     }
 
@@ -2194,13 +2264,22 @@ function toggleAutoSave() {
 }
 
 // =========== 通知函数 ===========
-function showNotification(message) {
+function showNotification(message, type = 'success', duration = 2000) {
     const notification = document.createElement('div');
+    
+    // 根据类型设置背景色
+    let backgroundColor = '#50c878'; // success
+    if (type === 'error') {
+        backgroundColor = '#ef4444'; // danger
+    } else if (type === 'warning') {
+        backgroundColor = '#f59e0b'; // warning
+    }
+    
     notification.style.cssText = `
         position: fixed;
         top: 20px;
         right: 20px;
-        background: #50c878;
+        background: ${backgroundColor};
         color: white;
         padding: 1rem 2rem;
         border-radius: 8px;
@@ -2214,7 +2293,7 @@ function showNotification(message) {
     setTimeout(() => {
         notification.style.animation = 'slideOut 0.3s ease';
         setTimeout(() => notification.remove(), 300);
-    }, 2000);
+    }, duration);
 }
 
 // 添加动画样式

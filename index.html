@@ -156,7 +156,10 @@
             </div>
 
             <div class="info-card">
-                <h3>📝 写作计划</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0;">📝 写作计划</h3>
+                    <button class="enlarge-btn" id="enlargeOutlineFromPanelBtn" title="放大查看 / Enlarge">🔍</button>
+                </div>
                 <div class="panel-tabs">
                     <button class="panel-tab active" id="viewOutlineBtn">写作计划 / Outline</button>
                     <button class="panel-tab" id="viewLogicBtn">逻辑修补 / Logic</button>
@@ -185,6 +188,18 @@
         </div>
     </div>
 
+    <!-- AI Loading Modal -->
+    <div id="aiLoadingModal" class="modal" style="display:none;">
+        <div class="modal-content ai-loading-content">
+            <div class="ai-loading-animation">
+                <div class="loading-spinner"></div>
+                <h2>🤖 AI正在生成写作计划</h2>
+                <p class="loading-text">AI is generating your writing plan...</p>
+                <p class="loading-hint">请稍候，这可能需要几秒钟</p>
+            </div>
+        </div>
+    </div>
+
     <!-- Outline Result Modal -->
     <div id="outlineResultModal" class="modal" style="display:none;">
         <div class="modal-content">
@@ -193,6 +208,7 @@
             <div id="outlineResultContent"></div>
             <div class="logic-buttons" style="margin-top: 16px;">
                 <button class="primary-btn" id="startWritingFromOutline">✍️ 开始写作 / Start Writing</button>
+                <button class="secondary-btn" id="enlargeOutlineBtn">🔍 放大查看 / Enlarge</button>
             </div>
         </div>
     </div>
