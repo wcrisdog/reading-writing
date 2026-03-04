@@ -390,6 +390,81 @@ body {
     margin: 4px 0;
 }
 
+.target-selector {
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.target-selector label {
+    font-size: 13px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.target-selector select {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 6px 8px;
+    background: var(--surface-color);
+    color: var(--text-primary);
+    font-size: 13px;
+}
+
+.panel-tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+.panel-tab {
+    flex: 1;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--background-color);
+    color: var(--text-secondary);
+    font-size: 12px;
+    padding: 8px 10px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.panel-tab.active {
+    background: var(--primary-color);
+    color: white;
+    border-color: var(--primary-color);
+}
+
+.logic-record-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.logic-record-item {
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 10px;
+    background: var(--background-color);
+}
+
+.logic-record-title {
+    font-size: 12px;
+    color: var(--text-secondary);
+    margin: 0 0 8px 0;
+}
+
+.logic-record-question,
+.logic-record-answer,
+.logic-record-feedback {
+    font-size: 13px;
+    line-height: 1.6;
+    color: var(--text-primary);
+    margin: 0 0 6px 0;
+}
+
 .materials-section,
 .outline-section {
     background: var(--surface-color);

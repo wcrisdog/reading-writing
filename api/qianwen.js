@@ -41,37 +41,103 @@ export default async function handler(req, res) {
 
         console.log(`✅ 收到请求 - 类型: ${type}, 文章: ${essayType}`);
 
-        // 根据请求类型调整参数
-        const isDetailedOutline = type === 'detailed-outline';
-        const maxTokens = isDetailedOutline ? 1500 : 2000;
-        
-        // 调用通义千问 OpenAI 兼容接口
-        const response = await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Authorization': `Bearer ${API_KEY}`,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                model: 'qwen-plus',
-                messages: messages,
-                max_tokens: maxTokens,
-                temperature: 0.7,
-                stream: false
-            })
+        const maxTokensByType = {
+            'detailed-outline': 1300,
+            'detailed-materials': 1000,
+            'guidance': 1000,
+            'guidance-feedback': 800,
+            'contextual-inspiration': 450,
+            'inspiration': 300,
+            'materials': 800,
+            'logic-feedback': 800
+        };
+
+        const chosenMaxTokens = maxTokensByType[type] || 900;
+
+        const createRequestBody = (model, maxTokens) => ({
+            model,
+            messages,
+            max_tokens: maxTokens,
+            temperature: 0.7,
+            stream: false
         });
 
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`❌ 千问API错误 (${response.status}):`, errorText);
-            return res.status(response.status).json({ 
+        const callQianwen = async (body, timeoutMs = 16000) => {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort('Upstream timeout'), timeoutMs);
+
+            try {
+                return await fetch('https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions', {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${API_KEY}`,
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(body),
+                    signal: controller.signal
+                });
+            } finally {
+                clearTimeout(timer);
+            }
+        };
+
+        let response;
+        let data;
+        let lastErrorStatus = 0;
+
+        const attempts = [
+            { model: 'qwen-plus', maxTokens: chosenMaxTokens, timeoutMs: 16000 },
+            { model: 'qwen-turbo', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.7)), timeoutMs: 12000 }
+        ];
+
+        for (let i = 0; i < attempts.length; i++) {
+            const attempt = attempts[i];
+            try {
+                response = await callQianwen(
+                    createRequestBody(attempt.model, attempt.maxTokens),
+                    attempt.timeoutMs
+                );
+
+                if (!response.ok) {
+                    lastErrorStatus = response.status;
+                    const errorText = await response.text();
+                    const isRetriable = response.status === 502 || response.status === 503 || response.status === 504 || response.status === 429;
+                    console.error(`❌ 千问API错误 (${response.status}) [尝试 ${i + 1}/${attempts.length}]:`, errorText);
+
+                    if (isRetriable && i < attempts.length - 1) {
+                        continue;
+                    }
+
+                    return res.status(response.status).json({
+                        error: 'Qianwen API Error',
+                        status: response.status,
+                        details: errorText
+                    });
+                }
+
+                data = await response.json();
+                break;
+            } catch (error) {
+                const isAbort = error?.name === 'AbortError' || String(error?.message || '').includes('timeout');
+                console.error(`❌ 千问API请求异常 [尝试 ${i + 1}/${attempts.length}]:`, error.message);
+
+                if (i >= attempts.length - 1) {
+                    return res.status(504).json({
+                        error: 'Upstream Timeout',
+                        message: isAbort ? '上游模型响应超时，请稍后重试' : error.message
+                    });
+                }
+            }
+        }
+
+        if (!data) {
+            return res.status(lastErrorStatus || 504).json({
                 error: 'Qianwen API Error',
-                status: response.status,
-                details: errorText
+                status: lastErrorStatus || 504,
+                message: '上游服务暂时不可用，请稍后重试'
             });
         }
 
-        const data = await response.json();
         const message = data?.choices?.[0]?.message?.content || '';
 
         console.log('✅ 千问API响应成功');

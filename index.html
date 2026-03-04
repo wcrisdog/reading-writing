@@ -15,8 +15,8 @@
     <div class="container">
         <aside class="sidebar" id="sidebar">
             <div class="logo">
-                <h1>✍️ WritePal</h1>
-                <p>AI写作导师</p>
+                <h1>✍️ 智引文思</h1>
+                <p>AI辅助写作教练平台</p>
             </div>
 
             <nav class="nav-menu">
@@ -135,6 +135,15 @@
                 <div class="template-info" id="templateInfo">
                     <p>📝 议论文 - 初高中学生</p>
                 </div>
+                <div class="target-selector" id="targetSelectorWrap">
+                    <label for="targetWordsSelect" id="targetSelectorLabel">目标字数</label>
+                    <select id="targetWordsSelect">
+                        <option value="600">600</option>
+                        <option value="800" selected>800</option>
+                        <option value="1000">1000</option>
+                        <option value="1200">1200</option>
+                    </select>
+                </div>
                 <div class="time-info">
                     <p id="targetInfo">目标: 800字</p>
                     <p>时长: <span id="writingTime">0分钟</span> ｜ 速度: <span id="writingSpeed">-</span></p>
@@ -148,7 +157,12 @@
 
             <div class="info-card">
                 <h3>📝 写作计划</h3>
+                <div class="panel-tabs">
+                    <button class="panel-tab active" id="viewOutlineBtn">写作计划 / Outline</button>
+                    <button class="panel-tab" id="viewLogicBtn">逻辑修补 / Logic</button>
+                </div>
                 <div id="outlinePanel"></div>
+                <div id="logicPanel" style="display:none;"></div>
             </div>
         </aside>
     </div>

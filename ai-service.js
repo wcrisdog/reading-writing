@@ -19,38 +19,68 @@ class AIService {
      * @param {string} type - 请求类型
      * @param {string} essayType - 文章类型
      */
-    async callAI(messages, type, essayType) {
-        try {
-            const response = await fetch(this.apiEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    messages,
-                    type,
-                    essayType
-                })
-            });
+    async callAI(messages, type, essayType, options = {}) {
+        const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 25000;
+        const maxRetries = Number.isFinite(options.retries) ? options.retries : 0;
 
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(error.error || error.message || `API错误: ${response.status}`);
+        let attempt = 0;
+        let lastError = null;
+
+        while (attempt <= maxRetries) {
+            const controller = new AbortController();
+            const timer = setTimeout(() => controller.abort('Request timeout'), timeoutMs);
+
+            try {
+                const response = await fetch(this.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        messages,
+                        type,
+                        essayType
+                    }),
+                    signal: controller.signal
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({}));
+                    const err = new Error(errorData.error || errorData.message || `API错误: ${response.status}`);
+                    err.status = response.status;
+                    throw err;
+                }
+
+                const data = await response.json();
+
+                return {
+                    success: data.success,
+                    message: data.message,
+                    usage: data.usage
+                };
+            } catch (error) {
+                const isTimeout = error?.name === 'AbortError' || String(error?.message || '').includes('timeout');
+                const status = Number(error?.status || 0);
+                const isRetriable = isTimeout || status === 504 || status === 502 || status === 503;
+
+                lastError = isTimeout
+                    ? new Error('AI request timeout')
+                    : error;
+
+                if (!isRetriable || attempt >= maxRetries) {
+                    console.error('AI服务调用错误:', lastError);
+                    throw lastError;
+                }
+
+                await new Promise(resolve => setTimeout(resolve, 800 * (attempt + 1)));
+                attempt += 1;
+            } finally {
+                clearTimeout(timer);
             }
-
-            const data = await response.json();
-            
-            // 返回统一格式
-            return {
-                success: data.success,
-                message: data.message,
-                usage: data.usage
-            };
-
-        } catch (error) {
-            console.error('AI服务调用错误:', error);
-            throw error;
         }
+
+        console.error('AI服务调用错误:', lastError);
+        throw lastError;
     }
 
     /**
@@ -379,7 +409,10 @@ Output format:
             { role: 'user', content: promptMap[essayType] }
         ];
 
-        return await this.callAI(messages, 'detailed-materials', essayType);
+        return await this.callAI(messages, 'detailed-materials', essayType, {
+            timeoutMs: 22000,
+            retries: 1
+        });
     }
 
     /**

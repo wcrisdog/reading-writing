@@ -15,6 +15,12 @@ let currentOutline = null;
 let writingStartTime = null; // 写作开始时间
 let totalWritingTime = 0; // 总写作时长（秒）
 let lastStatsUpdate = Date.now();
+let targetWordsConfig = {
+    argumentative: 800,
+    narrative: 600
+};
+let currentRightPanelView = 'outline';
+let logicRepairRecords = [];
 
 // =========== 写作类型配置 ===========
 const essayTypes = {
@@ -41,7 +47,7 @@ const essayTypes = {
             name: '记叙文',
             level: '高中',
             description: '生动描写事件、人物的叙事性文章',
-            targetWords: 800,
+            targetWords: 600,
             placeholder: '讲述一个生动的故事...\n\n写作要素：\n1. 清晰的时间地点\n2. 鲜明的人物形象\n3. 详细的场景描写\n4. 深刻的思想内涵',
             sections: ['背景交代', '事件发展', '高潮描写', '结尾感悟']
         },
@@ -49,7 +55,7 @@ const essayTypes = {
             name: 'Narrative Essay',
             level: 'High School',
             description: 'A vivid storytelling essay with characters and events',
-            targetWords: 800,
+            targetWords: 600,
             placeholder: 'Tell a compelling story...\n\nElements:\n1. Time and place\n2. Character descriptions\n3. Scene details\n4. Deeper meaning',
             sections: ['Background', 'Plot Development', 'Climax', 'Reflection']
         }
@@ -576,7 +582,8 @@ const logicRepairQuestions = {
 
 // =========== DOM 元素（全局变量声明）===========
 let mainEditor, titleInput, charCount, wordCount, paraCount;
-let templateInfo, aiOutput, outlinePanel, materialsList, materialsPanel;
+let templateInfo, aiOutput, outlinePanel, logicPanel, materialsList, materialsPanel;
+let targetWordsSelect, targetSelectorWrap, targetSelectorLabel;
 
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
@@ -591,8 +598,12 @@ document.addEventListener('DOMContentLoaded', () => {
     templateInfo = document.getElementById('templateInfo');
     aiOutput = document.getElementById('aiOutput');
     outlinePanel = document.getElementById('outlinePanel');
+    logicPanel = document.getElementById('logicPanel');
     materialsList = document.getElementById('materialsList');
     materialsPanel = document.getElementById('materialsPanel');
+    targetWordsSelect = document.getElementById('targetWordsSelect');
+    targetSelectorWrap = document.getElementById('targetSelectorWrap');
+    targetSelectorLabel = document.getElementById('targetSelectorLabel');
     
     console.log('✅ DOM elements fetched:', {
         mainEditor: !!mainEditor,
@@ -603,8 +614,11 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // 初始化应用
     loadSavedContent();
+    applyTargetWordsConfig();
     updateTemplate();
     setupEventListeners();
+    initializeRightPanelTabs();
+    renderLogicRecords();
     updateStats();
     setupKeystrokeTracking();
     
@@ -633,8 +647,26 @@ function setupEventListeners() {
             console.log('🌍 language changed:', e.target.value);
             currentLanguage = e.target.value;
             updateTemplate();
+            renderLogicRecords();
         });
     });
+
+    if (targetWordsSelect) {
+        targetWordsSelect.addEventListener('change', (e) => {
+            const value = Number(e.target.value);
+            if (!Number.isFinite(value) || value <= 0) return;
+            updateTargetWords(value);
+        });
+    }
+
+    const viewOutlineBtn = document.getElementById('viewOutlineBtn');
+    const viewLogicBtn = document.getElementById('viewLogicBtn');
+    if (viewOutlineBtn) {
+        viewOutlineBtn.addEventListener('click', () => switchRightPanel('outline'));
+    }
+    if (viewLogicBtn) {
+        viewLogicBtn.addEventListener('click', () => switchRightPanel('logic'));
+    }
 
     // 文本编辑
     if (mainEditor) {
@@ -752,6 +784,24 @@ function setupEventListeners() {
 let userGuidanceAnswers = [];
 let currentAISuggestion = '';
 
+function setGuidanceAnswer(record) {
+    const index = userGuidanceAnswers.findIndex(a => a.step === record.step);
+    if (index >= 0) {
+        userGuidanceAnswers[index] = { ...userGuidanceAnswers[index], ...record };
+    } else {
+        userGuidanceAnswers.push(record);
+        userGuidanceAnswers.sort((a, b) => a.step - b.step);
+    }
+}
+
+function getGuidanceAnswer(step) {
+    return userGuidanceAnswers.find(a => a.step === step);
+}
+
+function pruneGuidanceAnswersFrom(step) {
+    userGuidanceAnswers = userGuidanceAnswers.filter(a => a.step < step);
+}
+
 function startGuidance() {
     const modal = document.getElementById('guidanceModal');
     const content = document.getElementById('guidanceContent');
@@ -780,10 +830,11 @@ async function showGuidanceQuestion(container, modal) {
     `;
 
     if (q.type === 'text') {
+        const existingAnswer = getGuidanceAnswer(guidanceStep + 1);
         // 文本输入类型
         html += `
             <div class="input-container">
-                <textarea class="guidance-textarea" placeholder="${q.placeholder}" rows="4"></textarea>
+                <textarea class="guidance-textarea" placeholder="${q.placeholder}" rows="4">${existingAnswer?.answer || ''}</textarea>
                 <div style="display: flex; gap: 12px;">
                     <button class="guidance-next-btn" style="flex: 1;">${currentLanguage === 'zh' ? '下一步 →' : 'Next →'}</button>
                 </div>
@@ -817,7 +868,6 @@ async function showGuidanceQuestion(container, modal) {
             backBtn.style.background = 'var(--text-secondary)';
             backBtn.addEventListener('click', () => {
                 guidanceStep--;
-                userGuidanceAnswers.pop();
                 showGuidanceQuestion(container, modal);
             });
             buttonContainer.insertBefore(backBtn, nextBtn);
@@ -829,8 +879,9 @@ async function showGuidanceQuestion(container, modal) {
                 showNotification(currentLanguage === 'zh' ? '请输入回答' : 'Please enter an answer');
                 return;
             }
-            
-            userGuidanceAnswers.push({
+
+            pruneGuidanceAnswersFrom(guidanceStep + 2);
+            setGuidanceAnswer({
                 step: guidanceStep + 1,
                 question: q.question,
                 answer: answer
@@ -845,13 +896,21 @@ async function showGuidanceQuestion(container, modal) {
     }
 }
 
-async function generateAIFeedback(container, modal, q) {
+async function generateAIFeedback(container, modal, q, modification = '') {
     try {
+        const feedbackContext = modification
+            ? [...userGuidanceAnswers.filter(a => a.step !== guidanceStep + 1), {
+                step: guidanceStep + 1,
+                question: `${q.question} (${currentLanguage === 'zh' ? '修改意见' : 'Modification'})`,
+                answer: modification
+            }]
+            : userGuidanceAnswers;
+
         // 调用AI服务生成建议
         const result = await aiService.generateGuidanceFeedback(
             currentType,
             currentLanguage,
-            userGuidanceAnswers
+            feedbackContext
         );
         
         currentAISuggestion = result.message;
@@ -871,7 +930,8 @@ async function generateAIFeedback(container, modal, q) {
         
         // 满意按钮 - 继续下一步
         container.querySelector('.guidance-accept-btn').addEventListener('click', () => {
-            userGuidanceAnswers.push({
+            pruneGuidanceAnswersFrom(guidanceStep + 2);
+            setGuidanceAnswer({
                 step: guidanceStep + 1,
                 question: q.question,
                 answer: currentAISuggestion,
@@ -917,17 +977,10 @@ function showModificationInput(container, modal, q) {
             showNotification(currentLanguage === 'zh' ? '请输入修改意见' : 'Please enter modification');
             return;
         }
-        
-        // 将修改意见加入答案
-        userGuidanceAnswers.push({
-            step: guidanceStep + 1,
-            question: q.question + ' (修改意见)',
-            answer: modification
-        });
-        
+
         // 重新生成AI建议
         container.querySelector('.modification-input').innerHTML = `<p class="loading">🔄 ${currentLanguage === 'zh' ? 'AI正在根据你的意见重新生成...' : 'AI is regenerating based on your feedback...'}</p>`;
-        await generateAIFeedback(container, modal, q);
+        await generateAIFeedback(container, modal, q, modification);
     });
 }
 
@@ -1074,37 +1127,15 @@ async function showMaterials() {
     `;
 
     try {
-        // 调用AI服务生成素材推荐，添加超时控制
-        let result = null;
-        let retryCount = 0;
-        const maxRetries = 2; // 最多重试2次
-        const timeout = 30000; // 30秒超时
-        
-        while (retryCount <= maxRetries && !result) {
-            try {
-                // 创建超时Promise
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error('AI request timeout')), timeout)
-                );
-                
-                const apiPromise = aiService.generateDetailedMaterials(
-                    currentType,
-                    currentLanguage,
-                    topic,
-                    currentLevel,
-                    userMaterialPreferences,
-                    userGuidanceAnswers,
-                    mainEditor.value
-                );
-                
-                result = await Promise.race([apiPromise, timeoutPromise]);
-            } catch (error) {
-                retryCount++;
-                if (retryCount > maxRetries) throw error;
-                // 等待后重试
-                await new Promise(resolve => setTimeout(resolve, 1500));
-            }
-        }
+        const result = await aiService.generateDetailedMaterials(
+            currentType,
+            currentLanguage,
+            topic,
+            currentLevel,
+            userMaterialPreferences,
+            userGuidanceAnswers,
+            mainEditor.value
+        );
         
         // 步骤3：以卡片形式展示素材
         displayMaterialCards(result.message, topic);
@@ -1494,6 +1525,60 @@ async function checkInspirationNeeded() {
 // =========== 逻辑修补（引导式提问）===========
 let userLogicAnswers = [];
 
+function initializeRightPanelTabs() {
+    switchRightPanel(currentRightPanelView);
+}
+
+function switchRightPanel(view) {
+    currentRightPanelView = view;
+    const viewOutlineBtn = document.getElementById('viewOutlineBtn');
+    const viewLogicBtn = document.getElementById('viewLogicBtn');
+
+    if (outlinePanel) {
+        outlinePanel.style.display = view === 'outline' ? 'block' : 'none';
+    }
+    if (logicPanel) {
+        logicPanel.style.display = view === 'logic' ? 'block' : 'none';
+    }
+
+    if (viewOutlineBtn) viewOutlineBtn.classList.toggle('active', view === 'outline');
+    if (viewLogicBtn) viewLogicBtn.classList.toggle('active', view === 'logic');
+}
+
+function appendLogicRecord(question, answer, feedback) {
+    logicRepairRecords.unshift({
+        type: currentType,
+        language: currentLanguage,
+        question,
+        answer,
+        feedback,
+        timestamp: Date.now()
+    });
+    renderLogicRecords();
+}
+
+function renderLogicRecords() {
+    if (!logicPanel) return;
+
+    if (logicRepairRecords.length === 0) {
+        logicPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
+            ? '逻辑修补记录将显示在这里'
+            : 'Logic repair notes will appear here'}</p>`;
+        return;
+    }
+
+    const html = logicRepairRecords.map((item, idx) => `
+        <div class="logic-record-item">
+            <p class="logic-record-title">${currentLanguage === 'zh' ? `问题 ${logicRepairRecords.length - idx}` : `Question ${logicRepairRecords.length - idx}`}</p>
+            <p class="logic-record-question">🔍 ${item.question}</p>
+            <p class="logic-record-answer">💭 ${currentLanguage === 'zh' ? '我的想法：' : 'My thoughts:'} ${item.answer}</p>
+            <p class="logic-record-feedback">💡 ${currentLanguage === 'zh' ? '逻辑修补建议：' : 'Logic suggestion:'} ${item.feedback}</p>
+        </div>
+    `).join('');
+
+    logicPanel.innerHTML = `<div class="logic-record-list">${html}</div>`;
+}
+
 async function startLogicRepair() {
     if (mainEditor.value.length === 0) {
         showNotification(
@@ -1594,6 +1679,9 @@ async function startLogicRepair() {
                 );
                 
                 const feedback = result.message;
+
+                appendLogicRecord(question, answer, feedback);
+                switchRightPanel('logic');
                 
                 content.innerHTML = `
                     <div class="logic-feedback">
@@ -1617,9 +1705,29 @@ async function startLogicRepair() {
                 
             } catch (error) {
                 console.error('反馈生成失败:', error);
-                // 直接进入下一个问题
-                questionIdx++;
-                showLogicQuestion();
+                const fallbackFeedback = currentLanguage === 'zh'
+                    ? '建议：回到原文，检查该问题对应段落是否有明确论据、清晰过渡和可验证的表达。'
+                    : 'Suggestion: Revisit the related paragraph and verify evidence, transitions, and clarity of claims.';
+
+                appendLogicRecord(question, answer, fallbackFeedback);
+                switchRightPanel('logic');
+
+                content.innerHTML = `
+                    <div class="logic-feedback">
+                        <p class="feedback-header">💡 ${currentLanguage === 'zh' ? '逻辑修补建议' : 'Logic Suggestion'}</p>
+                        <div class="feedback-content">${fallbackFeedback}</div>
+                        <div class="logic-buttons">
+                            <button class="primary-btn" id="nextQuestion">
+                                ${currentLanguage === 'zh' ? '继续 →' : 'Continue →'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                document.getElementById('nextQuestion').addEventListener('click', () => {
+                    questionIdx++;
+                    showLogicQuestion();
+                });
             }
         }
 
@@ -1761,7 +1869,42 @@ function updateTemplate() {
     const template = essayTypes[currentType][currentLanguage];
     templateInfo.innerHTML = `<p>📝 ${template.name} - ${template.level} | ${template.description}</p>`;
     mainEditor.placeholder = template.placeholder;
+    syncTargetSelector();
     updateStats();
+}
+
+function applyTargetWordsConfig() {
+    essayTypes.argumentative.zh.targetWords = targetWordsConfig.argumentative;
+    essayTypes.argumentative.en.targetWords = targetWordsConfig.argumentative;
+    essayTypes.narrative.zh.targetWords = targetWordsConfig.narrative;
+    essayTypes.narrative.en.targetWords = targetWordsConfig.narrative;
+}
+
+function updateTargetWords(value) {
+    if (currentType !== 'argumentative' && currentType !== 'narrative') return;
+
+    targetWordsConfig[currentType] = value;
+    applyTargetWordsConfig();
+    updateStats();
+    showNotification(
+        currentLanguage === 'zh'
+            ? `✓ 已将${essayTypes[currentType][currentLanguage].name}目标字数设置为 ${value} 字`
+            : `✓ Target words set to ${value}`
+    );
+}
+
+function syncTargetSelector() {
+    if (!targetSelectorWrap || !targetWordsSelect || !targetSelectorLabel) return;
+
+    const canSetTarget = currentType === 'argumentative' || currentType === 'narrative';
+    targetSelectorWrap.style.display = canSetTarget ? 'flex' : 'none';
+
+    if (!canSetTarget) return;
+
+    const defaultValue = currentType === 'argumentative' ? 800 : 600;
+    const currentValue = targetWordsConfig[currentType] || defaultValue;
+    targetSelectorLabel.textContent = currentLanguage === 'zh' ? '目标字数' : 'Target words';
+    targetWordsSelect.value = String(currentValue);
 }
 
 // =========== 统计信息更新 ===========
@@ -1847,6 +1990,7 @@ function saveContent() {
         type: currentType,
         level: currentLevel,
         language: currentLanguage,
+        targetWordsConfig,
         title: titleInput.value,
         text: mainEditor.value,
         timestamp: new Date().toISOString()
@@ -1875,6 +2019,7 @@ function loadSavedContent() {
         currentType = content.type || 'argumentative';
         currentLevel = content.level || 'high-school';
         currentLanguage = content.language || 'zh';
+        targetWordsConfig = content.targetWordsConfig || targetWordsConfig;
         titleInput.value = content.title || '';
         mainEditor.value = content.text || '';
 
