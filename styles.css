@@ -1837,3 +1837,12 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: var(--text-light);
 }
+
+/* 写作计划大纲放大显示的内边距 */
+#outlineResultContent {
+    padding: 0 24px;
+}
+
+#outlineResultModal .logic-buttons {
+    padding: 0 24px 20px 24px;
+}
