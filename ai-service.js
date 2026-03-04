@@ -605,9 +605,9 @@ Based on the student's answer, provide guiding suggestions to help them think ab
     }
 
     /**
-     * 生成逻辑修补问题
+     * 生成优化修补问题
      */
-    async generateLogicQuestions(essayType, language, articleContent) {
+    async generateOptimizationQuestions(essayType, language, articleContent) {
         const promptMap = {
             'argumentative': language === 'zh'
                 ? `分析这篇议论文：${articleContent.substring(0, 500)}... 提出3-5个引导性问题，帮助作者发现论证中的逻辑问题或不足之处。每个问题要具体且有针对性。`
@@ -621,11 +621,11 @@ Based on the student's answer, provide guiding suggestions to help them think ab
         };
 
         const messages = [
-            { role: 'system', content: language === 'zh' ? '你是论文逻辑审查专家' : 'You are a logic review expert' },
+            { role: 'system', content: language === 'zh' ? '你是文章优化评审专家' : 'You are a content optimization expert' },
             { role: 'user', content: promptMap[essayType] }
         ];
 
-        return await this.callAI(messages, 'logic', essayType);
+        return await this.callAI(messages, 'optimization', essayType);
     }
 }
 

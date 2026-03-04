@@ -1,6 +1,6 @@
 // ============================================
 // 智引文思 - 智能写作平台 v2.0
-// 核心功能：启动引导、素材推荐、灵感提示、逻辑修补
+// 核心功能：启动引导、素材推荐、灵感提示、优化修补
 // ============================================
 
 // =========== 应用状态管理 ===========
@@ -20,7 +20,7 @@ let targetWordsConfig = {
     narrative: 600
 };
 let currentRightPanelView = 'outline';
-let logicRepairRecords = [];
+let optimizationRecords = [];
 
 // =========== 写作类型配置 ===========
 const essayTypes = {
@@ -528,8 +528,8 @@ function playNotificationSound() {
     }
 }
 
-// =========== 逻辑修补问题 ===========
-const logicRepairQuestions = {
+// =========== 优化修补问题 ===========
+const optimizationQuestions = {
     argumentative: {
         zh: [
             '你是否在每个观点后都提供了具体的论据？有哪些观点缺少支撑？',
@@ -582,7 +582,7 @@ const logicRepairQuestions = {
 
 // =========== DOM 元素（全局变量声明）===========
 let mainEditor, titleInput, charCount, wordCount, paraCount;
-let templateInfo, aiOutput, outlinePanel, logicPanel, materialsList, materialsPanel;
+let templateInfo, aiOutput, outlinePanel, optimizationPanel, materialsList, materialsPanel;
 let targetWordsSelect, targetSelectorWrap, targetSelectorLabel;
 
 function showOutlineResultModal(contentHtml) {
@@ -628,7 +628,7 @@ document.addEventListener('DOMContentLoaded', () => {
     templateInfo = document.getElementById('templateInfo');
     aiOutput = document.getElementById('aiOutput');
     outlinePanel = document.getElementById('outlinePanel');
-    logicPanel = document.getElementById('logicPanel');
+    optimizationPanel = document.getElementById('optimizationPanel');
     materialsList = document.getElementById('materialsList');
     materialsPanel = document.getElementById('materialsPanel');
     targetWordsSelect = document.getElementById('targetWordsSelect');
@@ -648,7 +648,7 @@ document.addEventListener('DOMContentLoaded', () => {
     updateTemplate();
     setupEventListeners();
     initializeRightPanelTabs();
-    renderLogicRecords();
+    renderOptimizationRecords();
     updateStats();
     setupKeystrokeTracking();
     
@@ -677,7 +677,7 @@ function setupEventListeners() {
             console.log('🌍 language changed:', e.target.value);
             currentLanguage = e.target.value;
             updateTemplate();
-            renderLogicRecords();
+            renderOptimizationRecords();
         });
     });
 
@@ -721,13 +721,13 @@ function setupEventListeners() {
     const launchGuidanceBtn = document.getElementById('launchGuidance');
     const getMaterialsBtn = document.getElementById('getMaterials');
     const getInspirationBtn = document.getElementById('getInspiration');
-    const logicRepairBtn = document.getElementById('logicRepair');
+    const optimizationBtn = document.getElementById('optimization');
     
     console.log('🎯 Button elements:', {
         launchGuidance: !!launchGuidanceBtn,
         getMaterials: !!getMaterialsBtn,
         getInspiration: !!getInspirationBtn,
-        logicRepair: !!logicRepairBtn
+        optimization: !!optimizationBtn
     });
     
     if (launchGuidanceBtn) {
@@ -760,26 +760,26 @@ function setupEventListeners() {
         console.error('❌ getInspirationBtn not found!');
     }
     
-    if (logicRepairBtn) {
-        console.log('✅ Adding logicRepair click listener');
-        logicRepairBtn.addEventListener('click', () => {
-            console.log('🔍 logicRepair clicked');
-            startLogicRepair();
+    if (optimizationBtn) {
+        console.log('✅ Adding optimization click listener');
+        optimizationBtn.addEventListener('click', () => {
+            console.log('🔍 optimization clicked');
+            startOptimization();
         });
     } else {
-        console.error('❌ logicRepairBtn not found!');
+        console.error('❌ optimizationBtn not found!');
     }
 
     // 模态框关闭
     const closeModalBtn = document.getElementById('closeModal');
-    const closeLogicModalBtn = document.getElementById('closeLogicModal');
+    const closeOptimizationModalBtn = document.getElementById('closeOptimizationModal');
     const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
     const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
     const enlargeOutlineBtn = document.getElementById('enlargeOutlineBtn');
     const enlargeOutlineFromPanelBtn = document.getElementById('enlargeOutlineFromPanelBtn');
     
     if (closeModalBtn) closeModalBtn.addEventListener('click', closeGuidanceModal);
-    if (closeLogicModalBtn) closeLogicModalBtn.addEventListener('click', closeLogicModal);
+    if (closeOptimizationModalBtn) closeOptimizationModalBtn.addEventListener('click', closeOptimizationModal);
     if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
     if (startWritingFromOutlineBtn) {
         startWritingFromOutlineBtn.addEventListener('click', () => {
@@ -825,12 +825,12 @@ function setupEventListeners() {
 
     // 点击模态框背景关闭
     const guidanceModal = document.getElementById('guidanceModal');
-    const logicModal = document.getElementById('logicModal');
+    const optimizationModal = document.getElementById('optimizationModal');
     const outlineResultModal = document.getElementById('outlineResultModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
-        logicModal: !!logicModal
+        optimizationModal: !!optimizationModal
     });
     
     if (guidanceModal) {
@@ -838,9 +838,9 @@ function setupEventListeners() {
             if (e.target.id === 'guidanceModal') closeGuidanceModal();
         });
     }
-    if (logicModal) {
-        logicModal.addEventListener('click', (e) => {
-            if (e.target.id === 'logicModal') closeLogicModal();
+    if (optimizationModal) {
+        optimizationModal.addEventListener('click', (e) => {
+            if (e.target.id === 'optimizationModal') closeOptimizationModal();
         });
     }
     if (outlineResultModal) {
@@ -1630,9 +1630,9 @@ async function checkInspirationNeeded() {
     }
 }
 
-// =========== 逻辑修补 ===========
-// =========== 逻辑修补（引导式提问）===========
-let userLogicAnswers = [];
+// =========== 优化修补 ===========
+// =========== 优化修补（引导式提问）===========
+let userOptimizationAnswers = [];
 
 function initializeRightPanelTabs() {
     switchRightPanel(currentRightPanelView);
@@ -1641,21 +1641,21 @@ function initializeRightPanelTabs() {
 function switchRightPanel(view) {
     currentRightPanelView = view;
     const viewOutlineBtn = document.getElementById('viewOutlineBtn');
-    const viewLogicBtn = document.getElementById('viewLogicBtn');
+    const viewOptimizationBtn = document.getElementById('viewOptimizationBtn');
 
     if (outlinePanel) {
         outlinePanel.style.display = view === 'outline' ? 'block' : 'none';
     }
-    if (logicPanel) {
-        logicPanel.style.display = view === 'logic' ? 'block' : 'none';
+    if (optimizationPanel) {
+        optimizationPanel.style.display = view === 'optimization' ? 'block' : 'none';
     }
 
     if (viewOutlineBtn) viewOutlineBtn.classList.toggle('active', view === 'outline');
-    if (viewLogicBtn) viewLogicBtn.classList.toggle('active', view === 'logic');
+    if (viewOptimizationBtn) viewOptimizationBtn.classList.toggle('active', view === 'optimization');
 }
 
-function appendLogicRecord(question, answer, feedback) {
-    logicRepairRecords.unshift({
+function appendOptimizationRecord(question, answer, feedback) {
+    optimizationRecords.unshift({
         type: currentType,
         language: currentLanguage,
         question,
@@ -1666,29 +1666,29 @@ function appendLogicRecord(question, answer, feedback) {
     renderLogicRecords();
 }
 
-function renderLogicRecords() {
-    if (!logicPanel) return;
+function renderOptimizationRecords() {
+    if (!optimizationPanel) return;
 
-    if (logicRepairRecords.length === 0) {
-        logicPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
-            ? '逻辑修补记录将显示在这里'
-            : 'Logic repair notes will appear here'}</p>`;
+    if (optimizationRecords.length === 0) {
+        optimizationPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
+            ? '优化修补记录将显示在这里'
+            : 'Optimization notes will appear here'}</p>`;
         return;
     }
 
-    const html = logicRepairRecords.map((item, idx) => `
-        <div class="logic-record-item">
-            <p class="logic-record-title">${currentLanguage === 'zh' ? `问题 ${logicRepairRecords.length - idx}` : `Question ${logicRepairRecords.length - idx}`}</p>
-            <p class="logic-record-question">🔍 ${item.question}</p>
-            <p class="logic-record-answer">💭 ${currentLanguage === 'zh' ? '我的想法：' : 'My thoughts:'} ${item.answer}</p>
-            <p class="logic-record-feedback">💡 ${currentLanguage === 'zh' ? '逻辑修补建议：' : 'Logic suggestion:'} ${item.feedback}</p>
+    const html = optimizationRecords.map((item, idx) => `
+        <div class="optimization-record-item">
+            <p class="optimization-record-title">${currentLanguage === 'zh' ? `问题 ${optimizationRecords.length - idx}` : `Question ${optimizationRecords.length - idx}`}</p>
+            <p class="optimization-record-question">🔍 ${item.question}</p>
+            <p class="optimization-record-answer">💭 ${currentLanguage === 'zh' ? '我的想法：' : 'My thoughts:'} ${item.answer}</p>
+            <p class="optimization-record-feedback">💡 ${currentLanguage === 'zh' ? '优化修补建议：' : 'Optimization suggestion:'} ${item.feedback}</p>
         </div>
     `).join('');
 
-    logicPanel.innerHTML = `<div class="logic-record-list">${html}</div>`;
+    optimizationPanel.innerHTML = `<div class="optimization-record-list">${html}</div>`;
 }
 
-async function startLogicRepair() {
+async function startOptimization() {
     if (mainEditor.value.length === 0) {
         showNotification(
             currentLanguage === 'zh'
@@ -1698,19 +1698,19 @@ async function startLogicRepair() {
         return;
     }
 
-    const modal = document.getElementById('logicModal');
-    const content = document.getElementById('logicContent');
-    userLogicAnswers = [];
+    const modal = document.getElementById('optimizationModal');
+    const content = document.getElementById('optimizationContent');
+    userOptimizationAnswers = [];
     
     // 显示加载状态
     content.innerHTML = '<p class="loading">🔄 ' + 
-        (currentLanguage === 'zh' ? 'AI正在分析你的文章，生成引导性问题...' : 'AI is analyzing your article to generate guiding questions...') + 
+        (currentLanguage === 'zh' ? 'AI正在分析你的文章，生成优化建议...' : 'AI is analyzing your article to generate optimization suggestions...') + 
         '</p>';
     modal.style.display = 'flex';
 
     try {
         // 调用AI生成针对性问题
-        const result = await aiService.generateLogicQuestions(
+        const result = await aiService.generateOptimizationQuestions(
             currentType,
             currentLanguage,
             mainEditor.value
@@ -1719,26 +1719,26 @@ async function startLogicRepair() {
         const aiQuestions = result.message;
         
         // 将AI返回的问题按行分割
-        const questionsList = parseLogicQuestions(aiQuestions);
+        const questionsList = parseOptimizationQuestions(aiQuestions);
         let questionIdx = 0;
 
-        function showLogicQuestion() {
+        function showOptimizationQuestion() {
             if (questionIdx >= questionsList.length) {
                 // 所有问题完成，生成总结
-                showLogicSummary();
+                showOptimizationSummary();
                 return;
             }
 
             const q = questionsList[questionIdx];
             content.innerHTML = `
-                <div class="logic-question">
+                <div class="optimization-question">
                     <p class="question-label">${currentLanguage === 'zh' ? '🔍 问题' : '🔍 Question'} ${questionIdx + 1}/${questionsList.length}</p>
                     <p class="question-text">${q}</p>
                     <p class="question-hint">${currentLanguage === 'zh' 
                         ? '💭 请认真思考这个问题，并诚实地回答。这有助于你发现文章中的不足之处。' 
                         : '💭 Think carefully about this question and answer honestly. This helps you discover weaknesses in your article.'}</p>
-                    <textarea class="logic-answer" placeholder="${currentLanguage === 'zh' ? '在这里写下你的回答和思考...' : 'Write your answer and thoughts here...'}" rows="4"></textarea>
-                    <div class="logic-buttons">
+                    <textarea class="optimization-answer" placeholder="${currentLanguage === 'zh' ? '在这里写下你的回答和思考...' : 'Write your answer and thoughts here...'}" rows="4"></textarea>
+                    <div class="optimization-buttons">
                         <button class="primary-btn" id="submitAnswer">
                             ${currentLanguage === 'zh' ? '✓ 提交回答' : '✓ Submit Answer'}
                         </button>
@@ -1750,7 +1750,7 @@ async function startLogicRepair() {
             `;
 
             document.getElementById('submitAnswer').addEventListener('click', async () => {
-                const answer = content.querySelector('.logic-answer').value.trim();
+                const answer = content.querySelector('.optimization-answer').value.trim();
                 if (!answer) {
                     showNotification(currentLanguage === 'zh' ? '请输入回答' : 'Please enter an answer');
                     return;
@@ -1768,7 +1768,7 @@ async function startLogicRepair() {
 
             document.getElementById('skipQuestion').addEventListener('click', () => {
                 questionIdx++;
-                showLogicQuestion();
+                showOptimizationQuestion();
             });
         }
 
@@ -1799,7 +1799,7 @@ async function startLogicRepair() {
                         <p class="feedback-hint">${currentLanguage === 'zh' 
                             ? '提示：请不要让AI代替你修改，而是根据建议自己思考并改进文章。' 
                             : 'Tip: Don\'t let AI make changes for you. Think and improve your article based on suggestions.'}</p>
-                        <div class="logic-buttons">
+                        <div class="optimization-buttons">
                             <button class="primary-btn" id="nextQuestion">
                                 ${currentLanguage === 'zh' ? '明白了，继续 →' : 'Got it, Continue →'}
                             </button>
@@ -1809,7 +1809,7 @@ async function startLogicRepair() {
                 
                 document.getElementById('nextQuestion').addEventListener('click', () => {
                     questionIdx++;
-                    showLogicQuestion();
+                    showOptimizationQuestion();
                 });
                 
             } catch (error) {
@@ -1818,14 +1818,14 @@ async function startLogicRepair() {
                     ? '建议：回到原文，检查该问题对应段落是否有明确论据、清晰过渡和可验证的表达。'
                     : 'Suggestion: Revisit the related paragraph and verify evidence, transitions, and clarity of claims.';
 
-                appendLogicRecord(question, answer, fallbackFeedback);
-                switchRightPanel('logic');
+                appendOptimizationRecord(question, answer, fallbackFeedback);
+                switchRightPanel('optimization');
 
                 content.innerHTML = `
-                    <div class="logic-feedback">
-                        <p class="feedback-header">💡 ${currentLanguage === 'zh' ? '逻辑修补建议' : 'Logic Suggestion'}</p>
+                    <div class="optimization-feedback">
+                        <p class="feedback-header">💡 ${currentLanguage === 'zh' ? '优化修补建议' : 'Optimization Suggestion'}</p>
                         <div class="feedback-content">${fallbackFeedback}</div>
-                        <div class="logic-buttons">
+                        <div class="optimization-buttons">
                             <button class="primary-btn" id="nextQuestion">
                                 ${currentLanguage === 'zh' ? '继续 →' : 'Continue →'}
                             </button>
@@ -1835,15 +1835,15 @@ async function startLogicRepair() {
 
                 document.getElementById('nextQuestion').addEventListener('click', () => {
                     questionIdx++;
-                    showLogicQuestion();
+                    showOptimizationQuestion();
                 });
             }
         }
 
-        function showLogicSummary() {
+        function showOptimizationSummary() {
             const answeredCount = userLogicAnswers.length;
             content.innerHTML = `
-                <div class="logic-complete">
+                <div class="optimization-complete">
                     <h3>✓ ${currentLanguage === 'zh' ? '逻辑检查完成' : 'Logic Check Complete'}</h3>
                     <p>${currentLanguage === 'zh' 
                         ? `你已经回答了 ${answeredCount} 个问题，认真思考了文章的逻辑。` 
@@ -1851,49 +1851,49 @@ async function startLogicRepair() {
                     <p class="summary-hint">${currentLanguage === 'zh' 
                         ? '💡 建议：现在回到文章，根据刚才的思考和AI建议，自己动手改进文章的逻辑和表达。' 
                         : '💡 Suggestion: Return to your article and improve its logic and expression based on your thoughts and AI suggestions.'}</p>
-                    <div class="logic-buttons">
-                        <button class="primary-btn" id="closeLogicBtn">
+                    <div class="optimization-buttons">
+                        <button class="primary-btn" id="closeOptimizationBtn">
                             ${currentLanguage === 'zh' ? '返回继续写作' : 'Return to Writing'}
                         </button>
                     </div>
                 </div>
             `;
             
-            document.getElementById('closeLogicBtn').addEventListener('click', closeLogicModal);
+            document.getElementById('closeOptimizationBtn').addEventListener('click', closeOptimizationModal);
         }
 
-        showLogicQuestion();
+        showOptimizationQuestion();
         
     } catch (error) {
-        console.error('逻辑修补失败:', error);
+        console.error('优化修补失败:', error);
         
         // 降级到本地问题库
-        const questions = logicRepairQuestions[currentType][currentLanguage];
+        const questions = optimizationQuestions[currentType][currentLanguage];
         let questionIdx = 0;
 
-        function showLogicQuestion() {
+        function showOptimizationQuestion() {
             if (questionIdx >= questions.length) {
                 content.innerHTML = `
-                    <div class="logic-complete">
+                    <div class="optimization-complete">
                         <p>✓ ${currentLanguage === 'zh' 
-                            ? '你已经完成了逻辑修补检查。根据这些问题反思并改进你的文章。' 
-                            : 'Logic repair complete. Reflect on these questions and improve your article.'}</p>
-                        <button class="primary-btn" id="closeLogicBtn">
+                            ? '你已经完成了优化修补检查。根据这些问题反思并改进你的文章。' 
+                            : 'Optimization complete. Reflect on these questions and improve your article.'}</p>
+                        <button class="primary-btn" id="closeOptimizationBtn">
                             ${currentLanguage === 'zh' ? '返回写作' : 'Return to Writing'}
                         </button>
                     </div>
                 `;
-                document.getElementById('closeLogicBtn')?.addEventListener('click', closeLogicModal);
+                document.getElementById('closeOptimizationBtn')?.addEventListener('click', closeOptimizationModal);
                 return;
             }
 
-            const q = questions[questionIdx];
+                const q = questions[questionIdx];
             content.innerHTML = `
-                <div class="logic-question">
+                <div class="optimization-question">
                     <p class="question-label">${currentLanguage === 'zh' ? '🔍 问题' : '🔍 Question'} ${questionIdx + 1}/${questions.length}</p>
                     <p class="question-text">${q}</p>
-                    <textarea class="logic-answer" placeholder="${currentLanguage === 'zh' ? '在这里记录你的思考...' : 'Record your thoughts here...'}"></textarea>
-                    <div class="logic-buttons">
+                    <textarea class="optimization-answer" placeholder="${currentLanguage === 'zh' ? '在这里记录你的思考...' : 'Record your thoughts here...'}"></textarea>
+                    <div class="optimization-buttons">
                         <button class="secondary-btn" id="nextQuestion">
                             ${currentLanguage === 'zh' ? '下一个问题 →' : 'Next →'}
                         </button>
@@ -1903,15 +1903,15 @@ async function startLogicRepair() {
 
             document.getElementById('nextQuestion').addEventListener('click', () => {
                 questionIdx++;
-                showLogicQuestion();
+                showOptimizationQuestion();
             });
         }
 
-        showLogicQuestion();
+        showOptimizationQuestion();
     }
 }
 
-function parseLogicQuestions(aiResponse) {
+function parseOptimizationQuestions(aiResponse) {
     // 更好地解析AI返回的问题列表
     // 支持以数字、符号开头的问题，以及多行问题
     const lines = aiResponse.split('\n');
@@ -1968,9 +1968,9 @@ function parseLogicQuestions(aiResponse) {
                 .trim());
 }
 
-function closeLogicModal() {
-    document.getElementById('logicModal').style.display = 'none';
-    userLogicAnswers = [];
+function closeOptimizationModal() {
+    document.getElementById('optimizationModal').style.display = 'none';
+    userOptimizationAnswers = [];
 }
 
 // =========== 模板更新 ===========
@@ -2192,11 +2192,11 @@ function clearContent() {
             outlinePanel.style.display = 'block';
         }
 
-        if (logicPanel) {
-            logicPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
-                ? '逻辑修补记录将显示在这里'
-                : 'Logic repair notes will appear here'}</p>`;
-            logicPanel.style.display = 'none';
+        if (optimizationPanel) {
+            optimizationPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
+                ? '优化修补记录将显示在这里'
+                : 'Optimization notes will appear here'}</p>`;
+            optimizationPanel.style.display = 'none';
         }
 
         // 清空运行时状态
@@ -2204,8 +2204,8 @@ function clearContent() {
         currentAISuggestion = '';
         guidanceStep = 0;
         userMaterialPreferences = [];
-        userLogicAnswers = [];
-        logicRepairRecords = [];
+        userOptimizationAnswers = [];
+        optimizationRecords = [];
         currentOutline = null;
 
         const guidanceContent = document.getElementById('guidanceContent');
@@ -2307,7 +2307,7 @@ style.textContent = `
         from { transform: translateX(0); opacity: 1; }
         to { transform: translateX(400px); opacity: 0; }
     }
-    .guidance-step, .logic-question {
+    .guidance-step, .optimization-question {
         padding: 1.5rem;
     }
     .step-label {
@@ -2388,7 +2388,7 @@ style.textContent = `
         color: #2c3e50;
         border-bottom: 1px solid #ecf0f1;
     }
-    .logic-answer {
+    .optimization-answer {
         width: 100%;
         min-height: 120px;
         padding: 0.75rem;
@@ -2397,12 +2397,12 @@ style.textContent = `
         margin: 1rem 0;
         font-family: inherit;
     }
-    .logic-buttons {
+    .optimization-buttons {
         display: flex;
         gap: 1rem;
         margin-top: 1.5rem;
     }
-    .logic-complete {
+    .optimization-complete {
         padding: 2rem;
         text-align: center;
         background: #f0fff4;
@@ -2422,7 +2422,7 @@ function runDiagnostics() {
         '启动引导': 'launchGuidance',
         '素材推荐': 'getMaterials',
         '灵感提示': 'getInspiration',
-        '逻辑修补': 'logicRepair',
+        '优化修补': 'optimization',
         '保存': 'saveBtn',
         '清空': 'clearBtn',
         '导出': 'exportBtn',
@@ -2461,7 +2461,7 @@ function runDiagnostics() {
         'startGuidance',
         'showMaterials',
         'checkInspirationNeeded',
-        'startLogicRepair',
+        'startOptimization',
         'saveContent',
         'clearContent',
         'exportContent'
