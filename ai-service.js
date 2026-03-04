@@ -246,7 +246,7 @@ Please generate a complete outline in this format.`;
     /**
      * 生成详细素材推荐（包含使用示例和适用场景）
      */
-    async generateDetailedMaterials(essayType, language, topic, level, userPreferences = []) {
+    async generateDetailedMaterials(essayType, language, topic, level, userPreferences = [], guidanceAnswers = [], contentText = '') {
         const essayTypeNames = {
             'argumentative': { zh: '议论文', en: 'argumentative essay' },
             'narrative': { zh: '记叙文', en: 'narrative essay' },
@@ -264,6 +264,20 @@ Please generate a complete outline in this format.`;
                 : `\nUser's previous material preferences: ${userPreferences.slice(-3).map(p => p.content.substring(0, 20)).join(', ')}`)
             : '';
         
+        // 构建启动引导上下文
+        const guidanceContext = guidanceAnswers.length > 0
+            ? (language === 'zh'
+                ? `\n用户在启动引导中的信息：${guidanceAnswers.map(a => a.answer).join('；').substring(0, 200)}`
+                : `\nUser guidance context: ${guidanceAnswers.map(a => a.answer).join('; ').substring(0, 200)}`)
+            : '';
+        
+        // 构建现有写作内容信息
+        const contentContext = contentText && contentText.length > 0
+            ? (language === 'zh'
+                ? `\n用户当前已写的文章片段（${contentText.length}字）可作为参考`
+                : `\nUser's current draft (${contentText.length} chars) for reference`)
+            : '';
+        
         const promptMap = {
             'argumentative': language === 'zh' 
                 ? `为主题为"${topic}"的${essayTypeName}推荐4-5个素材，要求：
@@ -271,7 +285,7 @@ Please generate a complete outline in this format.`;
 2. 每个素材要具体、有说服力
 3. 标注每个素材的【适用场景】（如"适用于第一分论点"或"适用于反驳论证"）
 4. 提供【使用示例】，说明如何在文章中引用这个素材
-5. 考虑${level === 'high-school' ? '高中生' : '大学生'}的水平${preferenceText}
+5. 考虑${level === 'high-school' ? '高中生' : '大学生'}的水平${preferenceText}${guidanceContext}${contentContext}
 
 输出格式：
 1. [素材类型] 素材内容
@@ -286,7 +300,7 @@ Please generate a complete outline in this format.`;
 2. Each material should be specific and persuasive
 3. Mark [Suitable Scenario] for each (e.g., "suitable for first sub-argument")
 4. Provide [Usage Example] showing how to cite in the article
-5. Consider ${level === 'high-school' ? 'high school' : 'university'} level${preferenceText}
+5. Consider ${level === 'high-school' ? 'high school' : 'university'} level${preferenceText}${guidanceContext}${contentContext}
 
 Output format:
 1. [Material Type] Material content
@@ -302,7 +316,7 @@ Output format:
 2. 每个素材要生动、具体、有画面感
 3. 标注每个素材的【适用场景】（如"适用于开头场景"或"适用于高潮部分"）
 4. 提供【使用示例】，展示如何在文章中运用
-5. 考虑${level === 'high-school' ? '高中生' : '大学生'}的水平${preferenceText}
+5. 考虑${level === 'high-school' ? '高中生' : '大学生'}的水平${preferenceText}${guidanceContext}${contentContext}
 
 输出格式：
 1. [描写类型] 素材内容
@@ -317,7 +331,7 @@ Output format:
 2. Each material should be vivid, specific, and visual
 3. Mark [Suitable Scenario] (e.g., "suitable for opening scene")
 4. Provide [Usage Example] showing how to apply in writing
-5. Consider ${level === 'high-school' ? 'high school' : 'university'} level${preferenceText}
+5. Consider ${level === 'high-school' ? 'high school' : 'university'} level${preferenceText}${guidanceContext}${contentContext}
 
 Output format:
 1. [Description Type] Material content
@@ -333,7 +347,7 @@ Output format:
 2. 每个素材要学术严谨、有参考价值
 3. 标注每个素材的【适用场景】（如"适用于文献综述部分"）
 4. 提供【使用示例】或说明
-5. 考虑${level === 'high-school' ? '本科' : '研究生'}的水平${preferenceText}
+5. 考虑${level === 'high-school' ? '本科' : '研究生'}的水平${preferenceText}${guidanceContext}${contentContext}
 
 输出格式：
 1. [素材类型] 素材内容
@@ -348,7 +362,7 @@ Output format:
 2. Each material should be academically rigorous and valuable
 3. Mark [Suitable Scenario] (e.g., "suitable for literature review")
 4. Provide [Usage Instructions] or explanations
-5. Consider ${level === 'high-school' ? 'undergraduate' : 'graduate'} level${preferenceText}
+5. Consider ${level === 'high-school' ? 'undergraduate' : 'graduate'} level${preferenceText}${guidanceContext}${contentContext}
 
 Output format:
 1. [Material Type] Material content

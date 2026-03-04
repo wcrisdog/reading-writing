@@ -1194,12 +1194,15 @@ async function showMaterials() {
 
     try {
         // 调用AI服务生成素材推荐
+        // 额外传入启动引导内容和当前正文内容，以提高推荐精准度
         const result = await aiService.generateDetailedMaterials(
             currentType,
             currentLanguage,
             topic,
             currentLevel,
-            userMaterialPreferences
+            userMaterialPreferences,
+            userGuidanceAnswers,
+            mainEditor.value
         );
         
         // 步骤3：以卡片形式展示素材
@@ -1214,8 +1217,33 @@ async function showMaterials() {
     } catch (error) {
         console.error('素材推荐失败:', error);
         
-        // 降级到本地素材库
-        displayFallbackMaterials(topic);
+        // 改进的错误处理 - 更信息性的提示
+        const errorMsg = error.message || error.toString();
+        const isNetworkError = errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch');
+        
+        materialsList.innerHTML = `
+            <div class="material-error">
+                <p class="error-title">⚠️ ${currentLanguage === 'zh' ? 'AI素材推荐暂时不可用' : 'Material recommendation unavailable'}</p>
+                <p class="error-msg">${
+                    isNetworkError 
+                        ? (currentLanguage === 'zh' ? '网络连接中断，请检查网络后重试' : 'Network error, please check connection')
+                        : (currentLanguage === 'zh' ? '服务器响应错误，请稍后重试' : 'Server error, please try later')
+                }</p>
+                <button class="retry-btn" onclick="showMaterials()">
+                    🔄 ${currentLanguage === 'zh' ? '重试' : 'Retry'}
+                </button>
+                <button class="fallback-btn" onclick="displayFallbackMaterials('${topic}')">
+                    📚 ${currentLanguage === 'zh' ? '使用本地素材' : 'Use local materials'}
+                </button>
+            </div>
+        `;
+        
+        // 为fallback按钮添加样式
+        const fallbackBtn = materialsList.querySelector('.fallback-btn');
+        if (fallbackBtn) {
+            fallbackBtn.style.marginLeft = '12px';
+            fallbackBtn.style.background = 'var(--success-color)';
+        }
     }
 }
 
@@ -1486,14 +1514,27 @@ async function checkInspirationNeeded() {
         const targetWords = essayTypes[currentType][currentLanguage].targetWords;
         const hasTarget = Number.isFinite(targetWords) && targetWords > 0;
         
-        // 调用AI服务
-        const result = await aiService.generateInspiration(
-            currentType, 
-            currentLanguage, 
-            text, 
-            wordCount, 
-            targetWords
-        );
+        // 调用AI服务（添加重试逻辑）
+        let result = null;
+        let retryCount = 0;
+        const maxRetries = 1; // 失败时重试一次
+        
+        while (retryCount <= maxRetries && !result) {
+            try {
+                result = await aiService.generateInspiration(
+                    currentType, 
+                    currentLanguage, 
+                    text, 
+                    wordCount, 
+                    targetWords
+                );
+            } catch (error) {
+                retryCount++;
+                if (retryCount > maxRetries) throw error;
+                // 等待后重试
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
+        }
         
         const aiTip = result.message;
         const progress = hasTarget ? (wordCount / targetWords * 100).toFixed(0) : null;
@@ -1520,13 +1561,22 @@ async function checkInspirationNeeded() {
     } catch (error) {
         console.error('灵感提示失败:', error);
         
-        // 降级到本地提示
+        // 改进的fallback机制
         const tips = inspirationTips[currentType][currentLanguage];
         const tip = wordCount < essayTypes[currentType][currentLanguage].targetWords / 2
             ? tips.stallTips[Math.floor(Math.random() * tips.stallTips.length)]
             : tips.progressTips[Math.floor(Math.random() * tips.progressTips.length)];
         
-        aiOutput.innerHTML = `<p class="suggestion">${tip}</p>`;
+        aiOutput.innerHTML = `
+            <p class="suggestion">${tip}</p>
+            <p class="fallback-note">${currentLanguage === 'zh' ? '（使用本地建议）' : '(using local suggestion)'}</p>
+        `;
+        
+        showNotification(
+            currentLanguage === 'zh'
+                ? '💡 已提供本地灵感建议'
+                : '💡 Local inspiration tip provided'
+        );
     }
 }
 
