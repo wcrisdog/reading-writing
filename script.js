@@ -13,6 +13,7 @@ let lastActivityTime = Date.now();
 let guidanceStep = 0;
 let currentOutline = null;
 let writingStartTime = null; // 写作开始时间
+let guidanceRawPrompt = ''; // 用户可选的原始题目输入
 let totalWritingTime = 0; // 总写作时长（秒）
 let lastStatsUpdate = Date.now();
 let targetWordsConfig = {
@@ -770,6 +771,27 @@ function setupEventListeners() {
         console.error('❌ optimizationBtn not found!');
     }
 
+    // 写作完成按钮（如果不存在则动态创建）
+    let finishWritingBtn = document.getElementById('finishWritingBtn');
+    if (!finishWritingBtn) {
+        // 在编辑器下方动态创建一个按钮
+        const editorEl = document.getElementById('mainEditor');
+        if (editorEl && editorEl.parentElement) {
+            finishWritingBtn = document.createElement('button');
+            finishWritingBtn.id = 'finishWritingBtn';
+            finishWritingBtn.textContent = currentLanguage === 'zh' ? '写作完成并生成报告' : 'Finish Writing & Report';
+            finishWritingBtn.style.marginTop = '8px';
+            finishWritingBtn.className = 'primary-btn';
+            editorEl.parentElement.insertBefore(finishWritingBtn, editorEl.nextSibling);
+        }
+    }
+
+    if (finishWritingBtn) {
+        finishWritingBtn.addEventListener('click', () => {
+            finishWriting();
+        });
+    }
+
     // 模态框关闭
     const closeModalBtn = document.getElementById('closeModal');
     const closeOptimizationModalBtn = document.getElementById('closeOptimizationModal');
@@ -887,6 +909,14 @@ async function showGuidanceQuestion(container, modal) {
     const questions = guidanceQuestions[currentType][currentLanguage];
     if (guidanceStep >= questions.length) {
         // 收集完所有答案，先关闭引导窗口
+        // 如果用户输入了原始题目，将其作为第0步保存
+        if (guidanceRawPrompt && guidanceRawPrompt.trim()) {
+            setGuidanceAnswer({
+                step: 0,
+                question: currentLanguage === 'zh' ? '原始题目' : 'Original Prompt',
+                answer: guidanceRawPrompt.trim()
+            });
+        }
         closeGuidanceModal();
         
         // 显示AI正在生成的加载窗口
@@ -928,6 +958,12 @@ async function showGuidanceQuestion(container, modal) {
     const q = questions[guidanceStep];
     let html = `
         <div class="guidance-step">
+            <div class="guidance-raw-prompt">
+                <label><input type="checkbox" class="raw-prompt-toggle" ${guidanceRawPrompt ? 'checked' : ''}/> ${currentLanguage === 'zh' ? '输入原始题目（可选）' : 'Enter original prompt (optional)'}</label>
+                <div class="raw-prompt-wrap" style="margin-top:8px;display:${guidanceRawPrompt ? 'block' : 'none'};">
+                    <textarea class="raw-prompt-text" placeholder="${currentLanguage === 'zh' ? '在此输入原始题目（可选）' : 'Enter original writing prompt here (optional)'}" rows="3">${guidanceRawPrompt || ''}</textarea>
+                </div>
+            </div>
             <p class="step-label">${currentLanguage === 'zh' ? '第' : 'Step '} ${guidanceStep + 1}/${questions.length} ${currentLanguage === 'zh' ? '步' : ''}</p>
             <p class="question-text">${q.question}</p>
     `;
@@ -955,6 +991,22 @@ async function showGuidanceQuestion(container, modal) {
     html += `</div>`;
     container.innerHTML = html;
     modal.style.display = 'flex';
+
+    // raw prompt toggle wiring
+    const rawToggle = container.querySelector('.raw-prompt-toggle');
+    const rawWrap = container.querySelector('.raw-prompt-wrap');
+    const rawText = container.querySelector('.raw-prompt-text');
+    if (rawToggle) {
+        rawToggle.addEventListener('change', (e) => {
+            if (rawWrap) rawWrap.style.display = e.target.checked ? 'block' : 'none';
+            if (!e.target.checked) guidanceRawPrompt = '';
+        });
+    }
+    if (rawText) {
+        rawText.addEventListener('input', (e) => {
+            guidanceRawPrompt = e.target.value;
+        });
+    }
 
     if (q.type === 'text') {
         // 文本输入的下一步按钮
@@ -1018,19 +1070,28 @@ async function generateAIFeedback(container, modal, q, modification = '') {
         
         currentAISuggestion = result.message;
         
-        // 显示AI建议
+        // 显示AI建议（增加“回退到上一步”选项，保留用户输入）
         const html = `
             <div class="ai-feedback-result">
                 <div class="ai-suggestion">${currentAISuggestion.replace(/\n/g, '<br>')}</div>
                 <div class="feedback-actions">
+                    <button class="guidance-back-btn">${currentLanguage === 'zh' ? '← 返回上一步' : '← Back'}</button>
                     <button class="guidance-accept-btn">${currentLanguage === 'zh' ? '✓ 满意，继续' : '✓ Satisfied, Continue'}</button>
                     <button class="guidance-modify-btn">${currentLanguage === 'zh' ? '✎ 需要修改' : '✎ Need Modification'}</button>
                 </div>
             </div>
         `;
-        
+
         container.querySelector('.ai-feedback-container').innerHTML = html;
-        
+
+        // 回退按钮 - 返回上一步并保留当前已填内容
+        container.querySelector('.guidance-back-btn').addEventListener('click', () => {
+            if (guidanceStep > 0) {
+                guidanceStep--;
+            }
+            showGuidanceQuestion(container, modal);
+        });
+
         // 满意按钮 - 继续下一步
         container.querySelector('.guidance-accept-btn').addEventListener('click', () => {
             pruneGuidanceAnswersFrom(guidanceStep + 2);
@@ -1043,7 +1104,7 @@ async function generateAIFeedback(container, modal, q, modification = '') {
             guidanceStep++;
             showGuidanceQuestion(container, modal);
         });
-        
+
         // 修改按钮 - 让用户提出修改意见
         container.querySelector('.guidance-modify-btn').addEventListener('click', () => {
             showModificationInput(container, modal, q);
@@ -1053,9 +1114,17 @@ async function generateAIFeedback(container, modal, q, modification = '') {
         console.error('AI反馈生成失败:', error);
         container.querySelector('.ai-feedback-container').innerHTML = `
             <p class="error">${currentLanguage === 'zh' ? '⚠️ AI暂时不可用，请稍后重试' : '⚠️ AI temporarily unavailable'}</p>
-            <button class="guidance-skip-btn">${currentLanguage === 'zh' ? '跳过此步' : 'Skip this step'}</button>
+            <div style="display:flex;gap:10px;margin-top:8px;">
+                <button class="guidance-back-btn">${currentLanguage === 'zh' ? '← 返回上一步' : '← Back'}</button>
+                <button class="guidance-skip-btn">${currentLanguage === 'zh' ? '跳过此步' : 'Skip this step'}</button>
+            </div>
         `;
-        
+
+        container.querySelector('.guidance-back-btn').addEventListener('click', () => {
+            if (guidanceStep > 0) guidanceStep--;
+            showGuidanceQuestion(container, modal);
+        });
+
         container.querySelector('.guidance-skip-btn').addEventListener('click', () => {
             guidanceStep++;
             showGuidanceQuestion(container, modal);
@@ -1236,53 +1305,66 @@ async function showMaterials() {
     `;
 
     try {
-        const result = await aiService.generateDetailedMaterials(
-            currentType,
-            currentLanguage,
+        // 使用带重试和退避策略的请求
+        const result = await fetchMaterialsWithRetry({
+            type: currentType,
+            language: currentLanguage,
             topic,
-            currentLevel,
-            userMaterialPreferences,
-            userGuidanceAnswers,
-            mainEditor.value
-        );
-        
+            level: currentLevel,
+            preferences: userMaterialPreferences,
+            guidance: userGuidanceAnswers,
+            context: mainEditor.value
+        }, 2);
+
         // 步骤3：以卡片形式展示素材
         displayMaterialCards(result.message, topic);
-        
-        showNotification(
-            currentLanguage === 'zh'
-                ? '✓ AI素材推荐已生成'
-                : '✓ AI materials generated'
-        );
-        
+        showNotification(currentLanguage === 'zh' ? '✓ AI素材推荐已生成' : '✓ AI materials generated');
     } catch (error) {
         console.error('素材推荐失败:', error);
-        
-        // 改进的错误处理 - 更信息性的提示
-        const errorMsg = error.message || error.toString();
-        const isNetworkError = errorMsg.includes('Failed to fetch') || errorMsg.includes('fetch');
-        const isTimeoutError = errorMsg.includes('timeout');
-        
+        const errorMsg = error.message || String(error);
+        const isNetworkError = /fetch|network|Failed to fetch/i.test(errorMsg);
+        const isTimeoutError = /timeout/i.test(errorMsg);
+
         let errorText = currentLanguage === 'zh' ? '服务器响应错误，请稍后重试' : 'Server error, please try later';
-        if (isNetworkError) {
-            errorText = currentLanguage === 'zh' ? '网络连接中断，请检查网络后重试' : 'Network error, please check connection';
-        } else if (isTimeoutError) {
-            errorText = currentLanguage === 'zh' ? 'AI处理超时，请稍后重试或使用本地素材' : 'AI response timeout, please try later or use local materials';
-        }
-        
+        if (isNetworkError) errorText = currentLanguage === 'zh' ? '网络连接中断，请检查网络后重试' : 'Network error, please check connection';
+        else if (isTimeoutError) errorText = currentLanguage === 'zh' ? 'AI处理超时，请稍后重试或使用本地素材' : 'AI response timeout, please try later or use local materials';
+
         materialsList.innerHTML = `
             <div class="material-error">
                 <p class="error-title">⚠️ ${currentLanguage === 'zh' ? 'AI素材推荐暂时不可用' : 'Material recommendation unavailable'}</p>
                 <p class="error-msg">${errorText}</p>
-                <button class="retry-btn" onclick="showMaterials()" style="padding: 10px 16px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
-                    🔄 ${currentLanguage === 'zh' ? '重试' : 'Retry'}
-                </button>
-                <button class="fallback-btn" onclick="displayFallbackMaterials('${topic}')" style="margin-left: 12px; padding: 10px 16px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
-                    📚 ${currentLanguage === 'zh' ? '使用本地素材' : 'Use local materials'}
-                </button>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                    <button class="retry-btn" onclick="showMaterials()" style="padding: 10px 16px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">🔄 ${currentLanguage === 'zh' ? '重试' : 'Retry'}</button>
+                    <button class="fallback-btn" onclick="displayFallbackMaterials('${topic}')" style="padding: 10px 16px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">📚 ${currentLanguage === 'zh' ? '使用本地素材' : 'Use local materials'}</button>
+                </div>
             </div>
         `;
     }
+}
+
+// Helper: fetch materials with retries + exponential backoff
+async function fetchMaterialsWithRetry(params, maxRetries = 2) {
+    let attempt = 0;
+    let lastError = null;
+    while (attempt <= maxRetries) {
+        try {
+            return await aiService.generateDetailedMaterials(
+                params.type,
+                params.language,
+                params.topic,
+                params.level,
+                params.preferences,
+                params.guidance,
+                params.context
+            );
+        } catch (err) {
+            lastError = err;
+            attempt++;
+            const delay = 500 * Math.pow(2, attempt); // 500ms, 1000ms, 2000ms...
+            await new Promise(r => setTimeout(r, delay));
+        }
+    }
+    throw lastError || new Error('fetchMaterials failed');
 }
 
 function displayMaterialCards(aiResponse, topic) {
@@ -1332,52 +1414,62 @@ function displayMaterialCards(aiResponse, topic) {
 }
 
 function parseAIMaterials(aiResponse) {
-    // 解析AI返回的素材文本为结构化数据
+    // 更鲁棒的解析AI返回素材文本为结构化数据
     const materials = [];
-    const lines = aiResponse.split('\n');
+    const lines = aiResponse.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     let currentMaterial = null;
-    
-    lines.forEach(line => {
-        line = line.trim();
-        if (!line) return;
-        
-        // 检测素材类别
-        if (line.match(/^[\d一二三四五六七八九十]+[、\.．。]/)) {
-            if (currentMaterial) {
-                materials.push(currentMaterial);
-            }
+
+    const isNumbered = (s) => /^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/.test(s) || /^[\(\[]?\d+[\)\]]/.test(s) || /^[•\-\*]\s+/.test(s);
+
+    for (const line of lines) {
+        // 如果是新条目（编号、项目符号或类别开头）
+        if (isNumbered(line) || /^类别[:：]/i.test(line) || /^category[:：]/i.test(line) || /^【.*】/.test(line)) {
+            if (currentMaterial) materials.push(currentMaterial);
+            // 去掉编号或前缀
+            const content = line.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/, '').replace(/^[•\-\*]\s+/, '').replace(/^类别[:：]\s*/i, '').replace(/^category[:：]\s*/i, '').replace(/^【|】$/g, '').trim();
             currentMaterial = {
                 category: currentLanguage === 'zh' ? '素材' : 'Material',
-                content: line.replace(/^[\d一二三四五六七八九十]+[、\.．。]\s*/, ''),
+                content: content,
                 usage: '',
                 scene: ''
             };
-        } else if (line.includes('使用示例') || line.includes('Usage Example') || line.includes('引用：') || line.includes('Quote:')) {
-            if (currentMaterial) {
-                currentMaterial.usage = line.replace(/.*(使用示例|Usage Example|引用：|Quote:)[：:]\s*/, '');
-            }
-        } else if (line.includes('适用') || line.includes('Suitable') || line.includes('场景')) {
-            if (currentMaterial) {
-                currentMaterial.scene = line.replace(/.*(适用|Suitable|场景)[：:]\s*/, '');
-            }
-        } else if (line.includes('名言') || line.includes('Quote')) {
-            if (currentMaterial) {
-                currentMaterial.category = currentLanguage === 'zh' ? '名言警句' : 'Famous Quote';
-            }
-        } else if (line.includes('事例') || line.includes('Example') || line.includes('案例')) {
-            if (currentMaterial) {
-                currentMaterial.category = currentLanguage === 'zh' ? '典型事例' : 'Example';
-            }
-        } else if (currentMaterial && !currentMaterial.usage) {
-            currentMaterial.content += ' ' + line;
+            continue;
         }
-    });
-    
-    if (currentMaterial) {
-        materials.push(currentMaterial);
+
+        // 使用示例
+        if (/使用示例|Usage Example|引用[:：]|Quote[:：]/i.test(line)) {
+            if (currentMaterial) currentMaterial.usage = line.replace(/.*(使用示例|Usage Example|引用[:：]|Quote[:：])[：:]?\s*/i, '');
+            continue;
+        }
+
+        // 适用场景
+        if (/适用|适用场景|场景|Suitable|Suitable for|Scene/i.test(line)) {
+            if (currentMaterial) currentMaterial.scene = line.replace(/.*(适用|适用场景|场景|Suitable for|Scene)[：:]?\s*/i, '');
+            continue;
+        }
+
+        // 明确类别标注
+        if (/名言|警句|Quote|引用/i.test(line)) {
+            if (currentMaterial) currentMaterial.category = currentLanguage === 'zh' ? '名言警句' : 'Famous Quote';
+            if (!currentMaterial.content) currentMaterial.content = line;
+            continue;
+        }
+
+        // 若已有 currentMaterial，则追加内容，否则新建一条
+        if (currentMaterial) {
+            currentMaterial.content = (currentMaterial.content + ' ' + line).trim();
+        } else {
+            currentMaterial = {
+                category: currentLanguage === 'zh' ? '推荐素材' : 'Recommended Material',
+                content: line,
+                usage: '',
+                scene: ''
+            };
+        }
     }
-    
-    // 如果解析失败，返回原始内容作为单个素材
+
+    if (currentMaterial) materials.push(currentMaterial);
+
     if (materials.length === 0) {
         materials.push({
             category: currentLanguage === 'zh' ? '推荐素材' : 'Recommended Material',
@@ -1386,7 +1478,7 @@ function parseAIMaterials(aiResponse) {
             scene: ''
         });
     }
-    
+
     return materials;
 }
 
@@ -1494,18 +1586,19 @@ async function refreshMaterials(topic) {
         : 'Loading new materials...'}</p>`;
     
     try {
-        const result = await aiService.generateDetailedMaterials(
-            currentType,
-            currentLanguage,
+        const result = await fetchMaterialsWithRetry({
+            type: currentType,
+            language: currentLanguage,
             topic,
-            currentLevel,
-            userMaterialPreferences
-        );
-        
+            level: currentLevel,
+            preferences: userMaterialPreferences
+        }, 1);
+
         displayMaterialCards(result.message, topic);
         
     } catch (error) {
         console.error('刷新素材失败:', error);
+        // 发生错误时尝试本地回退
         displayFallbackMaterials(topic);
     }
 }
@@ -1517,6 +1610,7 @@ function setupKeystrokeTracking() {
     
     mainEditor.addEventListener('keydown', () => {
         lastKeystroke = Date.now();
+        if (!writingStartTime) writingStartTime = Date.now();
     });
 
     // 每5秒更新一次统计信息（实时显示）
@@ -1663,7 +1757,7 @@ function appendOptimizationRecord(question, answer, feedback) {
         feedback,
         timestamp: Date.now()
     });
-    renderLogicRecords();
+    renderOptimizationRecords();
 }
 
 function renderOptimizationRecords() {
@@ -1757,7 +1851,7 @@ async function startOptimization() {
                 }
                 
                 // 记录用户回答
-                userLogicAnswers.push({
+                userOptimizationAnswers.push({
                     question: q,
                     answer: answer
                 });
@@ -1789,8 +1883,9 @@ async function startOptimization() {
                 
                 const feedback = result.message;
 
-                appendLogicRecord(question, answer, feedback);
-                switchRightPanel('logic');
+                // 记录到优化修补记录并切换到优化面板
+                appendOptimizationRecord(question, answer, feedback);
+                switchRightPanel('optimization');
                 
                 content.innerHTML = `
                     <div class="logic-feedback">
@@ -1841,7 +1936,7 @@ async function startOptimization() {
         }
 
         function showOptimizationSummary() {
-            const answeredCount = userLogicAnswers.length;
+            const answeredCount = userOptimizationAnswers.length;
             content.innerHTML = `
                 <div class="optimization-complete">
                     <h3>✓ ${currentLanguage === 'zh' ? '逻辑检查完成' : 'Logic Check Complete'}</h3>
@@ -1912,60 +2007,47 @@ async function startOptimization() {
 }
 
 function parseOptimizationQuestions(aiResponse) {
-    // 更好地解析AI返回的问题列表
-    // 支持以数字、符号开头的问题，以及多行问题
-    const lines = aiResponse.split('\n');
+    // 改进解析：支持多种编号、符号、换行和短问题。
+    const lines = aiResponse.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const questions = [];
-    let currentQuestion = '';
-    
-    for (const line of lines) {
-        const trimmed = line.trim();
-        if (!trimmed) {
-            // 空行：如果有积累的问题，保存它
-            if (currentQuestion.length > 10) {
-                questions.push(currentQuestion.trim());
-                currentQuestion = '';
+    let current = '';
+
+    const isStart = (s) => /^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/.test(s) || /^[\(\[]?\d+[\)\]]/.test(s) || /^[•\-\*]\s+/.test(s);
+
+    for (const raw of lines) {
+        const line = raw;
+        if (isStart(line)) {
+            if (current.trim()) {
+                questions.push(current.trim());
             }
+            current = line.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').replace(/^[•\-\*]\s*/,'');
             continue;
         }
-        
-        // 检查是否是新问题的开始（以数字、符号开头）
-        const isNewQuestion = /^[\d一二三四五六七八九十]+[、\.．。:：]\s*/.test(trimmed);
-        
-        if (isNewQuestion && currentQuestion.length > 10) {
-            // 保存之前的问题
-            questions.push(currentQuestion.trim());
-            // 清理行号和标点，开始新问题
-            currentQuestion = trimmed.replace(/^[\d一二三四五六七八九十]+[、\.．。:：]\s*/, '').replace(/^[•\-\*]\s*/, '');
-        } else if (isNewQuestion) {
-            // 清理行号和标点
-            currentQuestion = trimmed.replace(/^[\d一二三四五六七八九十]+[、\.．。:：]\s*/, '').replace(/^[•\-\*]\s*/, '');
-        } else if (currentQuestion) {
-            // 加入现有问题
-            currentQuestion += ' ' + trimmed;
-        } else {
-            currentQuestion = trimmed;
+
+        // 如果是较短直接的问句也可作为单独问题
+        if (line.length < 40 && (line.endsWith('?') || line.endsWith('？'))) {
+            if (current.trim()) {
+                questions.push(current.trim());
+                current = '';
+            }
+            questions.push(line.trim());
+            continue;
         }
+
+        // 否则累积到当前问题
+        if (current) current += ' ' + line; else current = line;
     }
-    
-    // 不要忘记最后一个问题
-    if (currentQuestion.length > 10) {
-        questions.push(currentQuestion.trim());
-    }
-    
-    // 过滤掉非问题行项（问题应该是完整的句子，通常包含问号或较长的文本）
-    const filteredQuestions = questions.filter(q => {
-        return q.length > 10 && (q.includes('？') || q.includes('?') || q.length > 20);
-    });
-    
-    return filteredQuestions.length > 0 ? filteredQuestions : 
-        // 如果解析失败，尝试按行拆分
-        aiResponse.split('\n')
-            .filter(line => line.trim().length > 10)
-            .map(line => line
-                .replace(/^[\d一二三四五六七八九十]+[、\.．。:：]\s*/, '')
-                .replace(/^[•\-\*]\s*/, '')
-                .trim());
+
+    if (current.trim()) questions.push(current.trim());
+
+    // 清理编号前缀并过滤过短的杂项（保留问号或长度合理项）
+    const cleaned = questions.map(q => q.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').trim())
+        .filter(q => q.length > 6 && (q.includes('?') || q.includes('？') || q.length > 12));
+
+    return cleaned.length > 0 ? cleaned : (
+        // 最后回退：按非空行拆分并去掉数字前缀
+        aiResponse.split('\n').map(l => l.trim()).filter(l => l.length > 6).map(l => l.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').trim())
+    );
 }
 
 function closeOptimizationModal() {
@@ -2136,6 +2218,75 @@ function saveContent() {
 function debouncedSave() {
     clearTimeout(saveTimeout);
     saveTimeout = setTimeout(saveContent, 2000);
+}
+
+// 写作完成：生成写作报告（调用AI，失败则本地生成）
+async function finishWriting() {
+    if (!mainEditor) return;
+    if (!writingStartTime) writingStartTime = Date.now();
+    const endTime = Date.now();
+    const durationSec = Math.round((endTime - writingStartTime) / 1000);
+
+    const text = mainEditor.value || '';
+    const words = currentLanguage === 'zh'
+        ? text.replace(/[^\u4e00-\u9fa5]/g, '').length
+        : text.trim().split(/\s+/).filter(w => w).length;
+
+    showAILoadingModal();
+
+    try {
+        const payload = {
+            type: currentType,
+            language: currentLanguage,
+            title: titleInput?.value || '',
+            text,
+            words,
+            durationSec,
+            saves: contentHistory.length,
+            history: contentHistory
+        };
+
+        // 期望后端有 generateWritingReport 接口
+        const result = await aiService.generateWritingReport(payload);
+        closeAILoadingModal();
+
+        aiOutput.innerHTML = `
+            <div class="writing-report">
+                <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
+                <div class="report-content">${result.message.replace(/\n/g, '<br>')}</div>
+            </div>
+        `;
+
+        showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
+    } catch (error) {
+        console.error('写作报告生成失败:', error);
+        closeAILoadingModal();
+
+        const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
+        aiOutput.innerHTML = `
+            <div class="writing-report">
+                <h5>📄 ${currentLanguage === 'zh' ? '写作报告（本地）' : 'Writing Report (local)'}</h5>
+                <div class="report-content">${local.replace(/\n/g, '<br>')}</div>
+            </div>
+        `;
+
+        showNotification(currentLanguage === 'zh' ? '已生成本地写作报告' : 'Local writing report generated');
+    }
+}
+
+function generateLocalWritingReport(words, durationSec, saves) {
+    const minutes = Math.max(1, Math.round(durationSec / 60));
+    const speed = Math.round(words / minutes);
+    const lines = [];
+    lines.push(`写作字数：${words} 字`);
+    lines.push(`写作时长：${minutes} 分钟 (${durationSec} 秒)`);
+    lines.push(`平均速度：${speed} 字/分钟`);
+    lines.push(`保存次数：${saves}`);
+    lines.push('简要建议：');
+    lines.push('- 回顾文章结构，确保每段都有主题句和支撑。');
+    lines.push('- 检查论据来源和引用格式。');
+    lines.push('- 考虑根据刚才的AI提示进行一次针对性修改。');
+    return lines.join('\n');
 }
 
 function loadSavedContent() {
