@@ -2610,3 +2610,109 @@ body {
     font-size: 11px;
     color: var(--text-secondary);
 }
+/* ============ Phase 3: Sidebar成长档案样式 ============ */
+
+.sidebar-abilities-compact {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.ability-compact {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+}
+
+.ability-label {
+    width: 40px;
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.ability-bar-mini {
+    flex: 1;
+    height: 6px;
+    background: var(--border-color);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.bar-fill-mini {
+    height: 100%;
+    background: var(--primary-color);
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+.ability-score-mini {
+    width: 30px;
+    text-align: right;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.sidebar-recent-essay {
+    padding: 10px;
+    background: var(--background-color);
+    border-radius: 6px;
+    margin: 10px 0;
+}
+
+.essay-mini {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-milestones {
+    padding: 10px 0;
+    margin-top: 8px;
+    border-top: 1px solid var(--border-color);
+}
+
+.sidebar-empty-state {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    text-align: center;
+    color: var(--text-secondary);
+}
+
+/* ============ Phase 3: 编辑器视图切换样式 ============ */
+
+.editor-view-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.view-tab {
+    padding: 8px 16px;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--text-secondary);
+    border-bottom: 2px solid transparent;
+    transition: all 0.3s ease;
+}
+
+.view-tab:hover {
+    color: var(--primary-color);
+}
+
+.view-tab.active {
+    color: var(--primary-color);
+    border-bottom-color: var(--primary-color);
+}
+
+.report-content-container {
+    padding: 16px;
+    background: var(--surface-color);
+    border-radius: 8px;
+    overflow-y: auto;
+}

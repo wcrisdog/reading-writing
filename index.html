@@ -52,6 +52,13 @@
                     <span class="progress-text" id="progressPercent">0%</span>
                 </div>
             </div>
+
+            <div class="user-growth" id="sidebarGrowthPanel">
+                <h3>📈 成长档案</h3>
+                <div id="sidebarGrowthContent" class="sidebar-growth-content">
+                    <p class="placeholder">完成一篇文章后，成长档案会显示您的能力进步！</p>
+                </div>
+            </div>
         </aside>
 
         <section class="middle-panel">
@@ -92,6 +99,13 @@
                         <small>Content Optimization</small>
                     </div>
                 </button>
+                <button class="feature-btn" id="viewWritingReport">
+                    <span class="feature-icon">📊</span>
+                    <div class="feature-text">
+                        <strong>写作报告</strong>
+                        <small>Writing Report</small>
+                    </div>
+                </button>
             </div>
         </section>
 
@@ -106,7 +120,18 @@
                 </div>
             </div>
 
-            <textarea id="mainEditor" class="main-editor" placeholder="开始书写你的文字... Start writing your text..."></textarea>
+            <div class="editor-view-tabs" style="display: none;" id="editorViewTabs">
+                <button class="view-tab active" id="writeViewTab" data-view="write">✍️ 撰写</button>
+                <button class="view-tab" id="reportViewTab" data-view="report">📊 报告</button>
+            </div>
+
+            <div id="writeView" class="editor-view-content">
+                <textarea id="mainEditor" class="main-editor" placeholder="开始书写你的文字... Start writing your text..."></textarea>
+            </div>
+
+            <div id="reportView" class="editor-view-content" style="display: none;">
+                <div id="reportContent" class="report-content-container"></div>
+            </div>
 
             <div class="editor-footer">
                 <button class="secondary-btn" id="autoSaveToggle">

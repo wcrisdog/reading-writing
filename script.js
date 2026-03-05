@@ -801,6 +801,17 @@ document.addEventListener('DOMContentLoaded', () => {
     targetSelectorWrap = document.getElementById('targetSelectorWrap');
     targetSelectorLabel = document.getElementById('targetSelectorLabel');
     
+    // 新增：报告和成长档案相关元素
+    const reportContent = document.getElementById('reportContent');
+    const writeViewTab = document.getElementById('writeViewTab');
+    const reportViewTab = document.getElementById('reportViewTab');
+    const editorViewTabs = document.getElementById('editorViewTabs');
+    const writeView = document.getElementById('writeView');
+    const reportView = document.getElementById('reportView');
+    const sidebarGrowthPanel = document.getElementById('sidebarGrowthPanel');
+    const sidebarGrowthContent = document.getElementById('sidebarGrowthContent');
+    const viewWritingReportBtn = document.getElementById('viewWritingReport');
+    
     console.log('✅ DOM elements fetched:', {
         mainEditor: !!mainEditor,
         titleInput: !!titleInput,
@@ -817,6 +828,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderOptimizationRecords();
     updateStats();
     setupKeystrokeTracking();
+    
+    // Phase 3: 初始化sidebar成长档案显示
+    renderSidebarGrowthArchive();
     
     console.log('✅ Initialization complete');
 });
@@ -1095,6 +1109,43 @@ function setupEventListeners() {
     if (rawPromptModal) {
         rawPromptModal.addEventListener('click', (e) => {
             if (e.target.id === 'rawPromptModal') closeRawPromptModal();
+        });
+    }
+    
+    // Phase 3: 编辑器内视图切换事件监听器
+    if (writeViewTab) {
+        writeViewTab.addEventListener('click', () => {
+            writeViewTab.classList.add('active');
+            reportViewTab.classList.remove('active');
+            writeView.style.display = 'block';
+            reportView.style.display = 'none';
+        });
+    }
+    
+    if (reportViewTab) {
+        reportViewTab.addEventListener('click', () => {
+            reportViewTab.classList.add('active');
+            writeViewTab.classList.remove('active');
+            writeView.style.display = 'none';
+            reportView.style.display = 'block';
+        });
+    }
+    
+    // Phase 3: 查看写作报告按钮
+    const viewWritingReportBtn = document.getElementById('viewWritingReportBtn');
+    if (viewWritingReportBtn) {
+        viewWritingReportBtn.addEventListener('click', () => {
+            // 如果报告还未生成，触发finishWriting
+            if (!reportContent || !reportContent.innerHTML.trim()) {
+                finishWriting();
+            } else {
+                // 否则直接切换到报告视图
+                reportViewTab.classList.add('active');
+                writeViewTab.classList.remove('active');
+                writeView.style.display = 'none';
+                reportView.style.display = 'block';
+                editorViewTabs.style.display = 'flex';
+            }
         });
     }
     
@@ -2129,6 +2180,88 @@ function renderGrowthPanel() {
     
     html += '</div>';
     growthPanel.innerHTML = html;
+}
+
+// Phase 3: 左侧sidebar成长档案显示函数
+function renderSidebarGrowthArchive() {
+    if (!sidebarGrowthContent) return;
+    
+    loadGrowthProfile();
+    
+    let html = '';
+    
+    if (growthProfile.essays.length === 0) {
+        html = `<div class="sidebar-empty-state">
+            <p style="font-size: 12px; color: #999;">
+                ${currentLanguage === 'zh' ? '完成写作后，成长档案将在这里显示' : 'Growth archive will appear here'}
+            </p>
+        </div>`;
+    } else {
+        // 六维能力简化显示
+        html += '<div class="sidebar-abilities-compact">';
+        const abilityNames = {
+            structure: '结构',
+            argumentation: '论证',
+            language: '语言',
+            materials: '素材',
+            logic: '逻辑',
+            reflection: '立意'
+        };
+        
+        for (const [key, score] of Object.entries(growthProfile.abilities)) {
+            const abilityLabel = currentLanguage === 'zh' ? abilityNames[key] : key;
+            // 用颜色编码显示分数级别
+            let scoreColor = '#d32f2f';
+            if (score >= 80) scoreColor = '#388e3c';
+            else if (score >= 60) scoreColor = '#f57c00';
+            
+            html += `<div class="ability-compact">
+                <span class="ability-label">${abilityLabel}</span>
+                <div class="ability-bar-mini">
+                    <div class="bar-fill-mini" style="width: ${Math.min(score, 100)}%; background-color: ${scoreColor};"></div>
+                </div>
+                <span class="ability-score-mini">${score}</span>
+            </div>`;
+        }
+        html += '</div>';
+        
+        // 最近成绩快速查看
+        if (growthProfile.essays.length > 0) {
+            const lastEssay = growthProfile.essays[growthProfile.essays.length - 1];
+            const date = new Date(lastEssay.timestamp).toLocaleDateString(
+                currentLanguage === 'zh' ? 'zh-CN' : 'en-US',
+                { month: 'short', day: 'numeric' }
+            );
+            const typeName = essayTypes[lastEssay.type]?.[currentLanguage]?.name || lastEssay.type;
+            
+            html += `<div class="sidebar-recent-essay">
+                <div style="font-size: 11px; color: #666; margin-bottom: 6px;">
+                    ${currentLanguage === 'zh' ? '最近' : 'Latest'}
+                </div>
+                <div class="essay-mini">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <span style="font-size: 12px; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${lastEssay.title}</span>
+                        <span style="font-size: 14px; font-weight: bold; color: ${lastEssay.totalScore >= 80 ? '#388e3c' : lastEssay.totalScore >= 70 ? '#f57c00' : '#d32f2f'};">${lastEssay.totalScore}</span>
+                    </div>
+                    <div style="font-size: 10px; color: #999; display: flex; gap: 8px;">
+                        <span>${typeName}</span>
+                        <span>${date}</span>
+                    </div>
+                </div>
+            </div>`;
+        }
+        
+        // 进步里程碑简化
+        if (growthProfile.milestones.length > 0) {
+            html += '<div class="sidebar-milestones">';
+            html += `<div style="font-size: 11px; color: #666; margin-bottom: 6px; margin-top: 10px;">🏆 ${currentLanguage === 'zh' ? '进步' : 'Progress'}</div>`;
+            const latestMilestone = growthProfile.milestones[growthProfile.milestones.length - 1];
+            html += `<div style="font-size: 11px; line-height: 1.4; color: #333;">${latestMilestone.description}</div>`;
+            html += '</div>';
+        }
+    }
+    
+    sidebarGrowthContent.innerHTML = html;
 }
 
 function appendOptimizationRecord(question, answer, feedback) {
@@ -3255,6 +3388,9 @@ function updateGrowthProfile(essayData) {
     // 保存档案
     saveGrowthProfile();
     
+    // Phase 3: 更新左侧sidebar成长档案显示
+    renderSidebarGrowthArchive();
+    
     return growthProfile;
 }
 
@@ -3495,7 +3631,30 @@ async function finishWriting() {
             useAIEvaluation
         );
         
-        aiOutput.innerHTML = reportHtml;
+        // 获取reportContent和视图标签
+        const reportContent = document.getElementById('reportContent');
+        const editorViewTabs = document.getElementById('editorViewTabs');
+        const reportViewTab = document.getElementById('reportViewTab');
+        const reportView = document.getElementById('reportView');
+        const writeView = document.getElementById('writeView');
+        
+        // 输出报告到主窗口
+        if (reportContent) {
+            reportContent.innerHTML = reportHtml;
+        } else {
+            aiOutput.innerHTML = reportHtml; // 备用输出
+        }
+        
+        // 显示视图切换标签并切换到报告视图
+        if (editorViewTabs) {
+            editorViewTabs.style.display = 'flex';
+            writeView.style.display = 'none';
+            reportView.style.display = 'block';
+            if (reportViewTab) reportViewTab.classList.add('active');
+            if (document.getElementById('writeViewTab')) {
+                document.getElementById('writeViewTab').classList.remove('active');
+            }
+        }
         
         const notificationMsg = useAIEvaluation
             ? (currentLanguage === 'zh' ? '✓ AI智能写作报告已生成' : '✓ AI writing report generated')
@@ -3505,12 +3664,37 @@ async function finishWriting() {
         console.error('写作报告生成异常:', error);
         closeAILoadingModal();
         const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
-        aiOutput.innerHTML = `
+        
+        const reportContent = document.getElementById('reportContent');
+        const editorViewTabs = document.getElementById('editorViewTabs');
+        const reportViewTab = document.getElementById('reportViewTab');
+        const reportView = document.getElementById('reportView');
+        const writeView = document.getElementById('writeView');
+        
+        const fallbackHtml = `
             <div class="writing-report">
                 <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
                 <div class="report-content">${local.replace(/\n/g, '<br>')}</div>
             </div>
         `;
+        
+        if (reportContent) {
+            reportContent.innerHTML = fallbackHtml;
+        } else {
+            aiOutput.innerHTML = fallbackHtml;
+        }
+        
+        // 显示视图切换标签并切换到报告视图
+        if (editorViewTabs) {
+            editorViewTabs.style.display = 'flex';
+            writeView.style.display = 'none';
+            reportView.style.display = 'block';
+            if (reportViewTab) reportViewTab.classList.add('active');
+            if (document.getElementById('writeViewTab')) {
+                document.getElementById('writeViewTab').classList.remove('active');
+            }
+        }
+        
         showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成（简化版）' : '✓ Writing report generated (simplified)');
     }
     
