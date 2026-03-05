@@ -13,7 +13,6 @@ let lastActivityTime = Date.now();
 let guidanceStep = 0;
 let currentOutline = null;
 let writingStartTime = null; // 写作开始时间
-let guidanceRawPrompt = ''; // 用户可选的原始题目输入
 let totalWritingTime = 0; // 总写作时长（秒）
 let lastStatsUpdate = Date.now();
 let targetWordsConfig = {
@@ -772,17 +771,6 @@ function setupEventListeners() {
     }
 
     // 原始题目输入按钮
-    const inputRawPromptBtn = document.getElementById('inputRawPrompt');
-    if (inputRawPromptBtn) {
-        console.log('✅ Adding inputRawPrompt click listener');
-        inputRawPromptBtn.addEventListener('click', () => {
-            console.log('📝 inputRawPrompt clicked');
-            showRawPromptDialog();
-        });
-    } else {
-        console.error('❌ inputRawPromptBtn not found!');
-    }
-
     // 写作完成按钮（如果不存在则动态创建）
     let finishWritingBtn = document.getElementById('finishWritingBtn');
     if (!finishWritingBtn) {
@@ -792,9 +780,9 @@ function setupEventListeners() {
             finishWritingBtn = document.createElement('button');
             finishWritingBtn.id = 'finishWritingBtn';
             finishWritingBtn.textContent = currentLanguage === 'zh' ? '完成&报告' : 'Finish & Report';
-            finishWritingBtn.style.marginTop = '8px';
-            finishWritingBtn.style.padding = '6px 12px';
-            finishWritingBtn.style.fontSize = '12px';
+            finishWritingBtn.style.marginTop = '6px';
+            finishWritingBtn.style.padding = '4px 8px';
+            finishWritingBtn.style.fontSize = '11px';
             finishWritingBtn.style.width = 'auto';
             finishWritingBtn.className = 'primary-btn';
             editorEl.parentElement.insertBefore(finishWritingBtn, editorEl.nextSibling);
@@ -924,14 +912,6 @@ async function showGuidanceQuestion(container, modal) {
     const questions = guidanceQuestions[currentType][currentLanguage];
     if (guidanceStep >= questions.length) {
         // 收集完所有答案，先关闭引导窗口
-        // 如果用户输入了原始题目，将其作为第0步保存
-        if (guidanceRawPrompt && guidanceRawPrompt.trim()) {
-            setGuidanceAnswer({
-                step: 0,
-                question: currentLanguage === 'zh' ? '原始题目' : 'Original Prompt',
-                answer: guidanceRawPrompt.trim()
-            });
-        }
         closeGuidanceModal();
         
         // 显示AI正在生成的加载窗口
@@ -973,12 +953,6 @@ async function showGuidanceQuestion(container, modal) {
     const q = questions[guidanceStep];
     let html = `
         <div class="guidance-step">
-            <div class="guidance-raw-prompt">
-                <label><input type="checkbox" class="raw-prompt-toggle" ${guidanceRawPrompt ? 'checked' : ''}/> ${currentLanguage === 'zh' ? '输入原始题目（可选）' : 'Enter original prompt (optional)'}</label>
-                <div class="raw-prompt-wrap" style="margin-top:8px;display:${guidanceRawPrompt ? 'block' : 'none'};">
-                    <textarea class="raw-prompt-text" placeholder="${currentLanguage === 'zh' ? '在此输入原始题目（可选）' : 'Enter original writing prompt here (optional)'}" rows="3">${guidanceRawPrompt || ''}</textarea>
-                </div>
-            </div>
             <p class="step-label">${currentLanguage === 'zh' ? '第' : 'Step '} ${guidanceStep + 1}/${questions.length} ${currentLanguage === 'zh' ? '步' : ''}</p>
             <p class="question-text">${q.question}</p>
     `;
@@ -1006,22 +980,6 @@ async function showGuidanceQuestion(container, modal) {
     html += `</div>`;
     container.innerHTML = html;
     modal.style.display = 'flex';
-
-    // raw prompt toggle wiring
-    const rawToggle = container.querySelector('.raw-prompt-toggle');
-    const rawWrap = container.querySelector('.raw-prompt-wrap');
-    const rawText = container.querySelector('.raw-prompt-text');
-    if (rawToggle) {
-        rawToggle.addEventListener('change', (e) => {
-            if (rawWrap) rawWrap.style.display = e.target.checked ? 'block' : 'none';
-            if (!e.target.checked) guidanceRawPrompt = '';
-        });
-    }
-    if (rawText) {
-        rawText.addEventListener('input', (e) => {
-            guidanceRawPrompt = e.target.value;
-        });
-    }
 
     if (q.type === 'text') {
         // 文本输入的下一步按钮
@@ -1076,35 +1034,19 @@ async function generateAIFeedback(container, modal, q, modification = '') {
             }]
             : userGuidanceAnswers;
 
-        // 如果用户输入了原始题目，将其作为审题背景信息添加到AI分析中
-        let analysisPayload = feedbackContext;
-        if (guidanceRawPrompt && guidanceRawPrompt.trim()) {
-            analysisPayload = [
-                {
-                    step: 0,
-                    question: currentLanguage === 'zh' ? '原始题目' : 'Original Prompt',
-                    answer: guidanceRawPrompt.trim()
-                },
-                ...feedbackContext
-            ];
-        }
-
-        // 调用AI服务生成建议，并传递包含原始题目的上下文
+        // 调用AI服务生成建议
         const result = await aiService.generateGuidanceFeedback(
             currentType,
             currentLanguage,
-            analysisPayload
+            feedbackContext
         );
         
         currentAISuggestion = result.message;
         
         // 显示AI建议（增加“回退到上一步”选项，保留用户输入）
-        const promptNote = guidanceRawPrompt && guidanceRawPrompt.trim()
-            ? `<div class="prompt-analysis-note" style="background:#e8f5e9;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#2e7d32;"><strong>📋 ${currentLanguage === 'zh' ? '基于审题分析' : 'Based on Prompt Analysis'}</strong><br>${currentLanguage === 'zh' ? 'AI已根据你输入的原始题目进行了审题，以下建议确保方向准确：' : 'AI has reviewed your original prompt and ensured the following recommendations are on target:'}</div>`
-            : '';
+
         const html = `
             <div class="ai-feedback-result">
-                ${promptNote}
                 <div class="ai-suggestion">${currentAISuggestion.replace(/\n/g, '<br>')}</div>
                 <div class="feedback-actions">
                     <button class="guidance-back-btn">${currentLanguage === 'zh' ? '← 返回上一步' : '← Back'}</button>
@@ -1241,7 +1183,7 @@ async function generateOutlineFromAnswers(userAnswers = null) {
         '</p>';
     
     try {
-        // 尝试调用AI生成个性化大纲
+        // 调用AI生成个性化大纲
         if (userAnswers) {
             const result = await aiService.generateGuidanceResponse(
                 currentType,
@@ -1716,9 +1658,9 @@ async function refreshMaterials(topic) {
             topic,
             level: currentLevel,
             preferences: userMaterialPreferences,
-            guidance: userGuidanceAnswers,
+            guidance: [],
             context: mainEditor.value
-        }, 2);  // 改进：增加到 2 次重试
+        }, 2);  // 2 次重试
 
         displayMaterialCards(result.message, topic);
         showNotification(currentLanguage === 'zh' ? '✓ 新素材已加载' : '✓ New materials loaded');
@@ -2474,62 +2416,6 @@ function generateLocalWritingReport(words, durationSec, saves) {
 }
 
 // 显示原始题目输入对话框
-function showRawPromptDialog() {
-    const modal = document.createElement('div');
-    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;';
-    
-    const content = document.createElement('div');
-    content.style.cssText = 'background:white;padding:24px;border-radius:12px;max-width:500px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.15);';
-    
-    const title = document.createElement('h3');
-    title.textContent = currentLanguage === 'zh' ? '📝 输入原始题目' : '📝 Enter Original Prompt';
-    title.style.marginTop = '0';
-    
-    const label = document.createElement('label');
-    label.textContent = currentLanguage === 'zh' ? '在此输入写作题目或要求：' : 'Enter your writing prompt or requirement:';
-    label.style.display = 'block';
-    label.style.marginBottom = '8px';
-    label.style.fontSize = '14px';
-    
-    const textarea = document.createElement('textarea');
-    textarea.value = guidanceRawPrompt || '';
-    textarea.placeholder = currentLanguage === 'zh' ? '例如：请以"坚持"为话题，写一篇800字的议论文。' : 'E.g., Write a 500-word essay on perseverance.';
-    textarea.style.cssText = 'width:100%;height:150px;padding:10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:14px;box-sizing:border-box;margin-bottom:16px;';
-    
-    const btnContainer = document.createElement('div');
-    btnContainer.style.cssText = 'display:flex;gap:12px;justify-content:flex-end;';
-    
-    const cancelBtn = document.createElement('button');
-    cancelBtn.textContent = currentLanguage === 'zh' ? '取消' : 'Cancel';
-    cancelBtn.style.cssText = 'padding:8px 16px;background:#ccc;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:13px;';
-    cancelBtn.addEventListener('click', () => document.body.removeChild(modal));
-    
-    const saveBtn = document.createElement('button');
-    saveBtn.textContent = currentLanguage === 'zh' ? '保存' : 'Save';
-    saveBtn.style.cssText = 'padding:8px 16px;background:var(--primary-color);color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;';
-    saveBtn.addEventListener('click', () => {
-        guidanceRawPrompt = textarea.value;
-        showNotification(currentLanguage === 'zh' ? '✓ 原始题目已保存' : '✓ Prompt saved');
-        document.body.removeChild(modal);
-    });
-    
-    btnContainer.appendChild(cancelBtn);
-    btnContainer.appendChild(saveBtn);
-    
-    content.appendChild(title);
-    content.appendChild(label);
-    content.appendChild(textarea);
-    content.appendChild(btnContainer);
-    modal.appendChild(content);
-    
-    // 点击背景关闭
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) document.body.removeChild(modal);
-    });
-    
-    document.body.appendChild(modal);
-    textarea.focus();
-}
 
 function loadSavedContent() {
     const saved = localStorage.getItem('currentContent');
