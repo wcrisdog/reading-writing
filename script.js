@@ -2280,14 +2280,22 @@ function parseOptimizationQuestions(aiResponse) {
     const questionPrefixRegex = /^\s*(?:第\s*[\d一二三四五六七八九十]+\s*[题问][：:、.]?|[\(\[（【]?\s*[\d一二三四五六七八九十]+\s*[\)\]）】][：:、.]?|[\d一二三四五六七八九十]+\s*[\.、．。:：\)）]|[•\-*])\s*/;
 
     const isStart = (s) => questionPrefixRegex.test(s);
+    const hasAnyNumberedStart = lines.some(isStart);
+    let hasStartedCollecting = false;
 
     for (const raw of lines) {
         const line = raw;
         if (isStart(line)) {
+            hasStartedCollecting = true;
             if (current.trim()) {
                 questions.push(current.trim());
             }
             current = line.replace(questionPrefixRegex, '').trim();
+            continue;
+        }
+
+        // 若AI输出中存在编号问题，则忽略编号前的引导话术
+        if (hasAnyNumberedStart && !hasStartedCollecting) {
             continue;
         }
 
