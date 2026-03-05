@@ -1956,6 +1956,78 @@ body {
 }
 
 .feedback-content {
+
+    /* 单条反馈展示样式 */
+    .single-feedback-item {
+        background: var(--background-color);
+        border-radius: 12px;
+        padding: 20px;
+        margin: 16px 0;
+        border: 2px solid var(--border-color);
+        transition: all 0.3s ease;
+    }
+
+    .single-feedback-item:hover {
+        border-color: var(--primary-color);
+        box-shadow: var(--shadow-md);
+    }
+
+    .feedback-item-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 16px;
+        padding-bottom: 12px;
+        border-bottom: 2px solid var(--border-color);
+    }
+
+    .feedback-item-number {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        min-width: 40px;
+        background: linear-gradient(135deg, var(--primary-color) 0%, var(--secondary-color) 100%);
+        color: white;
+        border-radius: 50%;
+        font-weight: 700;
+        font-size: 18px;
+        box-shadow: var(--shadow-sm);
+    }
+
+    .feedback-item-label {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--primary-color);
+        flex: 1;
+    }
+
+    .feedback-item-content {
+        font-size: 15px;
+        line-height: 1.8;
+        color: var(--text-primary);
+        padding: 4px 0;
+    }
+
+    .feedback-complete {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--success-color);
+        text-align: center;
+        margin: 20px 0;
+    }
+
+    .feedback-summary {
+        font-size: 15px;
+        line-height: 1.6;
+        color: var(--text-secondary);
+        text-align: center;
+        padding: 16px;
+        background: var(--background-color);
+        border-radius: 8px;
+        margin: 16px 0;
+    }
     padding: 16px;
     background: var(--background-color);
     border-radius: 8px;

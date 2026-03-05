@@ -2040,52 +2040,206 @@ async function startOptimization() {
 
         // 解析编号反馈，将其分成三个部分
         function parseNumberedFeedback(feedback) {
-            // 尝试匹配 1. 2. 3. 格式的反馈
-            const lines = feedback.split('\n').filter(line => line.trim());
-            const sections = [];
+            // 改进的反馈解析，支持多种格式
+            const items = [];
+            const lines = feedback.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+            let currentItem = { number: null, content: '' };
             
-            for (let i = 0; i < lines.length; i++) {
-                const line = lines[i].trim();
-                if (line.startsWith('1.') || line.startsWith('1、')) {
-                    sections.push(line.substring(1).trim());
-                } else if (line.startsWith('2.') || line.startsWith('2、')) {
-                    sections.push(line.substring(1).trim());
-                } else if (line.startsWith('3.') || line.startsWith('3、')) {
-                    sections.push(line.substring(1).trim());
+            // 检测是否以数字开头的行（支持多种格式）
+            const isNumberedLine = (line) => {
+                return /^[\d一二三四五六七八九十]+[\.\)、：:]\s*/.test(line) || 
+                       /^[\(\[][\d一二三四五六七八九十]+[\)\]]\s*/.test(line);
+            };
+            
+            // 提取数字编号
+            const extractNumber = (line) => {
+                const match = line.match(/^[\d一二三四五六七八九十]+/);
+                if (match) return match[0];
+                const match2 = line.match(/[\(\[]?([\d一二三四五六七八九十]+)[\)\]]/);
+                if (match2) return match2[1];
+                return null;
+            };
+            
+            // 去除编号前缀
+            const removePrefix = (line) => {
+                return line.replace(/^[\d一二三四五六七八九十]+[\.\)、：:]\s*/, '')
+                          .replace(/^[\(\[][\d一二三四五六七八九十]+[\)\]]\s*/, '')
+                          .trim();
+            };
+            
+            for (const line of lines) {
+                if (isNumberedLine(line)) {
+                    // 保存上一条
+                    if (currentItem.content.trim()) {
+                        items.push({ ...currentItem });
+                    }
+                    // 开始新的一条
+                    currentItem = {
+                        number: extractNumber(line),
+                        content: removePrefix(line)
+                    };
+                } else if (currentItem.number !== null) {
+                    // 追加到当前条目
+                    currentItem.content += ' ' + line;
+                } else {
+                    // 没有编号的独立段落也作为一条
+                    if (line.length > 10) {
+                        items.push({ number: items.length + 1, content: line });
+                    }
                 }
             }
             
-            // 如果找到了3个部分，返回它们；否则返回 null 表示使用原始格式
-            if (sections.length === 3) {
-                return sections;
+            // 添加最后一条
+            if (currentItem.content.trim()) {
+                items.push(currentItem);
             }
-            return null;
+            
+            // 如果没有解析出编号条目，将整个反馈作为一条
+            if (items.length === 0) {
+                items.push({ number: 1, content: feedback });
+            }
+            
+            return items;
+        }
+        
+        // 改名为 parseFeedbackItems，旧函数保留用于兼容
+        function parseFeedbackItems(feedback) {
+            return parseNumberedFeedback(feedback);
+        }
+        
+        // 逐条展示反馈建议
+        let feedbackItems = [];
+        let currentFeedbackIdx = 0;
+        
+        function showSingleFeedbackItem() {
+            if (currentFeedbackIdx >= feedbackItems.length) {
+                // 所有反馈条目已处理完，进入下一个问题
+                showNextQuestionPrompt();
+                return;
+            }
+            
+            const item = feedbackItems[currentFeedbackIdx];
+            
+            content.innerHTML = `
+                <div class="logic-feedback">
+                    <p class="feedback-label">${currentLanguage === 'zh' ? '💡 问题' : '💡 Question'} ${questionIdx + 1}/${questionsList.length} - ${currentLanguage === 'zh' ? '建议' : 'Suggestion'} ${currentFeedbackIdx + 1}/${feedbackItems.length}</p>
+                    <div class="feedback-question">
+                        <strong>${currentLanguage === 'zh' ? '问题：' : 'Question:'}</strong>
+                        <p>${userOptimizationAnswers[questionIdx]?.question || ''}</p>
+                    </div>
+                    <div class="feedback-answer">
+                        <strong>${currentLanguage === 'zh' ? '你的回答：' : 'Your answer:'}</strong>
+                        <p>${userOptimizationAnswers[questionIdx]?.answer || ''}</p>
+                    </div>
+                    <div class="single-feedback-item">
+                        <div class="feedback-item-header">
+                            <span class="feedback-item-number">${item.number}</span>
+                            <span class="feedback-item-label">${currentLanguage === 'zh' ? 'AI 建议' : 'AI Suggestion'}</span>
+                        </div>
+                        <div class="feedback-item-content">${item.content}</div>
+                    </div>
+                    <p class="feedback-hint">${currentLanguage === 'zh' 
+                        ? '💡 提示：请认真思考这条建议，并判断是否需要根据它改进文章。' 
+                        : '💡 Tip: Consider this suggestion carefully and decide if you need to improve your article accordingly.'}</p>
+                    <div class="optimization-buttons">
+                        ${currentFeedbackIdx > 0 ? `
+                            <button class="secondary-btn" id="prevFeedback">
+                                ${currentLanguage === 'zh' ? '← 上一条建议' : '← Previous'}
+                            </button>
+                        ` : `
+                            <button class="secondary-btn" id="backToQuestion">
+                                ${currentLanguage === 'zh' ? '← 重新回答问题' : '← Re-answer'}
+                            </button>
+                        `}
+                        <button class="secondary-btn" id="skipFeedback">
+                            ${currentLanguage === 'zh' ? '跳过此条' : 'Skip'}
+                        </button>
+                        <button class="primary-btn" id="nextFeedback">
+                            ${currentFeedbackIdx < feedbackItems.length - 1 
+                                ? (currentLanguage === 'zh' ? '下一条建议 →' : 'Next →')
+                                : (currentLanguage === 'zh' ? '明白了，下一个问题 →' : 'Got it, Next →')
+                            }
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            // 上一条建议按钮
+            if (currentFeedbackIdx > 0) {
+                document.getElementById('prevFeedback')?.addEventListener('click', () => {
+                    currentFeedbackIdx--;
+                    showSingleFeedbackItem();
+                });
+            } else {
+                // 重新回答问题按钮
+                document.getElementById('backToQuestion')?.addEventListener('click', () => {
+                    showOptimizationQuestion();
+                });
+            }
+            
+            // 跳过此条按钮
+            document.getElementById('skipFeedback')?.addEventListener('click', () => {
+                currentFeedbackIdx++;
+                showSingleFeedbackItem();
+            });
+            
+            // 下一条/下一个问题按钮
+            document.getElementById('nextFeedback')?.addEventListener('click', () => {
+                currentFeedbackIdx++;
+                showSingleFeedbackItem();
+            });
+        }
+        
+        function showNextQuestionPrompt() {
+            content.innerHTML = `
+                <div class="logic-feedback">
+                    <p class="feedback-complete">✓ ${currentLanguage === 'zh' 
+                        ? '已查看所有建议' 
+                        : 'All suggestions reviewed'}</p>
+                    <p class="feedback-summary">${currentLanguage === 'zh' 
+                        ? `你已经完成了第 ${questionIdx + 1} 个问题的分析，查看了 ${feedbackItems.length} 条建议。` 
+                        : `You've completed question ${questionIdx + 1} and reviewed ${feedbackItems.length} suggestions.`}</p>
+                    <div class="optimization-buttons">
+                        <button class="secondary-btn" id="reviewFeedbacks">
+                            ${currentLanguage === 'zh' ? '← 重新查看建议' : '← Review Suggestions'}
+                        </button>
+                        <button class="primary-btn" id="proceedToNext">
+                            ${currentLanguage === 'zh' ? '继续下一个问题 →' : 'Next Question →'}
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('reviewFeedbacks')?.addEventListener('click', () => {
+                currentFeedbackIdx = 0;
+                showSingleFeedbackItem();
+            });
+            
+            document.getElementById('proceedToNext')?.addEventListener('click', () => {
+                questionIdx++;
+                showOptimizationQuestion();
+            });
         }
 
-        // 生成反馈内容的HTML，支持三部分格式
+        // 生成反馈内容的HTML，支持三部分格式（保留用于兼容）
         function generateFeedbackHTML(feedback) {
-            const sections = parseNumberedFeedback(feedback);
+            // 使用新的解析逻辑
+            const items = parseFeedbackItems(feedback);
             
-            if (sections && sections.length === 3) {
-                // 使用三部分格式
+            if (items.length > 1) {
+                // 多条建议，使用卡片格式
                 return `
                     <div class="feedback-sections">
-                        <div class="feedback-section">
-                            <div class="section-number">1</div>
-                            <div class="section-content">${sections[0]}</div>
-                        </div>
-                        <div class="feedback-section">
-                            <div class="section-number">2</div>
-                            <div class="section-content">${sections[1]}</div>
-                        </div>
-                        <div class="feedback-section">
-                            <div class="section-number">3</div>
-                            <div class="section-content">${sections[2]}</div>
-                        </div>
+                        ${items.map(item => `
+                            <div class="feedback-section">
+                                <div class="section-number">${item.number}</div>
+                                <div class="section-content">${item.content}</div>
+                            </div>
+                        `).join('')}
                     </div>
                 `;
             } else {
-                // 使用原始格式（向后兼容）
+                // 单条建议，使用原始格式
                 return `<div class="feedback-content">${feedback.replace(/\n/g, '<br>')}</div>`;
             }
         }
@@ -2111,45 +2265,14 @@ async function startOptimization() {
                 appendOptimizationRecord(question, answer, feedback);
                 switchRightPanel('optimization');
                 
-                // 显示反馈界面（独立的界面，不直接进入下一个问题）
-                content.innerHTML = `
-                    <div class="logic-feedback">
-                        <p class="feedback-label">${currentLanguage === 'zh' ? '💡 问题' : '💡 Question'} ${currentIdx + 1}/${total} ${currentLanguage === 'zh' ? '的建议' : 'Feedback'}</p>
-                        <div class="feedback-question">
-                            <strong>${currentLanguage === 'zh' ? '问题：' : 'Question:'}</strong>
-                            <p>${question}</p>
-                        </div>
-                        <div class="feedback-answer">
-                            <strong>${currentLanguage === 'zh' ? '你的回答：' : 'Your answer:'}</strong>
-                            <p>${answer}</p>
-                        </div>
-                        <p class="feedback-header">${currentLanguage === 'zh' ? '💡 AI建议' : '💡 AI Suggestion'}</p>
-                        ${generateFeedbackHTML(feedback)}
-                        <p class="feedback-hint">${currentLanguage === 'zh' 
-                            ? '💡 提示：请不要让AI代替你修改，而是根据建议自己思考并改进文章。' 
-                            : '💡 Tip: Don\'t let AI make changes for you. Think and improve your article based on suggestions.'}</p>
-                        <div class="optimization-buttons">
-                            <button class="secondary-btn" id="backToQuestion">
-                                ${currentLanguage === 'zh' ? '← 上一步（重新回答）' : '← Previous (Re-answer)'}
-                            </button>
-                            <button class="primary-btn" id="nextQuestion">
-                                ${currentLanguage === 'zh' ? '明白了，下一个问题 →' : 'Got it, Next →'}
-                            </button>
-                        </div>
-                    </div>
-                `;
+                // 解析反馈为多条建议
+                feedbackItems = parseFeedbackItems(feedback);
+                currentFeedbackIdx = 0;
                 
-                // 上一步按钮 - 返回当前问题重新回答
-                document.getElementById('backToQuestion').addEventListener('click', () => {
-                    // 不增加 questionIdx，保持在当前问题
-                    showOptimizationQuestion();
-                });
+                console.log(`✅ 反馈已解析为 ${feedbackItems.length} 条建议`);
                 
-                // 下一个问题按钮
-                document.getElementById('nextQuestion').addEventListener('click', () => {
-                    questionIdx++;
-                    showOptimizationQuestion();
-                });
+                // 开始逐条展示
+                showSingleFeedbackItem();
                 
             } catch (error) {
                 console.error('反馈生成失败:', error);
@@ -2159,45 +2282,13 @@ async function startOptimization() {
 
                 appendOptimizationRecord(question, answer, fallbackFeedback);
                 switchRightPanel('optimization');
-
-                // 使用相同的独立反馈界面
-                content.innerHTML = `
-                    <div class="optimization-feedback">
-                        <p class="feedback-label">${currentLanguage === 'zh' ? '💡 问题' : '💡 Question'} ${currentIdx + 1}/${total} ${currentLanguage === 'zh' ? '的建议' : 'Feedback'}</p>
-                        <div class="feedback-question">
-                            <strong>${currentLanguage === 'zh' ? '问题：' : 'Question:'}</strong>
-                            <p>${question}</p>
-                        </div>
-                        <div class="feedback-answer">
-                            <strong>${currentLanguage === 'zh' ? '你的回答：' : 'Your answer:'}</strong>
-                            <p>${answer}</p>
-                        </div>
-                        <p class="feedback-header">${currentLanguage === 'zh' ? '💡 优化修补建议' : '💡 Optimization Suggestion'}</p>
-                        ${generateFeedbackHTML(fallbackFeedback)}
-                        <p class="feedback-hint">${currentLanguage === 'zh' 
-                            ? '💡 提示：AI暂时不可用，已使用本地建议。' 
-                            : '💡 Tip: AI temporarily unavailable, using local suggestions.'}</p>
-                        <div class="optimization-buttons">
-                            <button class="secondary-btn" id="backToQuestion">
-                                ${currentLanguage === 'zh' ? '← 上一步（重新回答）' : '← Previous (Re-answer)'}
-                            </button>
-                            <button class="primary-btn" id="nextQuestion">
-                                ${currentLanguage === 'zh' ? '明白了，下一个问题 →' : 'Got it, Next →'}
-                            </button>
-                        </div>
-                    </div>
-                `;
-
-                // 上一步按钮
-                document.getElementById('backToQuestion').addEventListener('click', () => {
-                    showOptimizationQuestion();
-                });
-
-                // 下一个问题按钮
-                document.getElementById('nextQuestion').addEventListener('click', () => {
-                    questionIdx++;
-                    showOptimizationQuestion();
-                });
+                
+                // 解析回退反馈为多条建议
+                feedbackItems = parseFeedbackItems(fallbackFeedback);
+                currentFeedbackIdx = 0;
+                
+                // 开始逐条展示
+                showSingleFeedbackItem();
             }
         }
 
