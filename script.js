@@ -771,16 +771,31 @@ function setupEventListeners() {
         console.error('❌ optimizationBtn not found!');
     }
 
+    // 原始题目输入按钮
+    const inputRawPromptBtn = document.getElementById('inputRawPrompt');
+    if (inputRawPromptBtn) {
+        console.log('✅ Adding inputRawPrompt click listener');
+        inputRawPromptBtn.addEventListener('click', () => {
+            console.log('📝 inputRawPrompt clicked');
+            showRawPromptDialog();
+        });
+    } else {
+        console.error('❌ inputRawPromptBtn not found!');
+    }
+
     // 写作完成按钮（如果不存在则动态创建）
     let finishWritingBtn = document.getElementById('finishWritingBtn');
     if (!finishWritingBtn) {
-        // 在编辑器下方动态创建一个按钮
+        // 在编辑器下方动态创建一个按钮（较小尺寸）
         const editorEl = document.getElementById('mainEditor');
         if (editorEl && editorEl.parentElement) {
             finishWritingBtn = document.createElement('button');
             finishWritingBtn.id = 'finishWritingBtn';
-            finishWritingBtn.textContent = currentLanguage === 'zh' ? '写作完成并生成报告' : 'Finish Writing & Report';
+            finishWritingBtn.textContent = currentLanguage === 'zh' ? '完成&报告' : 'Finish & Report';
             finishWritingBtn.style.marginTop = '8px';
+            finishWritingBtn.style.padding = '6px 12px';
+            finishWritingBtn.style.fontSize = '12px';
+            finishWritingBtn.style.width = 'auto';
             finishWritingBtn.className = 'primary-btn';
             editorEl.parentElement.insertBefore(finishWritingBtn, editorEl.nextSibling);
         }
@@ -1061,18 +1076,35 @@ async function generateAIFeedback(container, modal, q, modification = '') {
             }]
             : userGuidanceAnswers;
 
-        // 调用AI服务生成建议
+        // 如果用户输入了原始题目，将其作为审题背景信息添加到AI分析中
+        let analysisPayload = feedbackContext;
+        if (guidanceRawPrompt && guidanceRawPrompt.trim()) {
+            analysisPayload = [
+                {
+                    step: 0,
+                    question: currentLanguage === 'zh' ? '原始题目' : 'Original Prompt',
+                    answer: guidanceRawPrompt.trim()
+                },
+                ...feedbackContext
+            ];
+        }
+
+        // 调用AI服务生成建议，并传递包含原始题目的上下文
         const result = await aiService.generateGuidanceFeedback(
             currentType,
             currentLanguage,
-            feedbackContext
+            analysisPayload
         );
         
         currentAISuggestion = result.message;
         
         // 显示AI建议（增加“回退到上一步”选项，保留用户输入）
+        const promptNote = guidanceRawPrompt && guidanceRawPrompt.trim()
+            ? `<div class="prompt-analysis-note" style="background:#e8f5e9;padding:12px;border-radius:6px;margin-bottom:12px;font-size:13px;color:#2e7d32;"><strong>📋 ${currentLanguage === 'zh' ? '基于审题分析' : 'Based on Prompt Analysis'}</strong><br>${currentLanguage === 'zh' ? 'AI已根据你输入的原始题目进行了审题，以下建议确保方向准确：' : 'AI has reviewed your original prompt and ensured the following recommendations are on target:'}</div>`
+            : '';
         const html = `
             <div class="ai-feedback-result">
+                ${promptNote}
                 <div class="ai-suggestion">${currentAISuggestion.replace(/\n/g, '<br>')}</div>
                 <div class="feedback-actions">
                     <button class="guidance-back-btn">${currentLanguage === 'zh' ? '← 返回上一步' : '← Back'}</button>
@@ -2232,10 +2264,10 @@ async function finishWriting() {
         ? text.replace(/[^\u4e00-\u9fa5]/g, '').length
         : text.trim().split(/\s+/).filter(w => w).length;
 
-    showAILoadingModal();
-
+    // 尝试调用AI生成智能报告，失败则提供本地报告
     try {
-        const payload = {
+        // 准备AI报告payload
+        const reportPayload = {
             type: currentType,
             language: currentLanguage,
             title: titleInput?.value || '',
@@ -2243,34 +2275,60 @@ async function finishWriting() {
             words,
             durationSec,
             saves: contentHistory.length,
-            history: contentHistory
+            targetWords: essayTypes[currentType][currentLanguage].targetWords
         };
 
-        // 期望后端有 generateWritingReport 接口
-        const result = await aiService.generateWritingReport(payload);
+        // 尝试使用现有的 AI 接口生成总结或报告
+        // 如果没有专门的 generateWritingReport，尝试用其他接口
+        let aiReport = null;
+        if (aiService && typeof aiService.generateSummary === 'function') {
+            try {
+                const result = await aiService.generateSummary(
+                    currentType,
+                    currentLanguage,
+                    text
+                );
+                aiReport = result.message;
+            } catch (e) {
+                console.log('generateSummary unavailable, using fallback');
+            }
+        }
+
         closeAILoadingModal();
 
-        aiOutput.innerHTML = `
-            <div class="writing-report">
-                <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
-                <div class="report-content">${result.message.replace(/\n/g, '<br>')}</div>
-            </div>
-        `;
-
-        showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
+        if (aiReport) {
+            // AI生成成功
+            const aiReportHtml = `📊 ${currentLanguage === 'zh' ? '智能总结' : 'AI Summary'}:\n${aiReport}\n\n`;
+            const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
+            aiOutput.innerHTML = `
+                <div class="writing-report">
+                    <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
+                    <div class="report-content"><strong>${currentLanguage === 'zh' ? 'AI智能分析：' : 'AI Analysis:'}</strong><br>${aiReportHtml.replace(/\n/g, '<br>')}<br><strong>${currentLanguage === 'zh' ? '详细统计: ' : 'Detailed Stats:'}</strong><br>${local.replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
+            showNotification(currentLanguage === 'zh' ? '✓ AI智能写作报告已生成' : '✓ AI writing report generated');
+        } else {
+            // AI不可用，使用本地报告
+            const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
+            aiOutput.innerHTML = `
+                <div class="writing-report">
+                    <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
+                    <div class="report-content">${local.replace(/\n/g, '<br>')}</div>
+                </div>
+            `;
+            showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
+        }
     } catch (error) {
-        console.error('写作报告生成失败:', error);
+        console.error('写作报告生成异常:', error);
         closeAILoadingModal();
-
         const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
         aiOutput.innerHTML = `
             <div class="writing-report">
-                <h5>📄 ${currentLanguage === 'zh' ? '写作报告（本地）' : 'Writing Report (local)'}</h5>
+                <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
                 <div class="report-content">${local.replace(/\n/g, '<br>')}</div>
             </div>
         `;
-
-        showNotification(currentLanguage === 'zh' ? '已生成本地写作报告' : 'Local writing report generated');
+        showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
     }
 }
 
@@ -2278,15 +2336,98 @@ function generateLocalWritingReport(words, durationSec, saves) {
     const minutes = Math.max(1, Math.round(durationSec / 60));
     const speed = Math.round(words / minutes);
     const lines = [];
-    lines.push(`写作字数：${words} 字`);
-    lines.push(`写作时长：${minutes} 分钟 (${durationSec} 秒)`);
-    lines.push(`平均速度：${speed} 字/分钟`);
-    lines.push(`保存次数：${saves}`);
-    lines.push('简要建议：');
-    lines.push('- 回顾文章结构，确保每段都有主题句和支撑。');
-    lines.push('- 检查论据来源和引用格式。');
-    lines.push('- 考虑根据刚才的AI提示进行一次针对性修改。');
+    
+    if (currentLanguage === 'zh') {
+        lines.push(`⏱️  写作时长：${minutes} 分钟 (${durationSec} 秒)`);
+        lines.push(`📝 写作字数：${words} 字`);
+        lines.push(`⚡ 平均速度：${speed} 字/分钟`);
+        lines.push(`💾 保存次数：${saves}`);
+        const targetWords = essayTypes[currentType][currentLanguage].targetWords;
+        if (targetWords) {
+            const progress = Math.round((words / targetWords) * 100);
+            lines.push(`📊 完成度：${progress}%`);
+        }
+        lines.push('');
+        lines.push('💡 简要建议：');
+        lines.push('• 回顾文章结构，确保每段都有主题句和支撑。');
+        lines.push('• 检查论据来源和引用格式。');
+        lines.push('• 根据AI提示进行针对性修改，提升论证力度。');
+    } else {
+        lines.push(`⏱️  Writing time: ${minutes} minutes (${durationSec}s)`);
+        lines.push(`📝 Word count: ${words} words`);
+        lines.push(`⚡ Average speed: ${speed} words/min`);
+        lines.push(`💾 Times saved: ${saves}`);
+        const targetWords = essayTypes[currentType][currentLanguage].targetWords;
+        if (targetWords) {
+            const progress = Math.round((words / targetWords) * 100);
+            lines.push(`📊 Completion: ${progress}%`);
+        }
+        lines.push('');
+        lines.push('💡 Suggestions:');
+        lines.push('• Review structure: ensure each paragraph has topic sentence & support.');
+        lines.push('• Check source credibility and citation format.');
+        lines.push('• Apply targeted revisions based on AI feedback.');
+    }
+    
     return lines.join('\n');
+}
+
+// 显示原始题目输入对话框
+function showRawPromptDialog() {
+    const modal = document.createElement('div');
+    modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:10000;';
+    
+    const content = document.createElement('div');
+    content.style.cssText = 'background:white;padding:24px;border-radius:12px;max-width:500px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.15);';
+    
+    const title = document.createElement('h3');
+    title.textContent = currentLanguage === 'zh' ? '📝 输入原始题目' : '📝 Enter Original Prompt';
+    title.style.marginTop = '0';
+    
+    const label = document.createElement('label');
+    label.textContent = currentLanguage === 'zh' ? '在此输入写作题目或要求：' : 'Enter your writing prompt or requirement:';
+    label.style.display = 'block';
+    label.style.marginBottom = '8px';
+    label.style.fontSize = '14px';
+    
+    const textarea = document.createElement('textarea');
+    textarea.value = guidanceRawPrompt || '';
+    textarea.placeholder = currentLanguage === 'zh' ? '例如：请以"坚持"为话题，写一篇800字的议论文。' : 'E.g., Write a 500-word essay on perseverance.';
+    textarea.style.cssText = 'width:100%;height:150px;padding:10px;border:1px solid #ddd;border-radius:6px;font-family:inherit;font-size:14px;box-sizing:border-box;margin-bottom:16px;';
+    
+    const btnContainer = document.createElement('div');
+    btnContainer.style.cssText = 'display:flex;gap:12px;justify-content:flex-end;';
+    
+    const cancelBtn = document.createElement('button');
+    cancelBtn.textContent = currentLanguage === 'zh' ? '取消' : 'Cancel';
+    cancelBtn.style.cssText = 'padding:8px 16px;background:#ccc;color:#333;border:none;border-radius:6px;cursor:pointer;font-size:13px;';
+    cancelBtn.addEventListener('click', () => document.body.removeChild(modal));
+    
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = currentLanguage === 'zh' ? '保存' : 'Save';
+    saveBtn.style.cssText = 'padding:8px 16px;background:var(--primary-color);color:white;border:none;border-radius:6px;cursor:pointer;font-size:13px;';
+    saveBtn.addEventListener('click', () => {
+        guidanceRawPrompt = textarea.value;
+        showNotification(currentLanguage === 'zh' ? '✓ 原始题目已保存' : '✓ Prompt saved');
+        document.body.removeChild(modal);
+    });
+    
+    btnContainer.appendChild(cancelBtn);
+    btnContainer.appendChild(saveBtn);
+    
+    content.appendChild(title);
+    content.appendChild(label);
+    content.appendChild(textarea);
+    content.appendChild(btnContainer);
+    modal.appendChild(content);
+    
+    // 点击背景关闭
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) document.body.removeChild(modal);
+    });
+    
+    document.body.appendChild(modal);
+    textarea.focus();
 }
 
 function loadSavedContent() {
