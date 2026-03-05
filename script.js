@@ -1126,7 +1126,7 @@ function setupEventListeners() {
         writeViewTab.addEventListener('click', () => {
             writeViewTab.classList.add('active');
             reportViewTab.classList.remove('active');
-            writeView.style.display = 'block';
+            writeView.style.display = 'flex';
             reportView.style.display = 'none';
         });
     }
@@ -1136,7 +1136,7 @@ function setupEventListeners() {
             reportViewTab.classList.add('active');
             writeViewTab.classList.remove('active');
             writeView.style.display = 'none';
-            reportView.style.display = 'block';
+            reportView.style.display = 'flex';
         });
     }
     
@@ -1152,7 +1152,7 @@ function setupEventListeners() {
                 reportViewTab.classList.add('active');
                 writeViewTab.classList.remove('active');
                 writeView.style.display = 'none';
-                reportView.style.display = 'block';
+                reportView.style.display = 'flex';
                 editorViewTabs.style.display = 'flex';
             }
         });
@@ -3651,7 +3651,7 @@ async function finishWriting() {
         if (editorViewTabs) {
             editorViewTabs.style.display = 'flex';
             writeView.style.display = 'none';
-            reportView.style.display = 'block';
+            reportView.style.display = 'flex';
             if (reportViewTab) reportViewTab.classList.add('active');
             if (writeViewTab) writeViewTab.classList.remove('active');
         }
@@ -3683,7 +3683,7 @@ async function finishWriting() {
         if (editorViewTabs) {
             editorViewTabs.style.display = 'flex';
             writeView.style.display = 'none';
-            reportView.style.display = 'block';
+            reportView.style.display = 'flex';
             if (reportViewTab) reportViewTab.classList.add('active');
             if (writeViewTab) writeViewTab.classList.remove('active');
         }
