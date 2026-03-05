@@ -689,12 +689,12 @@ function setupEventListeners() {
     }
 
     const viewOutlineBtn = document.getElementById('viewOutlineBtn');
-    const viewLogicBtn = document.getElementById('viewLogicBtn');
+    const viewOptimizationBtn = document.getElementById('viewOptimizationBtn');
     if (viewOutlineBtn) {
         viewOutlineBtn.addEventListener('click', () => switchRightPanel('outline'));
     }
-    if (viewLogicBtn) {
-        viewLogicBtn.addEventListener('click', () => switchRightPanel('logic'));
+    if (viewOptimizationBtn) {
+        viewOptimizationBtn.addEventListener('click', () => switchRightPanel('optimization'));
     }
 
     // 文本编辑
@@ -843,22 +843,41 @@ function setupEventListeners() {
     }
     if (enlargeOutlineBtn) {
         enlargeOutlineBtn.addEventListener('click', () => {
-            // 获取右下角大纲的内容并在弹窗中显示
-            const outlineContent = outlinePanel.innerHTML;
-            showOutlineResultModal(outlineContent);
+            // 获取当前正在查看的内容并在弹窗中显示
+            let content = '';
+            if (currentRightPanelView === 'outline') {
+                content = outlinePanel.innerHTML;
+            } else if (currentRightPanelView === 'optimization') {
+                content = optimizationPanel.innerHTML;
+            }
+            if (content && content.trim()) {
+                showOutlineResultModal(content);
+            } else {
+                showNotification(
+                    currentLanguage === 'zh' 
+                        ? '暂无内容可显示' 
+                        : 'No content to display',
+                    'warning'
+                );
+            }
         });
     }
     if (enlargeOutlineFromPanelBtn) {
         enlargeOutlineFromPanelBtn.addEventListener('click', () => {
-            // 从右下角面板放大查看大纲
-            const outlineContent = outlinePanel.innerHTML;
-            if (outlineContent && outlineContent.trim()) {
-                showOutlineResultModal(outlineContent);
+            // 从右下角面板放大查看当前内容
+            let content = '';
+            if (currentRightPanelView === 'outline') {
+                content = outlinePanel.innerHTML;
+            } else if (currentRightPanelView === 'optimization') {
+                content = optimizationPanel.innerHTML;
+            }
+            if (content && content.trim()) {
+                showOutlineResultModal(content);
             } else {
                 showNotification(
                     currentLanguage === 'zh' 
-                        ? '暂无写作计划，请先完成启动引导' 
-                        : 'No writing plan available, please complete the guidance first',
+                        ? '暂无内容可显示' 
+                        : 'No content to display',
                     'warning'
                 );
             }
