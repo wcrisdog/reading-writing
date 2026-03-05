@@ -878,15 +878,11 @@ function setupEventListeners() {
 
     const viewOutlineBtn = document.getElementById('viewOutlineBtn');
     const viewOptimizationBtn = document.getElementById('viewOptimizationBtn');
-    const viewGrowthBtn = document.getElementById('viewGrowthBtn');
     if (viewOutlineBtn) {
         viewOutlineBtn.addEventListener('click', () => switchRightPanel('outline'));
     }
     if (viewOptimizationBtn) {
         viewOptimizationBtn.addEventListener('click', () => switchRightPanel('optimization'));
-    }
-    if (viewGrowthBtn) {
-        viewGrowthBtn.addEventListener('click', () => switchRightPanel('growth'));
     }
 
     // 文本编辑
@@ -2027,7 +2023,6 @@ function switchRightPanel(view) {
     currentRightPanelView = view;
     const viewOutlineBtn = document.getElementById('viewOutlineBtn');
     const viewOptimizationBtn = document.getElementById('viewOptimizationBtn');
-    const viewGrowthBtn = document.getElementById('viewGrowthBtn');
     const growthPanel = document.getElementById('growthPanel');
 
     if (outlinePanel) {
@@ -2045,7 +2040,6 @@ function switchRightPanel(view) {
 
     if (viewOutlineBtn) viewOutlineBtn.classList.toggle('active', view === 'outline');
     if (viewOptimizationBtn) viewOptimizationBtn.classList.toggle('active', view === 'optimization');
-    if (viewGrowthBtn) viewGrowthBtn.classList.toggle('active', view === 'growth');
 }
 
 // 渲染成长档案面板
@@ -2289,9 +2283,7 @@ function renderOptimizationRecords() {
     if (!optimizationPanel) return;
 
     if (optimizationRecords.length === 0) {
-        optimizationPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
-            ? '优化修补记录将显示在这里'
-            : 'Optimization notes will appear here'}</p>`;
+        optimizationPanel.innerHTML = '';
         return;
     }
 
@@ -4022,9 +4014,7 @@ function clearContent() {
         }
 
         if (optimizationPanel) {
-            optimizationPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
-                ? '优化修补记录将显示在这里'
-                : 'Optimization notes will appear here'}</p>`;
+            optimizationPanel.innerHTML = '';
             optimizationPanel.style.display = 'none';
         }
 
@@ -4109,9 +4099,7 @@ function changeEssayType(newType, newLevel, clickedBtn) {
         }
 
         if (optimizationPanel) {
-            optimizationPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
-                ? '优化修补记录将显示在这里'
-                : 'Optimization notes will appear here'}</p>`;
+            optimizationPanel.innerHTML = '';
             optimizationPanel.style.display = 'none';
         }
 
