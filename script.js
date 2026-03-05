@@ -23,6 +23,38 @@ let currentRightPanelView = 'outline';
 let optimizationRecords = [];
 let rawPromptInput = ''; // 保存原始题目输入
 
+// =========== 写作过程追踪数据 ===========
+let writingProcessData = {
+    pauseCount: 0,               // 卡顿次数（超过30秒未输入）
+    pauseDurations: [],          // 每次卡顿时长
+    lastInputTime: null,         // 上次输入时间
+    toolUsage: {                 // 工具使用统计
+        guidance: 0,             // 启动引导使用次数
+        materials: 0,            // 素材推荐使用次数
+        inspiration: 0,          // 灵感提示使用次数
+        optimization: 0          // 优化修补使用次数
+    },
+    materialsAdopted: [],        // 采纳的素材列表
+    optimizationsApplied: [],    // 应用的优化建议列表
+    revisionCount: 0,            // 修改次数
+    wordCountChanges: []         // 字数变化记录
+};
+
+// =========== 成长档案系统 ===========
+let growthProfile = {
+    essays: [],                  // 历史写作记录
+    abilities: {                 // 六维能力评分（0-100）
+        structure: 0,            // 结构
+        argumentation: 0,        // 论证
+        language: 0,             // 语言
+        materials: 0,            // 素材
+        logic: 0,               // 逻辑
+        reflection: 0           // 反思
+    },
+    milestones: [],             // 进步里程碑
+    weaknesses: []              // 薄弱项记录
+};
+
 // =========== 写作类型配置 ===========
 const essayTypes = {
     argumentative: {
@@ -77,6 +109,138 @@ const essayTypes = {
             targetWords: null,
             placeholder: 'Conduct academic research...\n\nStructure:\n1. Research background\n2. Literature review\n3. Methodology\n4. Results and analysis\n5. Conclusion',
             sections: ['Abstract', 'Introduction', 'Literature Review', 'Methodology', 'Results', 'Discussion', 'Conclusion']
+        }
+    }
+};
+
+// =========== 评分标准配置 ===========
+const scoringCriteria = {
+    argumentative: {
+        zh: {
+            structure: {
+                name: '结构',
+                weight: 0.20,
+                rubric: [
+                    { score: 20, desc: '结构完整，层次清晰，开头结尾呼应' },
+                    { score: 16, desc: '结构完整，层次较清晰' },
+                    { score: 12, desc: '结构基本完整，但层次不够清晰' },
+                    { score: 8, desc: '结构不完整或混乱' }
+                ]
+            },
+            argumentation: {
+                name: '论证',
+                weight: 0.25,
+                rubric: [
+                    { score: 25, desc: '论点鲜明，论据充分，论证有力' },
+                    { score: 20, desc: '论点明确，论据较充分' },
+                    { score: 15, desc: '论点基本明确，论据不足' },
+                    { score: 10, desc: '论点不明确或缺乏论据' }
+                ]
+            },
+            language: {
+                name: '语言',
+                weight: 0.20,
+                rubric: [
+                    { score: 20, desc: '语言流畅，表达准确，用词恰当' },
+                    { score: 16, desc: '语言通顺，表达清楚' },
+                    { score: 12, desc: '语言基本通顺，有少量错误' },
+                    { score: 8, desc: '语言不流畅，表达不清' }
+                ]
+            },
+            materials: {
+                name: '素材',
+                weight: 0.15,
+                rubric: [
+                    { score: 15, desc: '素材丰富新颖，运用恰当' },
+                    { score: 12, desc: '素材较充实，运用合理' },
+                    { score: 9, desc: '素材一般，运用基本合理' },
+                    { score: 6, desc: '素材贫乏或运用不当' }
+                ]
+            },
+            logic: {
+                name: '逻辑',
+                weight: 0.15,
+                rubric: [
+                    { score: 15, desc: '逻辑严密，推理清晰' },
+                    { score: 12, desc: '逻辑较清晰' },
+                    { score: 9, desc: '逻辑基本合理' },
+                    { score: 6, desc: '逻辑混乱' }
+                ]
+            },
+            reflection: {
+                name: '反思',
+                weight: 0.05,
+                rubric: [
+                    { score: 5, desc: '有深刻的思考和反思' },
+                    { score: 4, desc: '有一定思考深度' },
+                    { score: 3, desc: '思考较浅显' },
+                    { score: 2, desc: '缺乏思考深度' }
+                ]
+            }
+        }
+    },
+    narrative: {
+        zh: {
+            structure: {
+                name: '结构',
+                weight: 0.20,
+                rubric: [
+                    { score: 20, desc: '结构完整，情节安排合理，详略得当' },
+                    { score: 16, desc: '结构完整，情节较合理' },
+                    { score: 12, desc: '结构基本完整，情节安排一般' },
+                    { score: 8, desc: '结构不完整或混乱' }
+                ]
+            },
+            argumentation: {
+                name: '描写',
+                weight: 0.25,
+                rubric: [
+                    { score: 25, desc: '描写生动细腻，人物形象鲜明' },
+                    { score: 20, desc: '描写较生动，人物形象较鲜明' },
+                    { score: 15, desc: '描写基本具体，人物形象一般' },
+                    { score: 10, desc: '描写不够具体，人物形象模糊' }
+                ]
+            },
+            language: {
+                name: '语言',
+                weight: 0.20,
+                rubric: [
+                    { score: 20, desc: '语言生动形象，富有感染力' },
+                    { score: 16, desc: '语言较生动' },
+                    { score: 12, desc: '语言基本通顺' },
+                    { score: 8, desc: '语言平淡或不通顺' }
+                ]
+            },
+            materials: {
+                name: '素材',
+                weight: 0.15,
+                rubric: [
+                    { score: 15, desc: '选材新颖，有真情实感' },
+                    { score: 12, desc: '选材较合理，有一定感情' },
+                    { score: 9, desc: '选材一般' },
+                    { score: 6, desc: '选材陈旧或虚假' }
+                ]
+            },
+            logic: {
+                name: '情节',
+                weight: 0.15,
+                rubric: [
+                    { score: 15, desc: '情节生动曲折，引人入胜' },
+                    { score: 12, desc: '情节较生动' },
+                    { score: 9, desc: '情节基本完整' },
+                    { score: 6, desc: '情节平淡或不完整' }
+                ]
+            },
+            reflection: {
+                name: '立意',
+                weight: 0.05,
+                rubric: [
+                    { score: 5, desc: '立意深刻，主题鲜明' },
+                    { score: 4, desc: '立意较明确' },
+                    { score: 3, desc: '立意基本明确' },
+                    { score: 2, desc: '立意不明确' }
+                ]
+            }
         }
     }
 };
@@ -431,6 +595,7 @@ const inspirationTips = {
 
 // =========== 灵感提示和智能卡顿检测 ===========
 async function checkInspirationNeeded() {
+    recordToolUsage('inspiration');  // 记录工具使用
     const text = mainEditor.value;
     
     if (!text || text.length < 50) {
@@ -690,16 +855,21 @@ function setupEventListeners() {
 
     const viewOutlineBtn = document.getElementById('viewOutlineBtn');
     const viewOptimizationBtn = document.getElementById('viewOptimizationBtn');
+    const viewGrowthBtn = document.getElementById('viewGrowthBtn');
     if (viewOutlineBtn) {
         viewOutlineBtn.addEventListener('click', () => switchRightPanel('outline'));
     }
     if (viewOptimizationBtn) {
         viewOptimizationBtn.addEventListener('click', () => switchRightPanel('optimization'));
     }
+    if (viewGrowthBtn) {
+        viewGrowthBtn.addEventListener('click', () => switchRightPanel('growth'));
+    }
 
     // 文本编辑
     if (mainEditor) {
         mainEditor.addEventListener('input', () => {
+            trackWritingProcess();  // 追踪写作过程
             updateStats();
             lastActivityTime = Date.now();
             if (autoSaveEnabled) {
@@ -954,6 +1124,7 @@ function pruneGuidanceAnswersFrom(step) {
 }
 
 function startGuidance() {
+    recordToolUsage('guidance');  // 记录工具使用
     const modal = document.getElementById('guidanceModal');
     const content = document.getElementById('guidanceContent');
     guidanceStep = 0;
@@ -1336,6 +1507,7 @@ function closeRawPromptModal() {
 let userMaterialPreferences = []; // 记录用户素材偏好
 
 async function showMaterials() {
+    recordToolUsage('materials');  // 记录工具使用
     // 步骤1：获取当前文章类型和主题
     const topic = titleInput.value.trim() || (currentLanguage === 'zh' ? '写作主题' : 'writing topic');
     
@@ -1795,6 +1967,8 @@ function switchRightPanel(view) {
     currentRightPanelView = view;
     const viewOutlineBtn = document.getElementById('viewOutlineBtn');
     const viewOptimizationBtn = document.getElementById('viewOptimizationBtn');
+    const viewGrowthBtn = document.getElementById('viewGrowthBtn');
+    const growthPanel = document.getElementById('growthPanel');
 
     if (outlinePanel) {
         outlinePanel.style.display = view === 'outline' ? 'block' : 'none';
@@ -1802,9 +1976,159 @@ function switchRightPanel(view) {
     if (optimizationPanel) {
         optimizationPanel.style.display = view === 'optimization' ? 'block' : 'none';
     }
+    if (growthPanel) {
+        growthPanel.style.display = view === 'growth' ? 'block' : 'none';
+        if (view === 'growth') {
+            renderGrowthPanel();
+        }
+    }
 
     if (viewOutlineBtn) viewOutlineBtn.classList.toggle('active', view === 'outline');
     if (viewOptimizationBtn) viewOptimizationBtn.classList.toggle('active', view === 'optimization');
+    if (viewGrowthBtn) viewGrowthBtn.classList.toggle('active', view === 'growth');
+}
+
+// 渲染成长档案面板
+function renderGrowthPanel() {
+    const growthPanel = document.getElementById('growthPanel');
+    if (!growthPanel) return;
+    
+    loadGrowthProfile();
+    
+    let html = '<div class="growth-panel-content">';
+    
+    if (growthProfile.essays.length === 0) {
+        html += `<div class="empty-state">
+            <p>📝 ${currentLanguage === 'zh' ? '还没有写作记录' : 'No essays yet'}</p>
+            <p>${currentLanguage === 'zh' ? '完成一篇文章后，这里将展示你的成长轨迹' : 'Complete an essay to see your growth track'}</p>
+        </div>`;
+    } else {
+        // 标题
+        html += `<h3 class="growth-panel-title">📈 ${currentLanguage === 'zh' ? '成长档案' : 'Growth Profile'}</h3>`;
+        
+        // 六维能力雷达图
+        html += '<div class="growth-abilities">';
+        html += `<h4>${currentLanguage === 'zh' ? '六维能力' : 'Six Dimensions'}</h4>`;
+        html += '<div class="ability-bars">';
+        
+        const abilityNames = {
+            structure: currentLanguage === 'zh' ? '结构' : 'Structure',
+            argumentation: currentLanguage === 'zh' ? '论证/描写' : 'Argumentation',
+            language: currentLanguage === 'zh' ? '语言' : 'Language',
+            materials: currentLanguage === 'zh' ? '素材' : 'Materials',
+            logic: currentLanguage === 'zh' ? '逻辑/情节' : 'Logic',
+            reflection: currentLanguage === 'zh' ? '反思/立意' : 'Reflection'
+        };
+        
+        for (const [key, score] of Object.entries(growthProfile.abilities)) {
+            html += `<div class="ability-bar small">
+                <span class="ability-name">${abilityNames[key] || key}</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: ${score}%"></div>
+                </div>
+                <span class="ability-score">${score}</span>
+            </div>`;
+        }
+        
+        html += '</div></div>';
+        
+        // 写作历史统计
+        const totalEssays = growthProfile.essays.length;
+        const avgScore = Math.round(
+            growthProfile.essays.reduce((sum, e) => sum + (e.totalScore || 0), 0) / totalEssays
+        );
+        const bestScore = Math.max(...growthProfile.essays.map(e => e.totalScore || 0));
+        
+        html += '<div class="growth-stats">';
+        html += `<h4>${currentLanguage === 'zh' ? '写作统计' : 'Writing Statistics'}</h4>`;
+        html += '<div class="stats-grid">';
+        html += `<div class="stat-card">
+            <div class="stat-number">${totalEssays}</div>
+            <div class="stat-label">${currentLanguage === 'zh' ? '总文章数' : 'Total Essays'}</div>
+        </div>`;
+        html += `<div class="stat-card">
+            <div class="stat-number">${avgScore}</div>
+            <div class="stat-label">${currentLanguage === 'zh' ? '平均分' : 'Avg Score'}</div>
+        </div>`;
+        html += `<div class="stat-card">
+            <div class="stat-number">${bestScore}</div>
+            <div class="stat-label">${currentLanguage === 'zh' ? '最高分' : 'Best Score'}</div>
+        </div>`;
+        html += '</div></div>';
+        
+        // 进步里程碑
+        if (growthProfile.milestones.length > 0) {
+            html += '<div class="growth-milestones">';
+            html += `<h4>🏆 ${currentLanguage === 'zh' ? '进步里程碑' : 'Milestones'}</h4>`;
+            html += '<div class="milestone-list-compact">';
+            growthProfile.milestones.slice(-3).reverse().forEach(milestone => {
+                const date = new Date(milestone.timestamp).toLocaleDateString(
+                    currentLanguage === 'zh' ? 'zh-CN' : 'en-US',
+                    { month: 'short', day: 'numeric' }
+                );
+                html += `<div class="milestone-item">
+                    <span class="milestone-icon">✨</span>
+                    <div class="milestone-content">
+                        <div class="milestone-desc">${milestone.description}</div>
+                        <div class="milestone-date-small">${date}</div>
+                    </div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+        
+        // 薄弱项提醒
+        if (growthProfile.weaknesses.length > 0) {
+            html += '<div class="growth-weaknesses">';
+            html += `<h4>⚠️ ${currentLanguage === 'zh' ? '需要关注' : 'Areas to Improve'}</h4>`;
+            html += '<div class="weakness-list-compact">';
+            growthProfile.weaknesses.slice(0, 2).forEach(weakness => {
+                const dimensionName = {
+                    structure: currentLanguage === 'zh' ? '结构' : 'Structure',
+                    argumentation: currentLanguage === 'zh' ? '论证/描写' : 'Argumentation',
+                    language: currentLanguage === 'zh' ? '语言' : 'Language',
+                    materials: currentLanguage === 'zh' ? '素材' : 'Materials',
+                    logic: currentLanguage === 'zh' ? '逻辑/情节' : 'Logic',
+                    reflection: currentLanguage === 'zh' ? '反思/立意' : 'Reflection'
+                }[weakness.dimension] || weakness.dimension;
+                
+                html += `<div class="weakness-item">
+                    <div class="weakness-header">
+                        <strong>${dimensionName}</strong>
+                        <span class="weakness-score">${weakness.score}/100</span>
+                    </div>
+                    <div class="weakness-suggestion">${weakness.suggestion}</div>
+                </div>`;
+            });
+            html += '</div></div>';
+        }
+        
+        // 最近文章
+        html += '<div class="recent-essays">';
+        html += `<h4>${currentLanguage === 'zh' ? '最近文章' : 'Recent Essays'}</h4>`;
+        html += '<div class="essay-list">';
+        growthProfile.essays.slice(-5).reverse().forEach(essay => {
+            const date = new Date(essay.timestamp).toLocaleDateString(
+                currentLanguage === 'zh' ? 'zh-CN' : 'en-US'
+            );
+            const typeName = essayTypes[essay.type]?.[currentLanguage]?.name || essay.type;
+            html += `<div class="essay-item">
+                <div class="essay-header">
+                    <span class="essay-title">${essay.title}</span>
+                    <span class="essay-score ${essay.totalScore >= 80 ? 'excellent' : essay.totalScore >= 70 ? 'good' : 'normal'}">${essay.totalScore}</span>
+                </div>
+                <div class="essay-meta">
+                    <span class="essay-type">${typeName}</span>
+                    <span class="essay-words">${essay.wordCount} ${currentLanguage === 'zh' ? '字' : 'words'}</span>
+                    <span class="essay-date">${date}</span>
+                </div>
+            </div>`;
+        });
+        html += '</div></div>';
+    }
+    
+    html += '</div>';
+    growthPanel.innerHTML = html;
 }
 
 function appendOptimizationRecord(question, answer, feedback) {
@@ -1842,6 +2166,7 @@ function renderOptimizationRecords() {
 }
 
 async function startOptimization() {
+    recordToolUsage('optimization');  // 记录工具使用
     if (mainEditor.value.length === 0) {
         showNotification(
             currentLanguage === 'zh'
@@ -2524,6 +2849,520 @@ function debouncedSave() {
     saveTimeout = setTimeout(saveContent, 2000);
 }
 
+// =========== 写作过程追踪 ===========
+function trackWritingProcess() {
+    const now = Date.now();
+    const currentWordCount = currentLanguage === 'zh'
+        ? (mainEditor.value || '').replace(/[^\u4e00-\u9fa5]/g, '').length
+        : (mainEditor.value || '').trim().split(/\s+/).filter(w => w).length;
+    
+    // 检测卡顿（超过30秒未输入）
+    if (writingProcessData.lastInputTime) {
+        const pauseDuration = now - writingProcessData.lastInputTime;
+        if (pauseDuration > 30000) { // 30秒
+            writingProcessData.pauseCount++;
+            writingProcessData.pauseDurations.push(Math.round(pauseDuration / 1000));
+        }
+    }
+    
+    writingProcessData.lastInputTime = now;
+    
+    // 记录字数变化
+    writingProcessData.wordCountChanges.push({
+        timestamp: now,
+        wordCount: currentWordCount
+    });
+    
+    // 限制记录数量，只保留最近100条
+    if (writingProcessData.wordCountChanges.length > 100) {
+        writingProcessData.wordCountChanges.shift();
+    }
+}
+
+// 记录工具使用
+function recordToolUsage(toolName) {
+    if (writingProcessData.toolUsage[toolName] !== undefined) {
+        writingProcessData.toolUsage[toolName]++;
+    }
+}
+
+// 记录素材采纳
+function recordMaterialAdoption(material) {
+    writingProcessData.materialsAdopted.push({
+        timestamp: Date.now(),
+        content: material,
+        type: 'material'
+    });
+}
+
+// 记录优化应用
+function recordOptimizationApplied(optimization) {
+    writingProcessData.optimizationsApplied.push({
+        timestamp: Date.now(),
+        content: optimization,
+        type: 'optimization'
+    });
+}
+
+// =========== 评分与诊断系统 ===========
+function evaluateEssay(text, essayType, language) {
+    const criteria = scoringCriteria[essayType]?.[language];
+    if (!criteria) {
+        return null;
+    }
+    
+    const scores = {};
+    let totalScore = 0;
+    let totalWeight = 0;
+    const diagnostics = [];
+    
+    // 分析文本特征
+    const wordCount = language === 'zh' 
+        ? text.replace(/[^\u4e00-\u9fa5]/g, '').length
+        : text.trim().split(/\s+/).filter(w => w).length;
+    const paragraphs = text.split('\n\n').filter(p => p.trim());
+    const sentences = text.split(/[。！？.!?]+/).filter(s => s.trim());
+    
+    // 结构评分
+    const structureScore = evaluateStructure(text, paragraphs, sentences, essayType);
+    scores.structure = structureScore;
+    totalScore += structureScore * criteria.structure.weight;
+    totalWeight += criteria.structure.weight;
+    
+    if (structureScore < criteria.structure.rubric[2].score) {
+        diagnostics.push({
+            dimension: '结构',
+            issue: '文章结构不够清晰，建议明确开头、主体和结尾部分',
+            suggestion: '每个段落应有明确的主题，段落之间要有逻辑连接'
+        });
+    }
+    
+    // 论证/描写评分
+    const argScore = evaluateArgumentation(text, essayType, language);
+    scores.argumentation = argScore;
+    totalScore += argScore * criteria.argumentation.weight;
+    totalWeight += criteria.argumentation.weight;
+    
+    if (argScore < criteria.argumentation.rubric[2].score) {
+        if (essayType === 'argumentative') {
+            diagnostics.push({
+                dimension: '论证',
+                issue: '论证不够充分，论据与论点的关联不够紧密',
+                suggestion: '增加具体事例和数据支撑，加强论证的逻辑性'
+            });
+        } else {
+            diagnostics.push({
+                dimension: '描写',
+                issue: '描写不够生动，缺少细节刻画',
+                suggestion: '运用更多感官描写和细节描写，使内容更加生动形象'
+            });
+        }
+    }
+    
+    // 语言评分
+    const languageScore = evaluateLanguage(text, sentences);
+    scores.language = languageScore;
+    totalScore += languageScore * criteria.language.weight;
+    totalWeight += criteria.language.weight;
+    
+    if (languageScore < criteria.language.rubric[2].score) {
+        diagnostics.push({
+            dimension: '语言',
+            issue: '语言表达不够流畅，部分句子表达不够准确',
+            suggestion: '注意句子通顺，避免重复用词，提高表达的准确性'
+        });
+    }
+    
+    // 素材评分
+    const materialsScore = evaluateMaterials(text, wordCount);
+    scores.materials = materialsScore;
+    totalScore += materialsScore * criteria.materials.weight;
+    totalWeight += criteria.materials.weight;
+    
+    if (materialsScore < criteria.materials.rubric[2].score) {
+        diagnostics.push({
+            dimension: '素材',
+            issue: '素材运用不够充分或缺乏新颖性',
+            suggestion: '尝试使用更丰富的事例、名言或数据来支撑观点'
+        });
+    }
+    
+    // 逻辑/情节评分
+    const logicScore = evaluateLogic(text, paragraphs, essayType);
+    scores.logic = logicScore;
+    totalScore += logicScore * criteria.logic.weight;
+    totalWeight += criteria.logic.weight;
+    
+    if (logicScore < criteria.logic.rubric[2].score) {
+        diagnostics.push({
+            dimension: essayType === 'argumentative' ? '逻辑' : '情节',
+            issue: essayType === 'argumentative' ? '逻辑不够严密，论证跳跃' : '情节发展不够流畅',
+            suggestion: essayType === 'argumentative' 
+                ? '加强段落间的逻辑关系，使论证更加严密'
+                : '注意情节的起承转合，使叙述更加连贯'
+        });
+    }
+    
+    // 反思/立意评分
+    const reflectionScore = evaluateReflection(text, essayType);
+    scores.reflection = reflectionScore;
+    totalScore += reflectionScore * criteria.reflection.weight;
+    totalWeight += criteria.reflection.weight;
+    
+    if (reflectionScore < criteria.reflection.rubric[2].score) {
+        diagnostics.push({
+            dimension: essayType === 'argumentative' ? '反思' : '立意',
+            issue: '缺乏深度思考或主题不够明确',
+            suggestion: '加强对主题的深入思考，提升文章的思想内涵'
+        });
+    }
+    
+    const finalScore = Math.round(totalScore / totalWeight);
+    
+    return {
+        totalScore: finalScore,
+        scores,
+        diagnostics,
+        level: getScoreLevel(finalScore)
+    };
+}
+
+// 辅助评分函数
+function evaluateStructure(text, paragraphs, sentences, essayType) {
+    let score = 10;
+    
+    // 段落数量
+    if (paragraphs.length >= 4) score += 5;
+    else if (paragraphs.length >= 3) score += 3;
+    else score += 1;
+    
+    // 开头和结尾
+    if (paragraphs.length > 0) {
+        const firstPara = paragraphs[0];
+        const lastPara = paragraphs[paragraphs.length - 1];
+        if (firstPara.length > 50) score += 2;
+        if (lastPara.length > 50) score += 2;
+    }
+    
+    // 段落长度均衡性
+    const avgParaLength = paragraphs.reduce((sum, p) => sum + p.length, 0) / paragraphs.length;
+    const variance = paragraphs.reduce((sum, p) => sum + Math.abs(p.length - avgParaLength), 0) / paragraphs.length;
+    if (variance < avgParaLength * 0.5) score += 1;
+    
+    return Math.min(score, 20);
+}
+
+function evaluateArgumentation(text, essayType, language) {
+    let score = 12;
+    
+    // 关键词检测
+    const argKeywords = language === 'zh' 
+        ? ['因为', '所以', '例如', '比如', '首先', '其次', '最后', '然而', '但是', '可见']
+        : ['because', 'therefore', 'for example', 'first', 'second', 'finally', 'however', 'thus'];
+    
+    const keywordCount = argKeywords.reduce((count, keyword) => {
+        return count + (text.toLowerCase().includes(keyword.toLowerCase()) ? 1 : 0);
+    }, 0);
+    
+    score += Math.min(keywordCount * 1.5, 10);
+    
+    // 引用标记检测
+    if (text.includes('"') || text.includes('"') || text.includes('「')) score += 3;
+    
+    return Math.min(score, 25);
+}
+
+function evaluateLanguage(text, sentences) {
+    let score = 12;
+    
+    // 句子平均长度
+    const avgSentenceLength = text.length / sentences.length;
+    if (avgSentenceLength > 15 && avgSentenceLength < 80) score += 4;
+    else if (avgSentenceLength > 10) score += 2;
+    
+    // 标点符号使用
+    const punctuationCount = (text.match(/[，。！？、；：]/g) || []).length;
+    if (punctuationCount > sentences.length * 0.5) score += 2;
+    
+    // 避免过多重复字词（简单检测）
+    const words = text.split('');
+    const uniqueWords = new Set(words);
+    const diversity = uniqueWords.size / words.length;
+    if (diversity > 0.3) score += 2;
+    
+    return Math.min(score, 20);
+}
+
+function evaluateMaterials(text, wordCount) {
+    let score = 8;
+    
+    // 词汇丰富度
+    if (wordCount > 500) score += 3;
+    else if (wordCount > 300) score += 2;
+    
+    // 引用检测
+    if (text.includes('"') || text.includes('"')) score += 2;
+    
+    // 数据检测
+    if (/\d+%|\d+个|\d+次|\d+年/.test(text)) score += 2;
+    
+    return Math.min(score, 15);
+}
+
+function evaluateLogic(text, paragraphs, essayType) {
+    let score = 8;
+    
+    // 连接词使用
+    const connectives = ['因此', '所以', '然而', '但是', '而且', '并且', '首先', '其次', '最后',
+                         'therefore', 'thus', 'however', 'moreover', 'furthermore', 'first', 'second'];
+    const connectiveCount = connectives.reduce((count, word) => {
+        return count + (text.includes(word) ? 1 : 0);
+    }, 0);
+    
+    score += Math.min(connectiveCount, 5);
+    
+    // 段落过渡
+    if (paragraphs.length > 2) score += 2;
+    
+    return Math.min(score, 15);
+}
+
+function evaluateReflection(text, essayType) {
+    let score = 3;
+    
+    // 反思性词汇
+    const reflectiveWords = ['思考', '认为', '意识到', '启发', '感悟', '领悟', '明白',
+                             'realize', 'understand', 'reflect', 'insight', 'awareness'];
+    const reflectiveCount = reflectiveWords.reduce((count, word) => {
+        return count + (text.toLowerCase().includes(word.toLowerCase()) ? 1 : 0);
+    }, 0);
+    
+    score += Math.min(reflectiveCount * 0.5, 2);
+    
+    return Math.min(score, 5);
+}
+
+function getScoreLevel(score) {
+    if (score >= 90) return '优秀';
+    if (score >= 80) return '良好';
+    if (score >= 70) return '中等';
+    if (score >= 60) return '及格';
+    return '待提高';
+}
+
+// =========== 写作过程复盘 ===========
+function analyzeWritingProcess() {
+    const analysis = {
+        pauseAnalysis: {
+            count: writingProcessData.pauseCount,
+            avgDuration: writingProcessData.pauseDurations.length > 0
+                ? Math.round(writingProcessData.pauseDurations.reduce((a, b) => a + b, 0) / writingProcessData.pauseDurations.length)
+                : 0,
+            maxDuration: writingProcessData.pauseDurations.length > 0
+                ? Math.max(...writingProcessData.pauseDurations)
+                : 0
+        },
+        toolUsageAnalysis: {
+            ...writingProcessData.toolUsage,
+            total: Object.values(writingProcessData.toolUsage).reduce((a, b) => a + b, 0)
+        },
+        materialsAnalysis: {
+            adopted: writingProcessData.materialsAdopted.length,
+            types: writingProcessData.materialsAdopted.map(m => m.type)
+        },
+        optimizationsAnalysis: {
+            applied: writingProcessData.optimizationsApplied.length
+        },
+        writingRhythm: analyzeWritingRhythm()
+    };
+    
+    return analysis;
+}
+
+function analyzeWritingRhythm() {
+    if (writingProcessData.wordCountChanges.length < 2) {
+        return { pattern: 'insufficient_data' };
+    }
+    
+    const changes = writingProcessData.wordCountChanges;
+    const speeds = [];
+    
+    for (let i = 1; i < changes.length; i++) {
+        const timeDiff = (changes[i].timestamp - changes[i-1].timestamp) / 60000; // 分钟
+        const wordDiff = changes[i].wordCount - changes[i-1].wordCount;
+        if (timeDiff > 0 && wordDiff > 0) {
+            speeds.push(wordDiff / timeDiff);
+        }
+    }
+    
+    if (speeds.length === 0) {
+        return { pattern: 'no_writing_detected' };
+    }
+    
+    const avgSpeed = speeds.reduce((a, b) => a + b, 0) / speeds.length;
+    const maxSpeed = Math.max(...speeds);
+    const minSpeed = Math.min(...speeds);
+    
+    // 判断写作模式
+    let pattern = 'steady';
+    if (maxSpeed > avgSpeed * 2) {
+        pattern = 'burst';  // 爆发式
+    } else if (speeds.filter(s => s < avgSpeed * 0.5).length > speeds.length * 0.3) {
+        pattern = 'intermittent';  // 断断续续
+    }
+    
+    return {
+        pattern,
+        avgSpeed: Math.round(avgSpeed),
+        maxSpeed: Math.round(maxSpeed),
+        minSpeed: Math.round(minSpeed)
+    };
+}
+
+// =========== 成长档案系统 ===========
+function updateGrowthProfile(essayData) {
+    // 加载现有档案
+    loadGrowthProfile();
+    
+    // 添加新的写作记录
+    growthProfile.essays.push({
+        timestamp: Date.now(),
+        type: essayData.type,
+        title: essayData.title,
+        wordCount: essayData.wordCount,
+        duration: essayData.duration,
+        scores: essayData.scores,
+        totalScore: essayData.totalScore
+    });
+    
+    // 更新六维能力（加权平均）
+    const essayCount = growthProfile.essays.length;
+    const weight = 1 / essayCount; // 新文章权重
+    const oldWeight = 1 - weight;  // 历史平均权重
+    
+    for (const dimension in essayData.scores) {
+        const oldScore = growthProfile.abilities[dimension] || 0;
+        const newScore = essayData.scores[dimension];
+        growthProfile.abilities[dimension] = Math.round(oldScore * oldWeight + newScore * weight);
+    }
+    
+    // 检测进步里程碑
+    detectMilestones(essayData);
+    
+    // 更新薄弱项
+    updateWeaknesses(essayData);
+    
+    // 保存档案
+    saveGrowthProfile();
+    
+    return growthProfile;
+}
+
+function detectMilestones(essayData) {
+    const recentEssays = growthProfile.essays.slice(-5);
+    
+    // 检测连续进步
+    if (recentEssays.length >= 3) {
+        const scores = recentEssays.map(e => e.totalScore);
+        let improving = true;
+        for (let i = 1; i < scores.length; i++) {
+            if (scores[i] <= scores[i-1]) {
+                improving = false;
+                break;
+            }
+        }
+        if (improving) {
+            growthProfile.milestones.push({
+                timestamp: Date.now(),
+                type: 'continuous_improvement',
+                description: `连续${scores.length}次写作成绩提升`
+            });
+        }
+    }
+    
+    // 检测突破分数线
+    const scoreThresholds = [60, 70, 80, 90];
+    for (const threshold of scoreThresholds) {
+        const previousBest = Math.max(...growthProfile.essays.slice(0, -1).map(e => e.totalScore || 0), 0);
+        if (previousBest < threshold && essayData.totalScore >= threshold) {
+            growthProfile.milestones.push({
+                timestamp: Date.now(),
+                type: 'score_breakthrough',
+                description: `首次突破${threshold}分`
+            });
+        }
+    }
+    
+    // 检测单项能力突出
+    for (const dimension in essayData.scores) {
+        if (essayData.scores[dimension] >= 90) {
+            const existingMilestone = growthProfile.milestones.find(
+                m => m.type === 'dimension_excellence' && m.dimension === dimension
+            );
+            if (!existingMilestone) {
+                growthProfile.milestones.push({
+                    timestamp: Date.now(),
+                    type: 'dimension_excellence',
+                    dimension: dimension,
+                    description: `${dimension}维度达到优秀水平`
+                });
+            }
+        }
+    }
+}
+
+function updateWeaknesses(essayData) {
+    // 清空旧的薄弱项
+    growthProfile.weaknesses = [];
+    
+    // 找出当前较弱的维度
+    for (const dimension in growthProfile.abilities) {
+        const score = growthProfile.abilities[dimension];
+        if (score < 70) {
+            growthProfile.weaknesses.push({
+                dimension: dimension,
+                score: score,
+                suggestion: getWeaknessSuggestion(dimension, essayData.type)
+            });
+        }
+    }
+    
+    // 按分数排序，最弱的在前
+    growthProfile.weaknesses.sort((a, b) => a.score - b.score);
+}
+
+function getWeaknessSuggestion(dimension, essayType) {
+    const suggestions = {
+        structure: '建议：多阅读优秀范文，学习文章结构布局；写作前先列提纲，规划好各部分内容',
+        argumentation: essayType === 'argumentative' 
+            ? '建议：积累更多论据素材，学习论证方法；注意论据与论点的紧密结合'
+            : '建议：加强细节描写训练，多观察生活；学习运用多种描写手法',
+        language: '建议：多读书，积累优美词句；注意句式变化，避免重复；多做语言表达练习',
+        materials: '建议：建立素材库，分类整理名言、事例；关注时事热点，丰富素材来源',
+        logic: essayType === 'argumentative'
+            ? '建议：学习逻辑推理方法；注意使用恰当的关联词；检查论证的严密性'
+            : '建议：注意情节的起承转合；练习叙事的线索把握；避免叙述跳跃',
+        reflection: '建议：写作后多思考主题深意；学习从不同角度分析问题；培养批判性思维'
+    };
+    
+    return suggestions[dimension] || '建议：多练习，多思考，持续提升';
+}
+
+function loadGrowthProfile() {
+    const saved = localStorage.getItem('growthProfile');
+    if (saved) {
+        const loaded = JSON.parse(saved);
+        growthProfile.essays = loaded.essays || [];
+        growthProfile.abilities = loaded.abilities || growthProfile.abilities;
+        growthProfile.milestones = loaded.milestones || [];
+        growthProfile.weaknesses = loaded.weaknesses || [];
+    }
+}
+
+function saveGrowthProfile() {
+    localStorage.setItem('growthProfile', JSON.stringify(growthProfile));
+}
+
 // 写作完成：生成写作报告（调用AI，失败则本地生成）
 async function finishWriting() {
     if (!mainEditor) return;
@@ -2536,60 +3375,132 @@ async function finishWriting() {
         ? text.replace(/[^\u4e00-\u9fa5]/g, '').length
         : text.trim().split(/\s+/).filter(w => w).length;
 
-    // 尝试调用AI生成智能报告，失败则提供本地报告
+    // 检查是否有足够内容
+    if (words < 50) {
+        closeAILoadingModal();
+        showNotification(
+            currentLanguage === 'zh' 
+                ? '请至少写入50字后再完成写作' 
+                : 'Please write at least 50 words before finishing'
+        );
+        return;
+    }
+
+    let evaluation = null;
+    let useAIEvaluation = false;
+
+    // 1. 尝试调用AI评分（优先）
     try {
-        // 准备AI报告payload
-        const reportPayload = {
-            type: currentType,
-            language: currentLanguage,
-            title: titleInput?.value || '',
+        console.log('🤖 正在调用AI进行智能评分...');
+        showNotification(currentLanguage === 'zh' ? '🤖 AI正在评估您的文章...' : '🤖 AI is evaluating your essay...');
+        
+        const aiResult = await aiService.generateWritingEvaluation(
+            currentType,
+            currentLanguage,
+            titleInput?.value || '',
             text,
             words,
-            durationSec,
-            saves: contentHistory.length,
-            targetWords: essayTypes[currentType][currentLanguage].targetWords
-        };
+            durationSec
+        );
 
-        // 尝试使用现有的 AI 接口生成总结或报告
-        // 如果没有专门的 generateWritingReport，尝试用其他接口
-        let aiReport = null;
-        if (aiService && typeof aiService.generateSummary === 'function') {
+        if (aiResult.success && aiResult.message) {
             try {
-                const result = await aiService.generateSummary(
-                    currentType,
-                    currentLanguage,
-                    text
-                );
-                aiReport = result.message;
-            } catch (e) {
-                console.log('generateSummary unavailable, using fallback');
+                // 尝试解析AI返回的JSON
+                const aiEvaluation = JSON.parse(aiResult.message);
+                
+                // 验证AI返回的数据结构
+                if (aiEvaluation.scores && aiEvaluation.totalScore !== undefined) {
+                    // 标准化分数到百分制（AI可能返回原始分数或百分制）
+                    const normalizeScore = (score, max) => {
+                        if (score > max) return Math.min(100, score); // 已经是百分制
+                        return Math.round((score / max) * 100);
+                    };
+
+                    evaluation = {
+                        totalScore: aiEvaluation.totalScore > 100 
+                            ? aiEvaluation.totalScore 
+                            : aiEvaluation.totalScore,
+                        scores: {
+                            structure: normalizeScore(aiEvaluation.scores.structure || 0, 20),
+                            argumentation: normalizeScore(aiEvaluation.scores.argumentation || 0, 25),
+                            language: normalizeScore(aiEvaluation.scores.language || 0, 20),
+                            materials: normalizeScore(aiEvaluation.scores.materials || 0, 15),
+                            logic: normalizeScore(aiEvaluation.scores.logic || 0, 15),
+                            reflection: normalizeScore(aiEvaluation.scores.reflection || 0, 5)
+                        },
+                        level: aiEvaluation.level || getScoreLevel(aiEvaluation.totalScore),
+                        diagnostics: aiEvaluation.diagnostics || [],
+                        overallComment: aiEvaluation.overallComment || ''
+                    };
+                    
+                    useAIEvaluation = true;
+                    console.log('✅ AI评分成功:', evaluation);
+                } else {
+                    throw new Error('AI返回数据格式不完整');
+                }
+            } catch (parseError) {
+                console.warn('⚠️ AI返回数据解析失败，使用本地评分:', parseError);
+                evaluation = evaluateEssay(text, currentType, currentLanguage);
             }
-        }
-
-        closeAILoadingModal();
-
-        if (aiReport) {
-            // AI生成成功
-            const aiReportHtml = `📊 ${currentLanguage === 'zh' ? '智能总结' : 'AI Summary'}:\n${aiReport}\n\n`;
-            const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
-            aiOutput.innerHTML = `
-                <div class="writing-report">
-                    <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
-                    <div class="report-content"><strong>${currentLanguage === 'zh' ? 'AI智能分析：' : 'AI Analysis:'}</strong><br>${aiReportHtml.replace(/\n/g, '<br>')}<br><strong>${currentLanguage === 'zh' ? '详细统计: ' : 'Detailed Stats:'}</strong><br>${local.replace(/\n/g, '<br>')}</div>
-                </div>
-            `;
-            showNotification(currentLanguage === 'zh' ? '✓ AI智能写作报告已生成' : '✓ AI writing report generated');
         } else {
-            // AI不可用，使用本地报告
-            const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
-            aiOutput.innerHTML = `
-                <div class="writing-report">
-                    <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
-                    <div class="report-content">${local.replace(/\n/g, '<br>')}</div>
-                </div>
-            `;
-            showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
+            console.warn('⚠️ AI评分未成功，使用本地评分');
+            evaluation = evaluateEssay(text, currentType, currentLanguage);
         }
+    } catch (aiError) {
+        console.warn('⚠️ AI评分调用失败，使用本地评分:', aiError);
+        evaluation = evaluateEssay(text, currentType, currentLanguage);
+    }
+
+    // 2. 如果AI和本地评分都失败，使用默认评分
+    if (!evaluation) {
+        evaluation = {
+            totalScore: 60,
+            scores: {
+                structure: 60,
+                argumentation: 60,
+                language: 60,
+                materials: 60,
+                logic: 60,
+                reflection: 60
+            },
+            level: '及格',
+            diagnostics: []
+        };
+    }
+    
+    // 3. 写作过程复盘
+    const processAnalysis = analyzeWritingProcess();
+    
+    // 4. 更新成长档案
+    const essayData = {
+        type: currentType,
+        title: titleInput?.value || '未命名',
+        wordCount: words,
+        duration: durationSec,
+        scores: evaluation.scores,
+        totalScore: evaluation.totalScore
+    };
+    updateGrowthProfile(essayData);
+    
+    // 5. 生成综合报告
+    try {
+        closeAILoadingModal();
+        
+        const reportHtml = generateComprehensiveReport(
+            words, 
+            durationSec, 
+            contentHistory.length,
+            evaluation,
+            processAnalysis,
+            useAIEvaluation
+        );
+        
+        aiOutput.innerHTML = reportHtml;
+        
+        const notificationMsg = useAIEvaluation
+            ? (currentLanguage === 'zh' ? '✓ AI智能写作报告已生成' : '✓ AI writing report generated')
+            : (currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
+        showNotification(notificationMsg);
     } catch (error) {
         console.error('写作报告生成异常:', error);
         closeAILoadingModal();
@@ -2600,8 +3511,241 @@ async function finishWriting() {
                 <div class="report-content">${local.replace(/\n/g, '<br>')}</div>
             </div>
         `;
-        showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
+        showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成（简化版）' : '✓ Writing report generated (simplified)');
     }
+    
+    // 6. 重置写作过程数据
+    resetWritingProcessData();
+}
+
+// 生成综合写作报告
+function generateComprehensiveReport(words, durationSec, saves, evaluation, processAnalysis, useAIEvaluation = false) {
+    const minutes = Math.max(1, Math.round(durationSec / 60));
+    const speed = Math.round(words / minutes);
+    
+    let html = '<div class="writing-report-comprehensive">';
+    
+    // 标题
+    html += `<h4 class="report-title">📊 ${currentLanguage === 'zh' ? '综合写作报告' : 'Comprehensive Writing Report'}</h4>`;
+    
+    // AI评分标识
+    if (useAIEvaluation) {
+        html += `<div class="ai-badge">
+            <span class="badge-icon">🤖</span>
+            <span class="badge-text">${currentLanguage === 'zh' ? 'AI智能评分' : 'AI Evaluation'}</span>
+        </div>`;
+    }
+    
+    // 第一部分：评分与诊断
+    if (evaluation) {
+        html += '<div class="report-section evaluation-section">';
+        html += `<h5>📈 ${currentLanguage === 'zh' ? '评分与诊断' : 'Scoring and Diagnosis'}</h5>`;
+        html += `<div class="total-score"><span class="score-number">${evaluation.totalScore}</span><span class="score-label">/100</span></div>`;
+        html += `<div class="score-level">${currentLanguage === 'zh' ? '等级：' : 'Level: '}<strong>${evaluation.level}</strong></div>`;
+        
+        // 显示AI的综合评价（如果有）
+        if (useAIEvaluation && evaluation.overallComment) {
+            html += `<div class="overall-comment">
+                <h6>${currentLanguage === 'zh' ? '💬 综合评价' : '💬 Overall Comment'}</h6>
+                <p>${evaluation.overallComment}</p>
+            </div>`;
+        }
+        
+        // 六维能力雷达图（文本形式）
+        html += '<div class="ability-scores">';
+        html += `<h6>${currentLanguage === 'zh' ? '六维能力评分' : 'Six Dimensions'}</h6>`;
+        html += '<div class="ability-bars">';
+        
+        const dimensionNames = {
+            structure: '结构',
+            argumentation: currentType === 'argumentative' ? '论证' : '描写',
+            language: '语言',
+            materials: '素材',
+            logic: currentType === 'argumentative' ? '逻辑' : '情节',
+            reflection: currentType === 'argumentative' ? '反思' : '立意'
+        };
+        
+        for (const [key, score] of Object.entries(evaluation.scores)) {
+            const percentage = score; // 分数已经是百分制
+            html += `<div class="ability-bar">
+                <span class="ability-name">${dimensionNames[key] || key}</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: ${percentage}%"></div>
+                </div>
+                <span class="ability-score">${score}</span>
+            </div>`;
+        }
+        
+        html += '</div></div>';
+        
+        // 诊断建议
+        if (evaluation.diagnostics && evaluation.diagnostics.length > 0) {
+            html += '<div class="diagnostics">';
+            html += `<h6>${currentLanguage === 'zh' ? '诊断建议' : 'Suggestions'}</h6>`;
+            html += '<ul class="diagnostic-list">';
+            evaluation.diagnostics.forEach(diag => {
+                html += `<li><strong>${diag.dimension}：</strong>${diag.issue}<br><em>${diag.suggestion}</em></li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        html += '</div>';
+    }
+    
+    // 第二部分：写作过程复盘
+    html += '<div class="report-section process-section">';
+    html += `<h5>🔄 ${currentLanguage === 'zh' ? '写作过程复盘' : 'Process Review'}</h5>`;
+    
+    // 基本统计
+    html += '<div class="basic-stats">';
+    html += `<div class="stat-item"><span class="stat-label">⏱️ ${currentLanguage === 'zh' ? '写作时长' : 'Duration'}:</span> <span class="stat-value">${minutes} ${currentLanguage === 'zh' ? '分钟' : 'min'}</span></div>`;
+    html += `<div class="stat-item"><span class="stat-label">📝 ${currentLanguage === 'zh' ? '字数' : 'Words'}:</span> <span class="stat-value">${words} ${currentLanguage === 'zh' ? '字' : 'words'}</span></div>`;
+    html += `<div class="stat-item"><span class="stat-label">⚡ ${currentLanguage === 'zh' ? '速度' : 'Speed'}:</span> <span class="stat-value">${speed} ${currentLanguage === 'zh' ? '字/分' : 'words/min'}</span></div>`;
+    html += '</div>';
+    
+    // 卡顿分析
+    if (processAnalysis.pauseAnalysis.count > 0) {
+        html += '<div class="pause-analysis">';
+        html += `<h6>${currentLanguage === 'zh' ? '⏸️ 卡顿情况' : '⏸️ Pause Analysis'}</h6>`;
+        html += `<p>${currentLanguage === 'zh' ? '卡顿次数' : 'Pause count'}: <strong>${processAnalysis.pauseAnalysis.count}</strong> ${currentLanguage === 'zh' ? '次' : 'times'}</p>`;
+        html += `<p>${currentLanguage === 'zh' ? '平均卡顿时长' : 'Avg pause duration'}: <strong>${processAnalysis.pauseAnalysis.avgDuration}</strong> ${currentLanguage === 'zh' ? '秒' : 's'}</p>`;
+        html += `<p>${currentLanguage === 'zh' ? '最长卡顿' : 'Max pause'}: <strong>${processAnalysis.pauseAnalysis.maxDuration}</strong> ${currentLanguage === 'zh' ? '秒' : 's'}</p>`;
+        html += `<p class="suggestion">💡 ${currentLanguage === 'zh' ? '建议：卡顿可能表明思路不够清晰，建议写作前做好规划' : 'Tip: Frequent pauses may indicate unclear thinking. Consider better planning.'}</p>`;
+        html += '</div>';
+    }
+    
+    // 工具使用统计
+    if (processAnalysis.toolUsageAnalysis.total > 0) {
+        html += '<div class="tool-usage">';
+        html += `<h6>${currentLanguage === 'zh' ? '🛠️ 工具使用统计' : '🛠️ Tool Usage'}</h6>`;
+        html += '<ul>';
+        if (processAnalysis.toolUsageAnalysis.guidance > 0) {
+            html += `<li>${currentLanguage === 'zh' ? '启动引导' : 'Guidance'}: ${processAnalysis.toolUsageAnalysis.guidance} ${currentLanguage === 'zh' ? '次' : 'times'}</li>`;
+        }
+        if (processAnalysis.toolUsageAnalysis.materials > 0) {
+            html += `<li>${currentLanguage === 'zh' ? '素材推荐' : 'Materials'}: ${processAnalysis.toolUsageAnalysis.materials} ${currentLanguage === 'zh' ? '次' : 'times'}</li>`;
+        }
+        if (processAnalysis.toolUsageAnalysis.inspiration > 0) {
+            html += `<li>${currentLanguage === 'zh' ? '灵感提示' : 'Inspiration'}: ${processAnalysis.toolUsageAnalysis.inspiration} ${currentLanguage === 'zh' ? '次' : 'times'}</li>`;
+        }
+        if (processAnalysis.toolUsageAnalysis.optimization > 0) {
+            html += `<li>${currentLanguage === 'zh' ? '优化修补' : 'Optimization'}: ${processAnalysis.toolUsageAnalysis.optimization} ${currentLanguage === 'zh' ? '次' : 'times'}</li>`;
+        }
+        html += '</ul></div>';
+    }
+    
+    // 素材采纳情况
+    if (processAnalysis.materialsAnalysis.adopted > 0) {
+        html += '<div class="materials-adopted">';
+        html += `<h6>${currentLanguage === 'zh' ? '📚 素材采纳' : '📚 Materials Adopted'}</h6>`;
+        html += `<p>${currentLanguage === 'zh' ? '采纳素材数量' : 'Materials adopted'}: <strong>${processAnalysis.materialsAnalysis.adopted}</strong> ${currentLanguage === 'zh' ? '条' : 'items'}</p>`;
+        html += '</div>';
+    }
+    
+    // 写作节奏分析
+    if (processAnalysis.writingRhythm.pattern !== 'insufficient_data') {
+        html += '<div class="writing-rhythm">';
+        html += `<h6>${currentLanguage === 'zh' ? '✍️ 写作节奏' : '✍️ Writing Rhythm'}</h6>`;
+        const patternText = {
+            steady: currentLanguage === 'zh' ? '稳定型：写作速度较为均匀' : 'Steady: Consistent writing pace',
+            burst: currentLanguage === 'zh' ? '爆发型：写作速度波动较大，有明显高峰期' : 'Burst: Variable pace with peak periods',
+            intermittent: currentLanguage === 'zh' ? '断续型：写作较为断断续续' : 'Intermittent: Choppy writing pattern'
+        };
+        html += `<p>${patternText[processAnalysis.writingRhythm.pattern]}</p>`;
+        html += `<p>${currentLanguage === 'zh' ? '平均速度' : 'Average speed'}: ${processAnalysis.writingRhythm.avgSpeed} ${currentLanguage === 'zh' ? '字/分' : 'words/min'}</p>`;
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    
+    // 第三部分：成长档案
+    loadGrowthProfile();
+    if (growthProfile.essays.length > 0) {
+        html += '<div class="report-section growth-section">';
+        html += `<h5>📈 ${currentLanguage === 'zh' ? '成长档案' : 'Growth Profile'}</h5>`;
+        
+        // 当前能力雷达图
+        html += '<div class="current-abilities">';
+        html += `<h6>${currentLanguage === 'zh' ? '当前六维能力' : 'Current Abilities'}</h6>`;
+        html += '<div class="ability-bars">';
+        const abilityNames = {
+            structure: '结构',
+            argumentation: '论证',
+            language: '语言',
+            materials: '素材',
+            logic: '逻辑',
+            reflection: '反思'
+        };
+        for (const [key, score] of Object.entries(growthProfile.abilities)) {
+            html += `<div class="ability-bar small">
+                <span class="ability-name">${abilityNames[key] || key}</span>
+                <div class="bar-container">
+                    <div class="bar-fill" style="width: ${score}%"></div>
+                </div>
+                <span class="ability-score">${score}</span>
+            </div>`;
+        }
+        html += '</div></div>';
+        
+        // 进步里程碑
+        if (growthProfile.milestones.length > 0) {
+            html += '<div class="milestones">';
+            html += `<h6>${currentLanguage === 'zh' ? '🏆 进步里程碑' : '🏆 Milestones'}</h6>`;
+            html += '<ul class="milestone-list">';
+            growthProfile.milestones.slice(-5).reverse().forEach(milestone => {
+                const date = new Date(milestone.timestamp).toLocaleDateString();
+                html += `<li><span class="milestone-date">${date}</span> - ${milestone.description}</li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        // 薄弱项提醒
+        if (growthProfile.weaknesses.length > 0) {
+            html += '<div class="weaknesses">';
+            html += `<h6>${currentLanguage === 'zh' ? '⚠️ 需要关注的能力' : '⚠️ Areas to Improve'}</h6>`;
+            html += '<ul class="weakness-list">';
+            growthProfile.weaknesses.forEach(weakness => {
+                html += `<li><strong>${weakness.dimension}</strong> (${weakness.score}/100)<br><em>${weakness.suggestion}</em></li>`;
+            });
+            html += '</ul></div>';
+        }
+        
+        // 历史趋势
+        if (growthProfile.essays.length >= 2) {
+            const recentScores = growthProfile.essays.slice(-5).map(e => e.totalScore);
+            const trend = recentScores[recentScores.length - 1] > recentScores[0] ? '上升' : recentScores[recentScores.length - 1] < recentScores[0] ? '下降' : '稳定';
+            html += '<div class="trend">';
+            html += `<h6>${currentLanguage === 'zh' ? '📊 最近趋势' : '📊 Recent Trend'}</h6>`;
+            html += `<p>${currentLanguage === 'zh' ? '最近5篇文章得分趋势：' : 'Last 5 essays trend: '}<strong>${trend}</strong></p>`;
+            html += `<p>${currentLanguage === 'zh' ? '最高分' : 'Best score'}: ${Math.max(...recentScores)} | ${currentLanguage === 'zh' ? '平均分' : 'Average'}: ${Math.round(recentScores.reduce((a,b) => a+b, 0) / recentScores.length)}</p>`;
+            html += '</div>';
+        }
+        
+        html += '</div>';
+    }
+    
+    html += '</div>';
+    
+    return html;
+}
+
+// 重置写作过程数据
+function resetWritingProcessData() {
+    writingProcessData = {
+        pauseCount: 0,
+        pauseDurations: [],
+        lastInputTime: null,
+        toolUsage: {
+            guidance: 0,
+            materials: 0,
+            inspiration: 0,
+            optimization: 0
+        },
+        materialsAdopted: [],
+        optimizationsApplied: [],
+        revisionCount: 0,
+        wordCountChanges: []
+    };
 }
 
 function generateLocalWritingReport(words, durationSec, saves) {

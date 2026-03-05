@@ -645,6 +645,127 @@ Based on the student's answer, provide guiding suggestions to help them think ab
 
         return await this.callAI(messages, 'optimization', essayType);
     }
+
+    /**
+     * 生成AI写作评估报告（评分+诊断）
+     */
+    async generateWritingEvaluation(essayType, language, articleTitle, articleContent, wordCount, writingDuration) {
+        const essayTypeNames = {
+            'argumentative': { zh: '议论文', en: 'argumentative essay' },
+            'narrative': { zh: '记叙文', en: 'narrative essay' },
+            'academic': { zh: '学术论文', en: 'academic paper' }
+        };
+        
+        const essayTypeName = language === 'zh' 
+            ? essayTypeNames[essayType].zh 
+            : essayTypeNames[essayType].en;
+
+        const systemPrompt = language === 'zh'
+            ? `你是一位经验丰富的${essayTypeName}评审专家。请对以下文章进行全面评估。
+
+评分标准（满分100分）：
+${essayType === 'argumentative' 
+    ? `- 结构（20分）：文章结构完整性、层次清晰度、开头结尾呼应
+- 论证（25分）：论点鲜明度、论据充分性、论证有力度
+- 语言（20分）：语言流畅度、表达准确性、用词恰当性
+- 素材（15分）：素材丰富性、新颖性、运用恰当性
+- 逻辑（15分）：逻辑严密性、推理清晰度
+- 反思（5分）：思考深度、反思质量`
+    : `- 结构（20分）：结构完整性、情节安排合理性、详略得当
+- 描写（25分）：描写生动性、人物形象鲜明度
+- 语言（20分）：语言生动性、感染力
+- 素材（15分）：选材新颖性、真情实感
+- 情节（15分）：情节生动性、曲折程度
+- 立意（5分）：立意深刻性、主题鲜明度`}
+
+请严格按照以下JSON格式输出（不要有其他文字）：
+{
+  "scores": {
+    "structure": 数字(0-20),
+    "argumentation": 数字(0-25),
+    "language": 数字(0-20),
+    "materials": 数字(0-15),
+    "logic": 数字(0-15),
+    "reflection": 数字(0-5)
+  },
+  "totalScore": 总分数字(0-100),
+  "level": "优秀|良好|中等|及格|待提高",
+  "diagnostics": [
+    {
+      "dimension": "维度名称",
+      "issue": "具体问题描述",
+      "suggestion": "改进建议"
+    }
+  ],
+  "overallComment": "100字以内的综合评价"
+}`
+            : `You are an experienced ${essayTypeName} evaluator. Please comprehensively assess the following article.
+
+Scoring criteria (100 points total):
+${essayType === 'argumentative'
+    ? `- Structure (20pts): completeness, clarity, coherence
+- Argumentation (25pts): clarity of thesis, adequacy of evidence
+- Language (20pts): fluency, accuracy, appropriate word choice
+- Materials (15pts): richness, novelty, appropriate usage
+- Logic (15pts): rigor, clarity of reasoning
+- Reflection (5pts): depth of thought, quality of reflection`
+    : `- Structure (20pts): completeness, plot arrangement, pacing
+- Description (25pts): vividness, character development
+- Language (20pts): vividness, appeal
+- Materials (15pts): novelty of material, genuine emotion
+- Plot (15pts): vividness, twists
+- Theme (5pts): profundity, clarity of theme`}
+
+Output strictly in JSON format (no other text):
+{
+  "scores": {
+    "structure": number(0-20),
+    "argumentation": number(0-25),
+    "language": number(0-20),
+    "materials": number(0-15),
+    "logic": number(0-15),
+    "reflection": number(0-5)
+  },
+  "totalScore": number(0-100),
+  "level": "Excellent|Good|Average|Pass|Need Improvement",
+  "diagnostics": [
+    {
+      "dimension": "dimension name",
+      "issue": "specific issue",
+      "suggestion": "improvement suggestion"
+    }
+  ],
+  "overallComment": "within 100 words overall evaluation"
+}`;
+
+        const userPrompt = language === 'zh'
+            ? `标题：${articleTitle || '未命名'}
+字数：${wordCount}字
+写作时长：${Math.round(writingDuration / 60)}分钟
+
+文章内容：
+${articleContent}
+
+请评估这篇${essayTypeName}并给出评分和诊断建议。`
+            : `Title: ${articleTitle || 'Untitled'}
+Word count: ${wordCount} words
+Writing duration: ${Math.round(writingDuration / 60)} minutes
+
+Content:
+${articleContent}
+
+Please evaluate this ${essayTypeName} and provide scores and diagnostic suggestions.`;
+
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            { role: 'user', content: userPrompt }
+        ];
+
+        return await this.callAI(messages, 'writing-evaluation', essayType, {
+            timeoutMs: 30000,  // 评估可能需要更长时间
+            retries: 1
+        });
+    }
 }
 
 // 导出全局实例
