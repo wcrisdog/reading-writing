@@ -21,6 +21,7 @@ let targetWordsConfig = {
 };
 let currentRightPanelView = 'outline';
 let optimizationRecords = [];
+let rawPromptInput = ''; // 保存原始题目输入
 
 // =========== 写作类型配置 ===========
 const essayTypes = {
@@ -722,12 +723,14 @@ function setupEventListeners() {
     const getMaterialsBtn = document.getElementById('getMaterials');
     const getInspirationBtn = document.getElementById('getInspiration');
     const optimizationBtn = document.getElementById('optimization');
+    const inputRawPromptBtn = document.getElementById('inputRawPrompt');
     
     console.log('🎯 Button elements:', {
         launchGuidance: !!launchGuidanceBtn,
         getMaterials: !!getMaterialsBtn,
         getInspiration: !!getInspirationBtn,
-        optimization: !!optimizationBtn
+        optimization: !!optimizationBtn,
+        inputRawPrompt: !!inputRawPromptBtn
     });
     
     if (launchGuidanceBtn) {
@@ -770,25 +773,19 @@ function setupEventListeners() {
         console.error('❌ optimizationBtn not found!');
     }
 
-    // 原始题目输入按钮
-    // 写作完成按钮（如果不存在则动态创建）
-    let finishWritingBtn = document.getElementById('finishWritingBtn');
-    if (!finishWritingBtn) {
-        // 在编辑器下方动态创建一个按钮（较小尺寸）
-        const editorEl = document.getElementById('mainEditor');
-        if (editorEl && editorEl.parentElement) {
-            finishWritingBtn = document.createElement('button');
-            finishWritingBtn.id = 'finishWritingBtn';
-            finishWritingBtn.textContent = currentLanguage === 'zh' ? '完成&报告' : 'Finish & Report';
-            finishWritingBtn.style.marginTop = '6px';
-            finishWritingBtn.style.padding = '4px 8px';
-            finishWritingBtn.style.fontSize = '11px';
-            finishWritingBtn.style.width = 'auto';
-            finishWritingBtn.className = 'primary-btn';
-            editorEl.parentElement.insertBefore(finishWritingBtn, editorEl.nextSibling);
-        }
+    if (inputRawPromptBtn) {
+        console.log('✅ Adding inputRawPrompt click listener');
+        inputRawPromptBtn.addEventListener('click', () => {
+            console.log('📝 inputRawPrompt clicked');
+            openRawPromptModal();
+        });
+    } else {
+        console.error('❌ inputRawPromptBtn not found!');
     }
-
+    
+    // 写作完成按钮
+    const finishWritingBtn = document.getElementById('finishWritingBtn');
+    
     if (finishWritingBtn) {
         finishWritingBtn.addEventListener('click', () => {
             finishWriting();
@@ -799,6 +796,7 @@ function setupEventListeners() {
     const closeModalBtn = document.getElementById('closeModal');
     const closeOptimizationModalBtn = document.getElementById('closeOptimizationModal');
     const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
+    const closeRawPromptModalBtn = document.getElementById('closeRawPromptModal');
     const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
     const enlargeOutlineBtn = document.getElementById('enlargeOutlineBtn');
     const enlargeOutlineFromPanelBtn = document.getElementById('enlargeOutlineFromPanelBtn');
@@ -806,6 +804,38 @@ function setupEventListeners() {
     if (closeModalBtn) closeModalBtn.addEventListener('click', closeGuidanceModal);
     if (closeOptimizationModalBtn) closeOptimizationModalBtn.addEventListener('click', closeOptimizationModal);
     if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
+    if (closeRawPromptModalBtn) closeRawPromptModalBtn.addEventListener('click', closeRawPromptModal);
+    
+    // 原始题目模态框事件
+    const submitRawPromptBtn = document.getElementById('submitRawPromptBtn');
+    const cancelRawPromptBtn = document.getElementById('cancelRawPromptBtn');
+    const rawPromptInput_elem = document.getElementById('rawPromptInput');
+    
+    if (submitRawPromptBtn) {
+        submitRawPromptBtn.addEventListener('click', () => {
+            if (rawPromptInput_elem) {
+                rawPromptInput = rawPromptInput_elem.value.trim();
+                if (rawPromptInput) {
+                    closeRawPromptModal();
+                    showNotification(
+                        currentLanguage === 'zh' 
+                            ? '✓ 原始题目已保存，现在可以启动引导' 
+                            : '✓ Original prompt saved, now you can start guidance'
+                    );
+                } else {
+                    showNotification(
+                        currentLanguage === 'zh' 
+                            ? '请输入题目内容' 
+                            : 'Please enter prompt content'
+                    );
+                }
+            }
+        });
+    }
+    
+    if (cancelRawPromptBtn) {
+        cancelRawPromptBtn.addEventListener('click', closeRawPromptModal);
+    }
     if (startWritingFromOutlineBtn) {
         startWritingFromOutlineBtn.addEventListener('click', () => {
             closeOutlineResultModal();
@@ -852,10 +882,12 @@ function setupEventListeners() {
     const guidanceModal = document.getElementById('guidanceModal');
     const optimizationModal = document.getElementById('optimizationModal');
     const outlineResultModal = document.getElementById('outlineResultModal');
+    const rawPromptModal = document.getElementById('rawPromptModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
-        optimizationModal: !!optimizationModal
+        optimizationModal: !!optimizationModal,
+        rawPromptModal: !!rawPromptModal
     });
     
     if (guidanceModal) {
@@ -871,6 +903,11 @@ function setupEventListeners() {
     if (outlineResultModal) {
         outlineResultModal.addEventListener('click', (e) => {
             if (e.target.id === 'outlineResultModal') closeOutlineResultModal();
+        });
+    }
+    if (rawPromptModal) {
+        rawPromptModal.addEventListener('click', (e) => {
+            if (e.target.id === 'rawPromptModal') closeRawPromptModal();
         });
     }
     
@@ -905,6 +942,16 @@ function startGuidance() {
     guidanceStep = 0;
     userGuidanceAnswers = [];
     currentAISuggestion = '';
+    
+    // 如果用户输入了原始题目，作为第0步添加到引导回答中
+    if (rawPromptInput) {
+        userGuidanceAnswers.push({
+            step: 0,
+            question: currentLanguage === 'zh' ? '原始题目' : 'Original Prompt',
+            answer: rawPromptInput
+        });
+    }
+    
     showGuidanceQuestion(content, modal);
 }
 
@@ -1252,6 +1299,20 @@ async function generateOutlineFromAnswers(userAnswers = null) {
 function closeGuidanceModal() {
     document.getElementById('guidanceModal').style.display = 'none';
     guidanceStep = 0;
+}
+
+function openRawPromptModal() {
+    const modal = document.getElementById('rawPromptModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+function closeRawPromptModal() {
+    const modal = document.getElementById('rawPromptModal');
+    if (modal) {
+        modal.style.display = 'none';
+    }
 }
 
 // =========== 素材推荐（5步详细流程）===========
