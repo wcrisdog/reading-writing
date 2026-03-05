@@ -2685,34 +2685,48 @@ body {
 
 .editor-view-tabs {
     display: flex;
-    gap: 2px;
-    margin-bottom: 12px;
-    border-bottom: 1px solid var(--border-color);
+    justify-content: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-top: 1px solid var(--border-color);
+    background: var(--background-color);
 }
 
 .view-tab {
-    padding: 8px 16px;
-    background: transparent;
-    border: none;
+    padding: 10px 24px;
+    background: var(--surface-color);
+    border: 2px solid var(--border-color);
+    border-radius: 8px;
     cursor: pointer;
     font-size: 14px;
+    font-weight: 500;
     color: var(--text-secondary);
-    border-bottom: 2px solid transparent;
     transition: all 0.3s ease;
 }
 
 .view-tab:hover {
     color: var(--primary-color);
+    border-color: var(--primary-color);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-sm);
 }
 
 .view-tab.active {
-    color: var(--primary-color);
-    border-bottom-color: var(--primary-color);
+    color: white;
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+.editor-view-content {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
 }
 
 .report-content-container {
-    padding: 16px;
+    flex: 1;
+    padding: 24px;
     background: var(--surface-color);
-    border-radius: 8px;
     overflow-y: auto;
 }

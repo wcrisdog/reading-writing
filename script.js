@@ -23,6 +23,16 @@ let currentRightPanelView = 'outline';
 let optimizationRecords = [];
 let rawPromptInput = ''; // 保存原始题目输入
 
+// =========== Phase 3: 报告和视图相关全局变量 ===========
+let reportContent = null;
+let writeViewTab = null;
+let reportViewTab = null;
+let editorViewTabs = null;
+let writeView = null;
+let reportView = null;
+let sidebarGrowthPanel = null;
+let sidebarGrowthContent = null;
+
 // =========== 写作过程追踪数据 ===========
 let writingProcessData = {
     pauseCount: 0,               // 卡顿次数（超过30秒未输入）
@@ -802,15 +812,14 @@ document.addEventListener('DOMContentLoaded', () => {
     targetSelectorLabel = document.getElementById('targetSelectorLabel');
     
     // 新增：报告和成长档案相关元素
-    const reportContent = document.getElementById('reportContent');
-    const writeViewTab = document.getElementById('writeViewTab');
-    const reportViewTab = document.getElementById('reportViewTab');
-    const editorViewTabs = document.getElementById('editorViewTabs');
-    const writeView = document.getElementById('writeView');
-    const reportView = document.getElementById('reportView');
-    const sidebarGrowthPanel = document.getElementById('sidebarGrowthPanel');
-    const sidebarGrowthContent = document.getElementById('sidebarGrowthContent');
-    const viewWritingReportBtn = document.getElementById('viewWritingReport');
+    reportContent = document.getElementById('reportContent');
+    writeViewTab = document.getElementById('writeViewTab');
+    reportViewTab = document.getElementById('reportViewTab');
+    editorViewTabs = document.getElementById('editorViewTabs');
+    writeView = document.getElementById('writeView');
+    reportView = document.getElementById('reportView');
+    sidebarGrowthPanel = document.getElementById('sidebarGrowthPanel');
+    sidebarGrowthContent = document.getElementById('sidebarGrowthContent');
     
     console.log('✅ DOM elements fetched:', {
         mainEditor: !!mainEditor,
@@ -1132,7 +1141,7 @@ function setupEventListeners() {
     }
     
     // Phase 3: 查看写作报告按钮
-    const viewWritingReportBtn = document.getElementById('viewWritingReportBtn');
+    const viewWritingReportBtn = document.getElementById('viewWritingReport');
     if (viewWritingReportBtn) {
         viewWritingReportBtn.addEventListener('click', () => {
             // 如果报告还未生成，触发finishWriting
@@ -3631,14 +3640,7 @@ async function finishWriting() {
             useAIEvaluation
         );
         
-        // 获取reportContent和视图标签
-        const reportContent = document.getElementById('reportContent');
-        const editorViewTabs = document.getElementById('editorViewTabs');
-        const reportViewTab = document.getElementById('reportViewTab');
-        const reportView = document.getElementById('reportView');
-        const writeView = document.getElementById('writeView');
-        
-        // 输出报告到主窗口
+        // 输出报告到主窗口（使用全局变量）
         if (reportContent) {
             reportContent.innerHTML = reportHtml;
         } else {
@@ -3651,9 +3653,7 @@ async function finishWriting() {
             writeView.style.display = 'none';
             reportView.style.display = 'block';
             if (reportViewTab) reportViewTab.classList.add('active');
-            if (document.getElementById('writeViewTab')) {
-                document.getElementById('writeViewTab').classList.remove('active');
-            }
+            if (writeViewTab) writeViewTab.classList.remove('active');
         }
         
         const notificationMsg = useAIEvaluation
@@ -3665,12 +3665,6 @@ async function finishWriting() {
         closeAILoadingModal();
         const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
         
-        const reportContent = document.getElementById('reportContent');
-        const editorViewTabs = document.getElementById('editorViewTabs');
-        const reportViewTab = document.getElementById('reportViewTab');
-        const reportView = document.getElementById('reportView');
-        const writeView = document.getElementById('writeView');
-        
         const fallbackHtml = `
             <div class="writing-report">
                 <h5>📄 ${currentLanguage === 'zh' ? '写作报告' : 'Writing Report'}</h5>
@@ -3678,6 +3672,7 @@ async function finishWriting() {
             </div>
         `;
         
+        // 使用全局变量输出报告
         if (reportContent) {
             reportContent.innerHTML = fallbackHtml;
         } else {
@@ -3690,9 +3685,7 @@ async function finishWriting() {
             writeView.style.display = 'none';
             reportView.style.display = 'block';
             if (reportViewTab) reportViewTab.classList.add('active');
-            if (document.getElementById('writeViewTab')) {
-                document.getElementById('writeViewTab').classList.remove('active');
-            }
+            if (writeViewTab) writeViewTab.classList.remove('active');
         }
         
         showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成（简化版）' : '✓ Writing report generated (simplified)');
