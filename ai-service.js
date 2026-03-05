@@ -571,9 +571,14 @@ Provide a brief, targeted inspiration tip or writing suggestion.`;
 3. 用启发性的语言引导学生思考改进方向
 4. 不直接给出修改方案，而是提供思考的角度
 5. 保持鼓励和支持的语气
-6. 建议简洁，不超过80字
+6. 将建议分成3个要点
 
-输出格式：直接输出建议，不要前缀。`
+输出格式：按以下格式输出三个要点，每行一个要点：
+1. [第一个建议/分析]
+2. [第二个建议/分析]
+3. [第三个建议/分析]
+
+不要其他文字，只输出这三行。`
             : `You are an experienced writing mentor who excels at helping students discover issues and improve articles through inspiring questions.
 
 Your task: Based on the student's answer to logic questions, provide brief guiding suggestions to help them think about improvements, rather than directly telling them what to change.
@@ -584,9 +589,14 @@ Requirements:
 3. Use inspiring language to guide students' thinking about improvement
 4. Don't give direct solutions, provide thinking perspectives
 5. Maintain encouraging and supportive tone
-6. Keep suggestion concise, max 80 words
+6. Split your feedback into 3 key points
 
-Output format: Direct suggestion without prefix.`;
+Output format: Output three key points in exactly this format, one per line:
+1. [First suggestion/analysis]
+2. [Second suggestion/analysis]
+3. [Third suggestion/analysis]
+
+No other text, only these three lines.`;
 
         const userPrompt = language === 'zh'
             ? `问题：${question}

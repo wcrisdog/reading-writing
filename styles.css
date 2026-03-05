@@ -1455,6 +1455,11 @@ body {
     box-shadow: var(--shadow-md);
 }
 
+.logic-buttons {
+    text-align: center;
+    padding: 0 24px 24px 24px;
+}
+
 .secondary-btn {
     background: var(--background-color);
     color: var(--text-primary);
@@ -1845,4 +1850,44 @@ body {
 
 #outlineResultModal .optimization-buttons {
     padding: 0 24px 20px 24px;
+}
+
+/* 三部分反馈样式 */
+.feedback-sections {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 16px 0;
+}
+
+.feedback-section {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: var(--background-color);
+    border-left: 4px solid var(--primary-color);
+    border-radius: 4px;
+}
+
+.section-number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+    background: var(--primary-color);
+    color: white;
+    border-radius: 50%;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.section-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
 }

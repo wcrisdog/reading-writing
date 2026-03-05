@@ -1941,6 +1941,58 @@ async function startOptimization() {
             });
         }
 
+        // 解析编号反馈，将其分成三个部分
+        function parseNumberedFeedback(feedback) {
+            // 尝试匹配 1. 2. 3. 格式的反馈
+            const lines = feedback.split('\n').filter(line => line.trim());
+            const sections = [];
+            
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                if (line.startsWith('1.') || line.startsWith('1、')) {
+                    sections.push(line.substring(1).trim());
+                } else if (line.startsWith('2.') || line.startsWith('2、')) {
+                    sections.push(line.substring(1).trim());
+                } else if (line.startsWith('3.') || line.startsWith('3、')) {
+                    sections.push(line.substring(1).trim());
+                }
+            }
+            
+            // 如果找到了3个部分，返回它们；否则返回 null 表示使用原始格式
+            if (sections.length === 3) {
+                return sections;
+            }
+            return null;
+        }
+
+        // 生成反馈内容的HTML，支持三部分格式
+        function generateFeedbackHTML(feedback) {
+            const sections = parseNumberedFeedback(feedback);
+            
+            if (sections && sections.length === 3) {
+                // 使用三部分格式
+                return `
+                    <div class="feedback-sections">
+                        <div class="feedback-section">
+                            <div class="section-number">1</div>
+                            <div class="section-content">${sections[0]}</div>
+                        </div>
+                        <div class="feedback-section">
+                            <div class="section-number">2</div>
+                            <div class="section-content">${sections[1]}</div>
+                        </div>
+                        <div class="feedback-section">
+                            <div class="section-number">3</div>
+                            <div class="section-content">${sections[2]}</div>
+                        </div>
+                    </div>
+                `;
+            } else {
+                // 使用原始格式（向后兼容）
+                return `<div class="feedback-content">${feedback.replace(/\n/g, '<br>')}</div>`;
+            }
+        }
+
         async function showAnswerFeedback(question, answer, currentIdx, total) {
             content.innerHTML = '<p class="loading">🔄 ' + 
                 (currentLanguage === 'zh' ? 'AI正在根据你的回答提供建议...' : 'AI is providing suggestions based on your answer...') + 
@@ -1965,7 +2017,7 @@ async function startOptimization() {
                 content.innerHTML = `
                     <div class="logic-feedback">
                         <p class="feedback-header">💡 ${currentLanguage === 'zh' ? 'AI建议' : 'AI Suggestion'}</p>
-                        <div class="feedback-content">${feedback.replace(/\n/g, '<br>')}</div>
+                        ${generateFeedbackHTML(feedback)}
                         <p class="feedback-hint">${currentLanguage === 'zh' 
                             ? '提示：请不要让AI代替你修改，而是根据建议自己思考并改进文章。' 
                             : 'Tip: Don\'t let AI make changes for you. Think and improve your article based on suggestions.'}</p>
@@ -1985,8 +2037,8 @@ async function startOptimization() {
             } catch (error) {
                 console.error('反馈生成失败:', error);
                 const fallbackFeedback = currentLanguage === 'zh'
-                    ? '建议：回到原文，检查该问题对应段落是否有明确论据、清晰过渡和可验证的表达。'
-                    : 'Suggestion: Revisit the related paragraph and verify evidence, transitions, and clarity of claims.';
+                    ? '1. 回到原文，检查该问题对应段落是否有明确论据。\n2. 检查段落之间的过渡是否清晰自然。\n3. 验证相关表达是否准确可验证。'
+                    : '1. Revisit the related paragraph and verify clear evidence.\n2. Check if transitions between paragraphs are clear and natural.\n3. Verify that relevant expressions are accurate and verifiable.';
 
                 appendOptimizationRecord(question, answer, fallbackFeedback);
                 switchRightPanel('optimization');
@@ -1994,7 +2046,7 @@ async function startOptimization() {
                 content.innerHTML = `
                     <div class="optimization-feedback">
                         <p class="feedback-header">💡 ${currentLanguage === 'zh' ? '优化修补建议' : 'Optimization Suggestion'}</p>
-                        <div class="feedback-content">${fallbackFeedback}</div>
+                        ${generateFeedbackHTML(fallbackFeedback)}
                         <div class="optimization-buttons">
                             <button class="primary-btn" id="nextQuestion">
                                 ${currentLanguage === 'zh' ? '继续 →' : 'Continue →'}
