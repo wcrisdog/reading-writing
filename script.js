@@ -1948,8 +1948,17 @@ async function startOptimization() {
         
         const aiQuestions = result.message;
         
-        // 将AI返回的问题按行分割
+        // 将AI返回的问题按行分割，强制限制在3-5个
         const questionsList = parseOptimizationQuestions(aiQuestions);
+        
+        // 添加调试日志
+        console.log(`✅ 优化修补问题已解析，共 ${questionsList.length} 个问题`);
+        
+        // 如果问题数量被调整了，可以给用户一个提示（可选）
+        if (questionsList.length < 3 || questionsList.length > 5) {
+            console.log(`⚠️ 问题数量已自动调整为 ${questionsList.length} 个`);
+        }
+        
         let questionIdx = 0;
 
         function showOptimizationQuestion() {
@@ -2219,8 +2228,21 @@ async function startOptimization() {
     } catch (error) {
         console.error('优化修补失败:', error);
         
-        // 降级到本地问题库
-        const questions = optimizationQuestions[currentType][currentLanguage];
+        // 降级到本地问题库（强制限制3-5个）
+        const allQuestions = optimizationQuestions[currentType][currentLanguage];
+        const MIN_QUESTIONS = 3;
+        const MAX_QUESTIONS = 5;
+        
+        // 取前3-5个问题（本地库通常有5个）
+        const questions = allQuestions.slice(0, Math.min(MAX_QUESTIONS, allQuestions.length));
+        
+        // 如果本地库不足3个，记录错误但仍继续
+        if (questions.length < MIN_QUESTIONS) {
+            console.error(`⚠️ 本地问题库只有 ${questions.length} 个问题，少于要求的 ${MIN_QUESTIONS} 个`);
+        }
+        
+        console.log(`✅ 使用本地问题库，共 ${questions.length} 个问题`);
+        
         let questionIdx = 0;
 
         function showOptimizationQuestion() {
@@ -2264,7 +2286,7 @@ async function startOptimization() {
 }
 
 function parseOptimizationQuestions(aiResponse) {
-    // 改进解析：支持多种编号、符号、换行和短问题。
+    // 改进解析：支持多种编号、符号、换行和短问题，强制返回3-5个问题
     const lines = aiResponse.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const questions = [];
     let current = '';
@@ -2298,13 +2320,42 @@ function parseOptimizationQuestions(aiResponse) {
     if (current.trim()) questions.push(current.trim());
 
     // 清理编号前缀并过滤过短的杂项（保留问号或长度合理项）
-    const cleaned = questions.map(q => q.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').trim())
+    let cleaned = questions.map(q => q.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').trim())
         .filter(q => q.length > 6 && (q.includes('?') || q.includes('？') || q.length > 12));
 
-    return cleaned.length > 0 ? cleaned : (
-        // 最后回退：按非空行拆分并去掉数字前缀
-        aiResponse.split('\n').map(l => l.trim()).filter(l => l.length > 6).map(l => l.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').trim())
-    );
+    // 如果解析结果为空，尝试最后回退：按非空行拆分并去掉数字前缀
+    if (cleaned.length === 0) {
+        cleaned = aiResponse.split('\n')
+            .map(l => l.trim())
+            .filter(l => l.length > 6)
+            .map(l => l.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').trim())
+            .filter(q => q.length > 6);
+    }
+
+    // 强制限制在3-5个问题之间
+    const MIN_QUESTIONS = 3;
+    const MAX_QUESTIONS = 5;
+    
+    // 如果问题太多，只取前5个最有价值的（通常是前面的问题）
+    if (cleaned.length > MAX_QUESTIONS) {
+        cleaned = cleaned.slice(0, MAX_QUESTIONS);
+    }
+    
+    // 如果问题太少，从本地问题库补充
+    if (cleaned.length < MIN_QUESTIONS) {
+        const localQuestions = optimizationQuestions[currentType][currentLanguage];
+        // 补充问题直到达到最少3个
+        let idx = 0;
+        while (cleaned.length < MIN_QUESTIONS && idx < localQuestions.length) {
+            // 避免重复添加
+            if (!cleaned.includes(localQuestions[idx])) {
+                cleaned.push(localQuestions[idx]);
+            }
+            idx++;
+        }
+    }
+    
+    return cleaned;
 }
 
 function closeOptimizationModal() {
