@@ -664,11 +664,9 @@ function setupEventListeners() {
     document.querySelectorAll('.nav-btn').forEach(btn => {
         btn.addEventListener('click', (e) => {
             console.log('📌 nav-btn clicked:', e.target.dataset.type);
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            e.target.classList.add('active');
-            currentType = e.target.dataset.type;
-            currentLevel = e.target.dataset.level;
-            updateTemplate();
+            const newType = e.target.dataset.type;
+            const newLevel = e.target.dataset.level;
+            changeEssayType(newType, newLevel, e.target);
         });
     });
 
@@ -1766,100 +1764,6 @@ function setupKeystrokeTracking() {
     }, 60000);
 }
 
-async function checkInspirationNeeded() {
-    const text = mainEditor.value;
-    
-    if (!text || text.length < 50) {
-        showNotification(
-            currentLanguage === 'zh'
-                ? '请先写入一些内容，AI才能提供针对性建议'
-                : 'Please write some content first for personalized tips'
-        );
-        return;
-    }
-    
-    const wordCount = currentLanguage === 'zh'
-        ? text.replace(/[^\u4e00-\u9fa5]/g, '').length
-        : text.trim().split(/\s+/).filter(w => w).length;
-
-    // 显示加载状态
-    aiOutput.innerHTML = '<p class="loading">🔄 ' + 
-        (currentLanguage === 'zh' ? 'AI正在分析你的文章，生成灵感提示...' : 'AI is analyzing your writing...') + 
-        '</p>';
-
-    try {
-        const targetWords = essayTypes[currentType][currentLanguage].targetWords;
-        const hasTarget = Number.isFinite(targetWords) && targetWords > 0;
-        
-        // 调用AI服务（添加重试逻辑）
-        let result = null;
-        let retryCount = 0;
-        const maxRetries = 1; // 失败时重试一次
-        
-        while (retryCount <= maxRetries && !result) {
-            try {
-                result = await aiService.generateInspiration(
-                    currentType, 
-                    currentLanguage, 
-                    text, 
-                    wordCount, 
-                    targetWords
-                );
-            } catch (error) {
-                retryCount++;
-                if (retryCount > maxRetries) throw error;
-                // 等待后重试
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
-        }
-        
-        const aiTip = result.message;
-        const progress = hasTarget ? (wordCount / targetWords * 100).toFixed(0) : null;
-        
-        aiOutput.innerHTML = `
-            <p class="suggestion">💡 ${aiTip}</p>
-            <p class="progress-info">📊 ${
-                hasTarget
-                    ? (currentLanguage === 'zh'
-                        ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
-                        : `Progress: ${wordCount}/${targetWords} words (${progress}%)`)
-                    : (currentLanguage === 'zh'
-                        ? `当前字数: ${wordCount} 字`
-                        : `Current words: ${wordCount}`)
-            }</p>
-            <button class="regenerate-inspiration-btn" onclick="checkInspirationNeeded()" style="margin-top: 12px; padding: 8px 16px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px;">
-                🔄 ${currentLanguage === 'zh' ? '重新生成建议' : 'Regenerate'}
-            </button>
-        `;
-        
-        showNotification(
-            currentLanguage === 'zh'
-                ? '💡 AI灵感提示已生成'
-                : '💡 AI inspiration generated'
-        );
-        
-    } catch (error) {
-        console.error('灵感提示失败:', error);
-        
-        // 改进的fallback机制
-        const tips = inspirationTips[currentType][currentLanguage];
-        const tip = wordCount < essayTypes[currentType][currentLanguage].targetWords / 2
-            ? tips.stallTips[Math.floor(Math.random() * tips.stallTips.length)]
-            : tips.progressTips[Math.floor(Math.random() * tips.progressTips.length)];
-        
-        aiOutput.innerHTML = `
-            <p class="suggestion">${tip}</p>
-            <p class="fallback-note">${currentLanguage === 'zh' ? '（使用本地建议）' : '(using local suggestion)'}</p>
-        `;
-        
-        showNotification(
-            currentLanguage === 'zh'
-                ? '💡 已提供本地灵感建议'
-                : '💡 Local inspiration tip provided'
-        );
-    }
-}
-
 // =========== 优化修补 ===========
 // =========== 优化修补（引导式提问）===========
 let userOptimizationAnswers = [];
@@ -2830,6 +2734,109 @@ function clearContent() {
         updateStats();
         showNotification(currentLanguage === 'zh' ? '✓ 已清空全部内容（含AI生成）' : '✓ All content cleared (including AI outputs)');
     }
+}
+
+// =========== 文体切换函数（含内容清除提示）===========
+function changeEssayType(newType, newLevel, clickedBtn) {
+    // 检查编辑器是否有内容
+    const hasTitle = titleInput.value.trim().length > 0;
+    const hasContent = mainEditor.value.trim().length > 0;
+    const hasContent_overall = hasTitle || hasContent;
+
+    // 如果没有内容，直接切换
+    if (!hasContent_overall) {
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        clickedBtn.classList.add('active');
+        currentType = newType;
+        currentLevel = newLevel;
+        updateTemplate();
+        return;
+    }
+
+    // 如果有内容，显示确认对话框
+    const essayName = essayTypes[newType][currentLanguage].name;
+    const confirmText = currentLanguage === 'zh'
+        ? `修改文体会清除所有当前内容（包括标题和文本）。\n\n即将切换到：【${essayName}】\n\n是否确认修改？`
+        : `Changing essay type will clear all current content (including title and text).\n\nAbout to switch to: [${essayName}]\n\nConfirm?`;
+
+    if (confirm(confirmText)) {
+        // 用户确认，执行修改
+        clearTimeout(saveTimeout);
+
+        // 清除内容
+        titleInput.value = '';
+        mainEditor.value = '';
+
+        // 清空AI生成内容与右侧面板
+        if (aiOutput) {
+            aiOutput.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
+                ? 'AI 建议将显示在这里'
+                : 'AI suggestions will appear here'}</p>`;
+        }
+
+        if (materialsList) {
+            materialsList.innerHTML = '';
+        }
+        if (materialsPanel) {
+            materialsPanel.style.display = 'none';
+        }
+
+        if (outlinePanel) {
+            outlinePanel.innerHTML = '';
+            outlinePanel.style.display = 'block';
+        }
+
+        if (optimizationPanel) {
+            optimizationPanel.innerHTML = `<p class="placeholder">${currentLanguage === 'zh'
+                ? '优化修补记录将显示在这里'
+                : 'Optimization notes will appear here'}</p>`;
+            optimizationPanel.style.display = 'none';
+        }
+
+        // 清空运行时状态
+        userGuidanceAnswers = [];
+        currentAISuggestion = '';
+        guidanceStep = 0;
+        userMaterialPreferences = [];
+        userOptimizationAnswers = [];
+        optimizationRecords = [];
+        currentOutline = null;
+        rawPromptInput = '';
+
+        const guidanceContent = document.getElementById('guidanceContent');
+        const logicContent = document.getElementById('logicContent');
+        if (guidanceContent) guidanceContent.innerHTML = '';
+        if (logicContent) logicContent.innerHTML = '';
+
+        // 重置右侧视图
+        if (typeof switchRightPanel === 'function') {
+            switchRightPanel('outline');
+        }
+
+        // 清空持久化内容
+        contentHistory = [];
+        localStorage.removeItem('currentContent');
+        localStorage.removeItem('contentHistory');
+
+        document.getElementById('lastSaved').textContent = currentLanguage === 'zh' ? '从未' : 'Never';
+
+        // 修改文体
+        document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+        clickedBtn.classList.add('active');
+        currentType = newType;
+        currentLevel = newLevel;
+
+        updateStats();
+        updateTemplate();
+
+        showNotification(
+            currentLanguage === 'zh'
+                ? `✓ 已切换到【${essayName}】，所有内容已清除`
+                : `✓ Switched to [${essayName}], all content cleared`,
+            'success'
+        );
+    }
+    // 用户取消，不做任何操作
 }
 
 function exportContent() {
