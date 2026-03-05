@@ -1960,6 +1960,9 @@ async function startOptimization() {
             }
 
             const q = questionsList[questionIdx];
+            // 获取该问题之前的回答（如果用户返回上一步）
+            const previousAnswer = userOptimizationAnswers[questionIdx]?.answer || '';
+            
             content.innerHTML = `
                 <div class="optimization-question">
                     <p class="question-label">${currentLanguage === 'zh' ? '🔍 问题' : '🔍 Question'} ${questionIdx + 1}/${questionsList.length}</p>
@@ -1967,18 +1970,34 @@ async function startOptimization() {
                     <p class="question-hint">${currentLanguage === 'zh' 
                         ? '💭 请认真思考这个问题，并诚实地回答。这有助于你发现文章中的不足之处。' 
                         : '💭 Think carefully about this question and answer honestly. This helps you discover weaknesses in your article.'}</p>
-                    <textarea class="optimization-answer" placeholder="${currentLanguage === 'zh' ? '在这里写下你的回答和思考...' : 'Write your answer and thoughts here...'}" rows="4"></textarea>
+                    <textarea class="optimization-answer" placeholder="${currentLanguage === 'zh' ? '在这里写下你的回答和思考...' : 'Write your answer and thoughts here...'}" rows="4">${previousAnswer}</textarea>
                     <div class="optimization-buttons">
-                        <button class="primary-btn" id="submitAnswer">
-                            ${currentLanguage === 'zh' ? '✓ 提交回答' : '✓ Submit Answer'}
-                        </button>
+                        ${questionIdx > 0 ? `
+                            <button class="secondary-btn" id="previousQuestion">
+                                ${currentLanguage === 'zh' ? '← 上一步' : '← Previous'}
+                            </button>
+                        ` : ''}
                         <button class="secondary-btn" id="skipQuestion">
                             ${currentLanguage === 'zh' ? '→ 跳过' : '→ Skip'}
+                        </button>
+                        <button class="primary-btn" id="submitAnswer">
+                            ${currentLanguage === 'zh' ? '✓ 提交回答' : '✓ Submit Answer'}
                         </button>
                     </div>
                 </div>
             `;
 
+            // 上一步按钮
+            if (questionIdx > 0) {
+                document.getElementById('previousQuestion').addEventListener('click', () => {
+                    questionIdx--;
+                    // 移除当前问题及之后的所有回答
+                    userOptimizationAnswers = userOptimizationAnswers.slice(0, questionIdx);
+                    showOptimizationQuestion();
+                });
+            }
+
+            // 提交回答按钮
             document.getElementById('submitAnswer').addEventListener('click', async () => {
                 const answer = content.querySelector('.optimization-answer').value.trim();
                 if (!answer) {
@@ -1986,16 +2005,24 @@ async function startOptimization() {
                     return;
                 }
                 
-                // 记录用户回答
-                userOptimizationAnswers.push({
-                    question: q,
-                    answer: answer
-                });
+                // 更新或添加该问题的回答
+                if (userOptimizationAnswers[questionIdx]) {
+                    userOptimizationAnswers[questionIdx] = {
+                        question: q,
+                        answer: answer
+                    };
+                } else {
+                    userOptimizationAnswers.push({
+                        question: q,
+                        answer: answer
+                    });
+                }
                 
                 // 显示AI针对回答的建议
                 await showAnswerFeedback(q, answer, questionIdx, questionsList.length);
             });
 
+            // 跳过按钮
             document.getElementById('skipQuestion').addEventListener('click', () => {
                 questionIdx++;
                 showOptimizationQuestion();
@@ -2075,21 +2102,41 @@ async function startOptimization() {
                 appendOptimizationRecord(question, answer, feedback);
                 switchRightPanel('optimization');
                 
+                // 显示反馈界面（独立的界面，不直接进入下一个问题）
                 content.innerHTML = `
                     <div class="logic-feedback">
-                        <p class="feedback-header">💡 ${currentLanguage === 'zh' ? 'AI建议' : 'AI Suggestion'}</p>
+                        <p class="feedback-label">${currentLanguage === 'zh' ? '💡 问题' : '💡 Question'} ${currentIdx + 1}/${total} ${currentLanguage === 'zh' ? '的建议' : 'Feedback'}</p>
+                        <div class="feedback-question">
+                            <strong>${currentLanguage === 'zh' ? '问题：' : 'Question:'}</strong>
+                            <p>${question}</p>
+                        </div>
+                        <div class="feedback-answer">
+                            <strong>${currentLanguage === 'zh' ? '你的回答：' : 'Your answer:'}</strong>
+                            <p>${answer}</p>
+                        </div>
+                        <p class="feedback-header">${currentLanguage === 'zh' ? '💡 AI建议' : '💡 AI Suggestion'}</p>
                         ${generateFeedbackHTML(feedback)}
                         <p class="feedback-hint">${currentLanguage === 'zh' 
-                            ? '提示：请不要让AI代替你修改，而是根据建议自己思考并改进文章。' 
-                            : 'Tip: Don\'t let AI make changes for you. Think and improve your article based on suggestions.'}</p>
+                            ? '💡 提示：请不要让AI代替你修改，而是根据建议自己思考并改进文章。' 
+                            : '💡 Tip: Don\'t let AI make changes for you. Think and improve your article based on suggestions.'}</p>
                         <div class="optimization-buttons">
+                            <button class="secondary-btn" id="backToQuestion">
+                                ${currentLanguage === 'zh' ? '← 上一步（重新回答）' : '← Previous (Re-answer)'}
+                            </button>
                             <button class="primary-btn" id="nextQuestion">
-                                ${currentLanguage === 'zh' ? '明白了，继续 →' : 'Got it, Continue →'}
+                                ${currentLanguage === 'zh' ? '明白了，下一个问题 →' : 'Got it, Next →'}
                             </button>
                         </div>
                     </div>
                 `;
                 
+                // 上一步按钮 - 返回当前问题重新回答
+                document.getElementById('backToQuestion').addEventListener('click', () => {
+                    // 不增加 questionIdx，保持在当前问题
+                    showOptimizationQuestion();
+                });
+                
+                // 下一个问题按钮
                 document.getElementById('nextQuestion').addEventListener('click', () => {
                     questionIdx++;
                     showOptimizationQuestion();
@@ -2104,18 +2151,40 @@ async function startOptimization() {
                 appendOptimizationRecord(question, answer, fallbackFeedback);
                 switchRightPanel('optimization');
 
+                // 使用相同的独立反馈界面
                 content.innerHTML = `
                     <div class="optimization-feedback">
-                        <p class="feedback-header">💡 ${currentLanguage === 'zh' ? '优化修补建议' : 'Optimization Suggestion'}</p>
+                        <p class="feedback-label">${currentLanguage === 'zh' ? '💡 问题' : '💡 Question'} ${currentIdx + 1}/${total} ${currentLanguage === 'zh' ? '的建议' : 'Feedback'}</p>
+                        <div class="feedback-question">
+                            <strong>${currentLanguage === 'zh' ? '问题：' : 'Question:'}</strong>
+                            <p>${question}</p>
+                        </div>
+                        <div class="feedback-answer">
+                            <strong>${currentLanguage === 'zh' ? '你的回答：' : 'Your answer:'}</strong>
+                            <p>${answer}</p>
+                        </div>
+                        <p class="feedback-header">${currentLanguage === 'zh' ? '💡 优化修补建议' : '💡 Optimization Suggestion'}</p>
                         ${generateFeedbackHTML(fallbackFeedback)}
+                        <p class="feedback-hint">${currentLanguage === 'zh' 
+                            ? '💡 提示：AI暂时不可用，已使用本地建议。' 
+                            : '💡 Tip: AI temporarily unavailable, using local suggestions.'}</p>
                         <div class="optimization-buttons">
+                            <button class="secondary-btn" id="backToQuestion">
+                                ${currentLanguage === 'zh' ? '← 上一步（重新回答）' : '← Previous (Re-answer)'}
+                            </button>
                             <button class="primary-btn" id="nextQuestion">
-                                ${currentLanguage === 'zh' ? '继续 →' : 'Continue →'}
+                                ${currentLanguage === 'zh' ? '明白了，下一个问题 →' : 'Got it, Next →'}
                             </button>
                         </div>
                     </div>
                 `;
 
+                // 上一步按钮
+                document.getElementById('backToQuestion').addEventListener('click', () => {
+                    showOptimizationQuestion();
+                });
+
+                // 下一个问题按钮
                 document.getElementById('nextQuestion').addEventListener('click', () => {
                     questionIdx++;
                     showOptimizationQuestion();
