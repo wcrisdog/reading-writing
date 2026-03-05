@@ -1,0 +1,989 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智引文思 - 用户指南</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary-color: #1e40af;
+            --success-color: #059669;
+            --warning-color: #d97706;
+            --danger-color: #dc2626;
+            --light-bg: #f3f4f6;
+            --border-color: #e5e7eb;
+            --text-primary: #1f2937;
+            --text-secondary: #6b7280;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', sans-serif;
+            line-height: 1.6;
+            color: var(--text-primary);
+            background-color: #f9fafb;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #3b82f6 100%);
+            color: white;
+            padding: 60px 20px;
+            text-align: center;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        /* Navigation Sidebar */
+        .layout {
+            display: grid;
+            grid-template-columns: 250px 1fr;
+            gap: 30px;
+            margin: 40px 0;
+        }
+
+        .sidebar {
+            position: sticky;
+            top: 20px;
+            height: fit-content;
+        }
+
+        .nav-list {
+            list-style: none;
+        }
+
+        .nav-list li {
+            margin: 5px 0;
+        }
+
+        .nav-list a {
+            display: block;
+            padding: 12px 16px;
+            color: var(--text-primary);
+            text-decoration: none;
+            border-left: 3px solid transparent;
+            border-radius: 0 4px 4px 0;
+            transition: all 0.3s ease;
+        }
+
+        .nav-list a:hover {
+            background-color: var(--light-bg);
+            border-left-color: var(--primary-color);
+            padding-left: 20px;
+        }
+
+        .nav-list a.active {
+            background-color: #dbeafe;
+            border-left-color: var(--primary-color);
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        /* Content Areas */
+        .content {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
+        }
+
+        section {
+            padding: 40px;
+            border-bottom: 1px solid var(--border-color);
+            display: none;
+        }
+
+        section.active {
+            display: block;
+        }
+
+        section:last-child {
+            border-bottom: none;
+        }
+
+        section h2 {
+            font-size: 2em;
+            color: var(--primary-color);
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--light-bg);
+        }
+
+        section h3 {
+            font-size: 1.4em;
+            color: var(--text-primary);
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+
+        section p {
+            margin-bottom: 15px;
+            color: var(--text-secondary);
+            line-height: 1.8;
+        }
+
+        /* Cards & Boxes */
+        .feature-card {
+            background: var(--light-bg);
+            border-left: 4px solid var(--primary-color);
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .feature-card h4 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 1.1em;
+        }
+
+        .feature-card p {
+            margin: 0;
+            font-size: 0.95em;
+        }
+
+        .steps {
+            background: white;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .step {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            gap: 20px;
+        }
+
+        .step:last-child {
+            border-bottom: none;
+        }
+
+        .step-number {
+            min-width: 40px;
+            width: 40px;
+            height: 40px;
+            background: var(--primary-color);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .step-content p {
+            margin: 0;
+            font-size: 0.95em;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 20px 0;
+        }
+
+        th {
+            background-color: var(--light-bg);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border-color);
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        tr:hover {
+            background-color: var(--light-bg);
+        }
+
+        /* Tips & Warnings */
+        .tip {
+            background: #ecfdf5;
+            border-left: 4px solid var(--success-color);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .tip::before {
+            content: "💡 提示：";
+            font-weight: bold;
+            color: var(--success-color);
+        }
+
+        .warning {
+            background: #fef3c7;
+            border-left: 4px solid var(--warning-color);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .warning::before {
+            content: "⚠️ 注意：";
+            font-weight: bold;
+            color: var(--warning-color);
+        }
+
+        .info {
+            background: #eff6ff;
+            border-left: 4px solid var(--primary-color);
+            padding: 15px;
+            margin: 20px 0;
+            border-radius: 4px;
+        }
+
+        .info::before {
+            content: "ℹ️ 信息：";
+            font-weight: bold;
+            color: var(--primary-color);
+        }
+
+        /* Feature List */
+        .feature-list {
+            list-style: none;
+            margin: 20px 0;
+        }
+
+        .feature-list li {
+            padding: 10px 0;
+            padding-left: 30px;
+            position: relative;
+        }
+
+        .feature-list li::before {
+            content: "✓";
+            position: absolute;
+            left: 0;
+            color: var(--success-color);
+            font-weight: bold;
+            font-size: 1.2em;
+        }
+
+        /* Video/Image placeholders */
+        .media-placeholder {
+            background: var(--light-bg);
+            border: 2px dashed var(--border-color);
+            border-radius: 8px;
+            padding: 40px;
+            text-align: center;
+            margin: 20px 0;
+            color: var(--text-secondary);
+        }
+
+        .media-placeholder svg {
+            width: 60px;
+            height: 60px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        /* FAQ */
+        .faq-item {
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            margin: 15px 0;
+            overflow: hidden;
+        }
+
+        .faq-question {
+            background: var(--light-bg);
+            padding: 15px 20px;
+            cursor: pointer;
+            font-weight: 600;
+            user-select: none;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background-color 0.3s ease;
+        }
+
+        .faq-question:hover {
+            background-color: #e5e7eb;
+        }
+
+        .faq-question::after {
+            content: "▼";
+            transition: transform 0.3s ease;
+        }
+
+        .faq-answer {
+            padding: 20px;
+            display: none;
+            background: white;
+            line-height: 1.7;
+        }
+
+        .faq-item.open .faq-answer {
+            display: block;
+        }
+
+        .faq-item.open .faq-question::after {
+            transform: rotate(180deg);
+        }
+
+        /* Button */
+        button {
+            background: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.95em;
+            transition: background-color 0.3s ease;
+        }
+
+        button:hover {
+            background: #1e3a8a;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--light-bg);
+            padding: 40px 20px;
+            text-align: center;
+            color: var(--text-secondary);
+            border-top: 1px solid var(--border-color);
+            margin-top: 60px;
+        }
+
+        footer p {
+            margin-bottom: 10px;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .layout {
+                grid-template-columns: 1fr;
+            }
+
+            .sidebar {
+                position: static;
+            }
+
+            .header h1 {
+                font-size: 1.8em;
+            }
+
+            section {
+                padding: 20px;
+            }
+
+            section h2 {
+                font-size: 1.5em;
+            }
+        }
+
+        /* Code blocks */
+        code {
+            background: var(--light-bg);
+            padding: 2px 6px;
+            border-radius: 3px;
+            font-family: 'Monaco', 'Courier New', monospace;
+            font-size: 0.9em;
+            color: #c7254e;
+        }
+
+        pre {
+            background: #1f2937;
+            color: #f3f4f6;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            margin: 15px 0;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        pre code {
+            background: none;
+            color: inherit;
+            padding: 0;
+        }
+
+        /* Badges */
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+            margin-right: 8px;
+        }
+
+        .badge-primary {
+            background: #dbeafe;
+            color: var(--primary-color);
+        }
+
+        .badge-success {
+            background: #dcfce7;
+            color: var(--success-color);
+        }
+
+        .badge-warning {
+            background: #fef3c7;
+            color: var(--warning-color);
+        }
+    </style>
+</head>
+<body>
+    <!-- Header -->
+    <div class="header">
+        <h1>🎯 智引文思</h1>
+        <p>智能写作平台完全用户指南</p>
+    </div>
+
+    <div class="container">
+        <div class="layout">
+            <!-- Sidebar Navigation -->
+            <aside class="sidebar">
+                <nav>
+                    <ul class="nav-list">
+                        <li><a href="#" onclick="showSection('intro', event)" class="nav-link active">快速开始</a></li>
+                        <li><a href="#" onclick="showSection('features', event)" class="nav-link">功能介绍</a></li>
+                        <li><a href="#" onclick="showSection('getting-started', event)" class="nav-link">详细教程</a></li>
+                        <li><a href="#" onclick="showSection('features-detail', event)" class="nav-link">功能详解</a></li>
+                        <li><a href="#" onclick="showSection('tips', event)" class="nav-link">中级技巧</a></li>
+                        <li><a href="#" onclick="showSection('faq', event)" class="nav-link">常见问题</a></li>
+                    </ul>
+                </nav>
+            </aside>
+
+            <!-- Main Content -->
+            <main class="content">
+                <!-- Section 1: Introduction -->
+                <section id="intro" class="active">
+                    <h2>快速开始</h2>
+                    
+                    <h3>欢迎来到智引文思！</h3>
+                    <p>智引文思是一个智能写作辅助平台，使用AI技术帮助你快速生成优质文章。无论你是学生、作家还是内容创作者，这个平台都能显著提高你的写作效率。</p>
+
+                    <h3>核心功能一览</h3>
+                    <ul class="feature-list">
+                        <li><strong>启动引导</strong> - 通过AI引导系统，步步为营地规划你的写作思路</li>
+                        <li><strong>素材推荐</strong> - 根据主题自动推荐相关素材和例子</li>
+                        <li><strong>灵感提示</strong> - 当你卡顿时，AI提供贴心的灵感建议</li>
+                        <li><strong>优化修补</strong> - 完成初稿后，获得AI的专业优化建议</li>
+                    </ul>
+
+                    <h3>快速入门步骤</h3>
+                    <div class="steps">
+                        <div class="step">
+                            <div class="step-number">1</div>
+                            <div class="step-content">
+                                <h4>选择文体</h4>
+                                <p>在顶部选择你要写的文章类型：议论文、记叙文或学术论文</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">2</div>
+                            <div class="step-content">
+                                <h4>输入题目或主题</h4>
+                                <p>在标题栏输入文章的题目或主要主题</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">3</div>
+                            <div class="step-content">
+                                <h4>点击"启动引导"</h4>
+                                <p>让AI引导你一步步完成写作计划（通常需要5-10分钟）</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">4</div>
+                            <div class="step-content">
+                                <h4>开始写作</h4>
+                                <p>根据生成的大纲开始撰写，可随时使用灵感提示和素材推荐</p>
+                            </div>
+                        </div>
+                        <div class="step">
+                            <div class="step-number">5</div>
+                            <div class="step-content">
+                                <h4>优化修补</h4>
+                                <p>完成初稿后使用"优化修补"功能进行最后的打磨和改进</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="tip">
+                        首次使用时，建议按照上述步骤完整体验一遍，这样可以更好地理解平台的所有功能。
+                    </div>
+                </section>
+
+                <!-- Section 2: Features Overview -->
+                <section id="features">
+                    <h2>功能介绍</h2>
+
+                    <h3>📝 支持的文体</h3>
+                    <table>
+                        <tr>
+                            <th>文体</th>
+                            <th>适用场景</th>
+                            <th>建议字数</th>
+                            <th>结构</th>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-primary">议论文</span></td>
+                            <td>高中考试、学术讨论</td>
+                            <td>800字</td>
+                            <td>引入 → 论点 → 论据 → 总结</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-primary">记叙文</span></td>
+                            <td>故事叙述、个人经验</td>
+                            <td>600字</td>
+                            <td>背景 → 发展 → 高潮 → 结尾</td>
+                        </tr>
+                        <tr>
+                            <td><span class="badge badge-primary">学术论文</span></td>
+                            <td>大学研究、专业写作</td>
+                            <td>无限制</td>
+                            <td>摘要 → 引言 → 正文 → 结论</td>
+                        </tr>
+                    </table>
+
+                    <h3>🌍 多语言支持</h3>
+                    <p>平台完全支持中文和英文，所有界面和提示都会根据你的选择自动切换语言。</p>
+                    <ul class="feature-list">
+                        <li>中文界面和中文写作指导</li>
+                        <li>英文界面和英文写作建议</li>
+                        <li>自动保存语言偏好设置</li>
+                    </ul>
+
+                    <h3>💾 自动保存</h3>
+                    <p>你可以在页面右上角看到一个"自动保存"开关。启用后，你的所有内容会自动保存到浏览器的本地存储，即使刷新页面也不会丢失。</p>
+
+                    <h3>📊 实时统计</h3>
+                    <p>在页面底部可以看到实时的写作统计：</p>
+                    <ul class="feature-list">
+                        <li>字数统计（中文按字数统计，英文按单词统计）</li>
+                        <li>段落数统计</li>
+                        <li>进度百分比（相对于目标字数）</li>
+                    </ul>
+
+                    <div class="info">
+                        不同文体有不同的目标字数，但你可以自定义目标字数以适应具体需求。
+                    </div>
+                </section>
+
+                <!-- Section 3: Getting Started Tutorial -->
+                <section id="getting-started">
+                    <h2>详细教程</h2>
+
+                    <h3>如何使用启动引导（完整流程）</h3>
+                    <p>启动引导是智引文思最核心的功能，它会通过6个步骤帮助你规划整篇文章。</p>
+
+                    <h4>📌 步骤1-2：核心观点和论证角度（议论文为例）</h4>
+                    <p>系统会问你两个关键问题：</p>
+                    <ul class="feature-list">
+                        <li>你这篇文章的核心观点是什么？</li>
+                        <li>你计划从哪几个角度来论证？</li>
+                    </ul>
+                    <p style="margin-top: 15px;">你的回答越清晰具体，AI生成的大纲就越有针对性。</p>
+
+                    <h4>📌 步骤3：AI反馈和建议</h4>
+                    <p>AI会根据你的回答，筛选和补充论证角度。你可以：</p>
+                    <ul class="feature-list">
+                        <li>点击"满意，继续"接受建议</li>
+                        <li>点击"需要修改"提出你的想法，AI会重新生成</li>
+                        <li>点击"返回上一步"修改之前的回答</li>
+                    </ul>
+
+                    <h4>📌 步骤4-5：反驳和素材</h4>
+                    <p>最后两步帮你：</p>
+                    <ul class="feature-list">
+                        <li>思考可能的反对意见</li>
+                        <li>列举你想使用的名言、故事或数据</li>
+                    </ul>
+
+                    <h4>📌 完成引导后</h4>
+                    <p>AI会自动生成一份完整的写作大纲，包含：</p>
+                    <ul class="feature-list">
+                        <li>各部分的建议内容和篇幅</li>
+                        <li>推荐的素材位置</li>
+                        <li>关键论证点的提示</li>
+                    </ul>
+
+                    <h3>如何使用素材推荐</h3>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>在标题栏输入你的文章主题</li>
+                        <li>点击"获取素材"按钮</li>
+                        <li>AI会推荐相关的名言、例子、数据等</li>
+                        <li>点击"✓ 使用"将素材插入到当前编辑位置</li>
+                        <li>点击"查看详情"了解素材的使用建议</li>
+                    </ol>
+
+                    <div class="tip">
+                        如果AI推荐的素材不满意，可以点击"换一批"刷新推荐列表。
+                    </div>
+
+                    <h3>如何使用灵感提示</h3>
+                    <p>当你在写作过程中卡顿时，可以：</p>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>点击"获取灵感"按钮</li>
+                        <li>AI会分析你已写内容的长度和进度</li>
+                        <li>根据情况提供不同的建议：
+                            <ul style="margin-top: 10px;">
+                                <li>如果还在起初阶段：建议如何更清晰地表述观点</li>
+                                <li>如果进度过半：建议如何充实论据和保持逻辑</li>
+                                <li>如果快要完成：建议如何总结升华</li>
+                            </ul>
+                        </li>
+                    </ol>
+
+                    <h3>如何文体切换</h3>
+                    <div class="warning">
+                        修改文体时，你的所有当前内容（标题、正文、AI生成内容等）都会被清除。系统会提示你确认修改。
+                    </div>
+                    <p>切换步骤：</p>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>点击顶部的文体按钮（议论文/记叙文/学术论文）</li>
+                        <li>系统提示你是否确认修改</li>
+                        <li>点击"确定"后，所有内容会被清除，文体会切换</li>
+                        <li>模板会自动更新，重新开始新的创作</li>
+                    </ol>
+                </section>
+
+                <!-- Section 4: Features Detail -->
+                <section id="features-detail">
+                    <h2>功能详解</h2>
+
+                    <h3>右下角面板说明</h3>
+                    <p>右下角有两个标签页，可以在"写作计划"和"优化修补"之间切换：</p>
+
+                    <h4>📋 写作计划标签</h4>
+                    <p>显示AI生成的完整写作大纲，包含：</p>
+                    <ul class="feature-list">
+                        <li>各部分的标题和内容建议</li>
+                        <li>推荐字数和篇幅分配</li>
+                        <li>素材使用建议</li>
+                    </ul>
+
+                    <h4>🔍 优化修补标签</h4>
+                    <p>完成初稿后，可以点击"优化修补"来：</p>
+                    <ul class="feature-list">
+                        <li>获取AI的专业修改建议</li>
+                        <li>提高文章的逻辑性和说服力</li>
+                        <li>改进表达方式和用词</li>
+                    </ul>
+
+                    <h3>放大查看功能</h3>
+                    <p>无论你在哪个标签页，都可以点击"放大"按钮在全屏模式下查看完整内容。这对于长篇幅的大纲特别有帮助。</p>
+
+                    <h3>原始题目输入</h3>
+                    <p>如果你有一道完整的考试题目或写作任务，可以：</p>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>点击"📝 输入原始题目"按钮</li>
+                        <li>粘贴完整的题目内容</li>
+                        <li>点击"提交"保存</li>
+                        <li>之后启动引导时，AI会参考这个原始题目生成更精准的大纲</li>
+                    </ol>
+
+                    <div class="info">
+                        这个功能特别适合高考或考试准备，可以确保你的大纲完全符合题目要求。
+                    </div>
+
+                    <h3>优化修补的详细流程</h3>
+                    <p>点击"优化修补"后，系统会逐一提出以下问题：</p>
+                    <ul class="feature-list">
+                        <li>观点和论据是否充分对应？</li>
+                        <li>论据的可信度和说服力？</li>
+                        <li>反方观点如何驳斥？</li>
+                        <li>开头和结尾是否呼应？</li>
+                        <li>句子之间的逻辑关系是否清晰？</li>
+                    </ul>
+                    <p style="margin-top: 15px;">每个问题都有详细的优化建议，你可以根据建议逐一改进文章。</p>
+                </section>
+
+                <!-- Section 5: Tips -->
+                <section id="tips">
+                    <h2>中级技巧</h2>
+
+                    <h3>🎯 如何写出更好的启动引导回答</h3>
+                    <p>启动引导的质量直接影响最终的大纲质量。here's how to答得更好：</p>
+
+                    <div class="feature-card">
+                        <h4>核心观点要清晰明确</h4>
+                        <p>不要说"我觉得教育很重要"，而是说"教育的最大价值在于培养独立思考能力，而不仅仅是传授知识"。</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>论证角度要具体有序</h4>
+                        <p>列举3-5个具体角度后，AI会更容易理解你的想法。比如"个人成长角度"比"各种角度"更有帮助。</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>提前准备素材</h4>
+                        <p>如果你已经想到了精妙的例子或名言，在第5步输入它们。AI会在大纲中提示你在什么位置使用。</p>
+                    </div>
+
+                    <div class="feature-card">
+                        <h4>充分利用AI反馈</h4>
+                        <p>不要急着接受AI的第一个建议，试试点击"需要修改"来提出你的想法。多互动会得到更个性化的建议。</p>
+                    </div>
+
+                    <h3>💡 写作过程中的技巧</h3>
+                    
+                    <h4>合理使用灵感提示</h4>
+                    <p>不是只在卡顿时使用。定期（比如每500字后）点击灵感提示可以：</p>
+                    <ul class="feature-list">
+                        <li>确保你的方向没有偏离大纲</li>
+                        <li>获得改进接下来段落的具体建议</li>
+                        <li>保持写作的流畅性</li>
+                    </ul>
+
+                    <h4>分段完成初稿</h4>
+                    <p>不要期望一口气写完全文。建议：</p>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>每天完成一个主要段落</li>
+                        <li>每次写完后点击"保存"确保内容被保存</li>
+                        <li>偶尔点击"获取灵感"检查进度和方向</li>
+                    </ol>
+
+                    <h4>有效利用素材推荐</h4>
+                    <p>素材不仅是为了充实内容，更重要的是：</p>
+                    <ul class="feature-list">
+                        <li>通过具体的例子论证观点</li>
+                        <li>增加文章的说服力和可读性</li>
+                        <li>引发读者的共鸣</li>
+                    </ul>
+
+                    <h3>🔧 高级自定义技巧</h3>
+
+                    <h4>自定义目标字数</h4>
+                    <p>右侧有一个"目标字数"下拉菜单。如果预设字数不符合你的需求，你可以：</p>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>点击下拉菜单</li>
+                        <li>输入自己的目标字数</li>
+                        <li>实时显示当前进度百分比</li>
+                    </ol>
+
+                    <h4>保存多个版本</h4>
+                    <p>如果你想保存文章的不同版本（比如修改前和修改后），可以：</p>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>完成一个版本后，点击"导出"下载为txt文件</li>
+                        <li>点击"清空"重新开始新的写作</li>
+                        <li>之后可以根据需要导入不同的版本进行比较</li>
+                    </ol>
+
+                    <h4>充分利用多语言特性</h4>
+                    <p>如果你需要同时用中文和英文写作：</p>
+                    <ul class="feature-list">
+                        <li>完成中文初稿后，点击"导出"</li>
+                        <li>切换到英文界面（选择English）</li>
+                        <li>点击"清空"重新开始英文版本</li>
+                        <li>系统会自动提供英文的引导和建议</li>
+                    </ul>
+                </section>
+
+                <!-- Section 6: FAQ -->
+                <section id="faq">
+                    <h2>常见问题解答</h2>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">我的文章内容会被保存吗？</div>
+                        <div class="faq-answer">
+                            <p>是的！智引文思有两种保存方式：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li><strong>本地自动保存</strong>：如果你启用了"自动保存"开关，所有内容会自动保存到你的浏览器本地存储。</li>
+                                <li><strong>手动保存</strong>：点击"保存"按钮可以保存当前内容。</li>
+                            </ul>
+                            <p style="margin-top: 10px;"><em>注意：本地保存的内容只在这个浏览器上可用。如果你切换浏览器或清除了浏览器缓存，内容会丢失。建议重要的文章使用"导出"功能保存为文件。</em></p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">AI生成的内容可靠吗？</div>
+                        <div class="faq-answer">
+                            <p>智引文思的AI由专业的大语言模型（如通义千问）驱动，经过教育领域的调优。生成的内容通常是：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>✓ 逻辑清晰、结构合理</li>
+                                <li>✓ 符合中文/英文写作规范</li>
+                                <li>✓ 有教育价值和可读性</li>
+                            </ul>
+                            <p style="margin-top: 10px;"><strong>但是</strong>，AI并不完美。建议你：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>将AI建议作为参考而非绝对真理</li>
+                                <li>根据你的实际知识和观点调整内容</li>
+                                <li>对于事实性内容（如数据、历史事件），自己验证</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">如果修改文体，之前的内容会丢失吗？</div>
+                        <div class="faq-answer">
+                            <p><strong>是的</strong>——修改文体时，所有当前内容都会被清除。这包括：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>标题和正文内容</li>
+                                <li>AI生成的大纲</li>
+                                <li>所有运行时状态</li>
+                            </ul>
+                            <p style="margin-top: 10px;">在修改文体前，系统会提示确认。如果你想保留之前的内容，请先使用"导出"功能将文章保存为文件。</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">启动引导一定要按照问题顺序回答吗？</div>
+                        <div class="faq-answer">
+                            <p>不一定。引导系统支持：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>✓ 回到上一步修改之前的回答</li>
+                                <li>✓ 多次与AI互动获得最满意的建议</li>
+                                <li>✓ 跳过某些步骤直接继续</li>
+                            </ul>
+                            <p style="margin-top: 10px;">不过，按照顺序完成通常能得到质量最好的大纲。</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">如何获得最好的AI建议？</div>
+                        <div class="faq-answer">
+                            <p>AI的输出取决于你的输入质量。要获得最好的建议：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>📝 被尽可能清晰和具体地表述你的想法</li>
+                                <li>📝 提供具体的例子而非笼统的概念</li>
+                                <li>📝 说明你的目标受众和写作目的</li>
+                                <li>📝 充分利用"需要修改"功能与AI互动</li>
+                                <li>📝 提前准备相关的素材和想法</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">平台支持离线使用吗？</div>
+                        <div class="faq-answer">
+                            <p><strong>不完全支持</strong>。平台的离线能力有限：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>✓ <strong>离线可用</strong>：基本的写作和编辑功能</li>
+                                <li>✓ <strong>离线可用</strong>：查看已保存的本地内容</li>
+                                <li>✗ <strong>需要联网</strong>：AI功能（启动引导、素材推荐、灵感提示、优化修补）</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">如何重置平台或清除所有数据？</div>
+                        <div class="faq-answer">
+                            <p>如果你想完全重新开始：</p>
+                            <ol style="margin: 10px 0; padding-left: 20px;">
+                                <li>点击"清空"按钮可以清除当前的所有内容</li>
+                                <li>点击"清除浏览器缓存"可以完全清除所有本地保存的数据</li>
+                            </ol>
+                            <p style="margin-top: 10px;"><strong>警告</strong>：这些操作不可撤销，所以请确保你已经保存了重要的文件（使用"导出"功能）。</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">为什么有时候AI功能会很慢？</div>
+                        <div class="faq-answer">
+                            <p>AI功能可能变慢的原因包括：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>🔌 <strong>网络连接</strong>：请检查你的网络速度</li>
+                                <li>🔌 <strong>AI服务器负载</strong>：在高峰时段可能较慢</li>
+                                <li>🔌 <strong>输入内容过长</strong>：非常长的内容会需要更多处理时间</li>
+                            </ul>
+                            <p style="margin-top: 10px;">如果问题持续，可以尝试：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>刷新页面</li>
+                                <li>稍后再试</li>
+                                <li>检查浏览器控制台是否有错误信息</li>
+                            </ul>
+                        </div>
+                    </div>
+                </section>
+            </main>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p><strong>智引文思 v2.0</strong> - 智能写作辅助平台</p>
+        <p>© 2025 All Rights Reserved | 由通义千问等先进AI技术驱动</p>
+        <p style="font-size: 0.9em; margin-top: 20px;">最后更新：2025年3月 | 建议在现代浏览器（Chrome、Firefox、Safari、Edge）中使用</p>
+    </footer>
+
+    <script>
+        // Navigation functionality
+        function showSection(sectionId, event) {
+            event.preventDefault();
+            
+            // Hide all sections
+            const sections = document.querySelectorAll('section');
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remove active class from all navs
+            const navLinks = document.querySelectorAll('.nav-link');
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+            });
+            
+            // Show selected section
+            const section = document.getElementById(sectionId);
+            if (section) {
+                section.classList.add('active');
+            }
+            
+            // Add active class to clicked nav
+            event.target.classList.add('active');
+            
+            // Scroll to top
+            window.scrollTo(0, 0);
+        }
+        
+        // FAQ toggle
+        function toggleFAQ(element) {
+            const faqItem = element.parentElement;
+            faqItem.classList.toggle('open');
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            // Ctrl/Cmd + S to save (prevent browser's default)
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                e.preventDefault();
+                alert('提示：请在主应用中点击"保存"按钮来保存你的文章。');
+            }
+        });
+    </script>
+</body>
+</html>

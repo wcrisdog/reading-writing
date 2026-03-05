@@ -1961,68 +1961,36 @@ async function startOptimization() {
             });
         }
 
-        // 解析编号反馈，将其分成三个部分
+        // 解析编号反馈，将其分成多个部分
         function parseNumberedFeedback(feedback) {
-            // 改进的反馈解析，支持多种格式
             const items = [];
-            const lines = feedback.split('\n').map(l => l.trim()).filter(l => l.length > 0);
-            let currentItem = { number: null, content: '' };
-            
-            // 检测是否以数字开头的行（支持多种格式）
-            const isNumberedLine = (line) => {
-                return /^[\d一二三四五六七八九十]+[\.\)、：:]\s*/.test(line) || 
-                       /^[\(\[][\d一二三四五六七八九十]+[\)\]]\s*/.test(line);
-            };
-            
-            // 提取数字编号
-            const extractNumber = (line) => {
-                const match = line.match(/^[\d一二三四五六七八九十]+/);
-                if (match) return match[0];
-                const match2 = line.match(/[\(\[]?([\d一二三四五六七八九十]+)[\)\]]/);
-                if (match2) return match2[1];
-                return null;
-            };
-            
-            // 去除编号前缀
-            const removePrefix = (line) => {
-                return line.replace(/^[\d一二三四五六七八九十]+[\.\)、：:]\s*/, '')
-                          .replace(/^[\(\[][\d一二三四五六七八九十]+[\)\]]\s*/, '')
-                          .trim();
-            };
-            
+            const lines = feedback
+                .replace(/\r/g, '')
+                .split('\n')
+                .map(l => l.trim())
+                .filter(Boolean);
+
+            const numberedPrefixRegex = /^\s*(?:第\s*[\d一二三四五六七八九十]+\s*[点条项]\s*[：:、.]?|[\(\[（【]?\s*[\d一二三四五六七八九十]+\s*[\)\]）】]\s*[：:、.]?|[\d一二三四五六七八九十]+\s*[\.、．。:：\)）])\s*/;
+
+            let current = '';
             for (const line of lines) {
-                if (isNumberedLine(line)) {
-                    // 保存上一条
-                    if (currentItem.content.trim()) {
-                        items.push({ ...currentItem });
-                    }
-                    // 开始新的一条
-                    currentItem = {
-                        number: extractNumber(line),
-                        content: removePrefix(line)
-                    };
-                } else if (currentItem.number !== null) {
-                    // 追加到当前条目
-                    currentItem.content += ' ' + line;
+                if (numberedPrefixRegex.test(line)) {
+                    if (current.trim()) items.push(current.trim());
+                    current = line.replace(numberedPrefixRegex, '').trim();
                 } else {
-                    // 没有编号的独立段落也作为一条
-                    if (line.length > 10) {
-                        items.push({ number: items.length + 1, content: line });
-                    }
+                    current = current ? `${current} ${line}` : line;
                 }
             }
-            
-            // 添加最后一条
-            if (currentItem.content.trim()) {
-                items.push(currentItem);
-            }
-            
-            // 如果没有解析出编号条目，将整个反馈作为一条
+            if (current.trim()) items.push(current.trim());
+
             if (items.length === 0) {
-                items.push({ number: 1, content: feedback });
+                return [{ number: 1, content: feedback }];
             }
-            
-            return items;
+
+            return items.map((content, idx) => ({
+                number: idx + 1,
+                content
+            }));
         }
         
         // 改名为 parseFeedbackItems，旧函数保留用于兼容
@@ -2301,11 +2269,17 @@ async function startOptimization() {
 
 function parseOptimizationQuestions(aiResponse) {
     // 改进解析：支持多种编号、符号、换行和短问题，强制返回3-5个问题
-    const lines = aiResponse.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    const normalized = aiResponse
+        .replace(/\r/g, '')
+        .replace(/([。！？!?；;])\s*(?=(?:第\s*[\d一二三四五六七八九十]+\s*[题问][：:、.]?|[\(\[（【]?\s*[\d一二三四五六七八九十]+\s*[\)\]）】][：:、.]?|[\d一二三四五六七八九十]+\s*[\.、．。:：\)）]))/g, '$1\n');
+
+    const lines = normalized.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     const questions = [];
     let current = '';
 
-    const isStart = (s) => /^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/.test(s) || /^[\(\[]?\d+[\)\]]/.test(s) || /^[•\-\*]\s+/.test(s);
+    const questionPrefixRegex = /^\s*(?:第\s*[\d一二三四五六七八九十]+\s*[题问][：:、.]?|[\(\[（【]?\s*[\d一二三四五六七八九十]+\s*[\)\]）】][：:、.]?|[\d一二三四五六七八九十]+\s*[\.、．。:：\)）]|[•\-*])\s*/;
+
+    const isStart = (s) => questionPrefixRegex.test(s);
 
     for (const raw of lines) {
         const line = raw;
@@ -2313,7 +2287,7 @@ function parseOptimizationQuestions(aiResponse) {
             if (current.trim()) {
                 questions.push(current.trim());
             }
-            current = line.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').replace(/^[•\-\*]\s*/,'');
+            current = line.replace(questionPrefixRegex, '').trim();
             continue;
         }
 
@@ -2334,15 +2308,15 @@ function parseOptimizationQuestions(aiResponse) {
     if (current.trim()) questions.push(current.trim());
 
     // 清理编号前缀并过滤过短的杂项（保留问号或长度合理项）
-    let cleaned = questions.map(q => q.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').trim())
+    let cleaned = questions.map(q => q.replace(questionPrefixRegex, '').trim())
         .filter(q => q.length > 6 && (q.includes('?') || q.includes('？') || q.length > 12));
 
     // 如果解析结果为空，尝试最后回退：按非空行拆分并去掉数字前缀
     if (cleaned.length === 0) {
-        cleaned = aiResponse.split('\n')
+        cleaned = normalized.split('\n')
             .map(l => l.trim())
             .filter(l => l.length > 6)
-            .map(l => l.replace(/^[\d一二三四五六七八九十]+[\)\.|、．。:：]\s*/,'').trim())
+            .map(l => l.replace(questionPrefixRegex, '').trim())
             .filter(q => q.length > 6);
     }
 
