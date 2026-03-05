@@ -276,7 +276,7 @@ Please generate a complete outline in this format.`;
     /**
      * 生成详细素材推荐（包含使用示例和适用场景）
      */
-    async generateDetailedMaterials(essayType, language, topic, level, userPreferences = [], guidanceAnswers = [], contentText = '') {
+    async generateDetailedMaterials(essayType, language, topic, level, userPreferences = [], guidanceAnswers = [], contentText = '', options = {}) {
         const essayTypeNames = {
             'argumentative': { zh: '议论文', en: 'argumentative essay' },
             'narrative': { zh: '记叙文', en: 'narrative essay' },
@@ -409,10 +409,14 @@ Output format:
             { role: 'user', content: promptMap[essayType] }
         ];
 
-        return await this.callAI(messages, 'detailed-materials', essayType, {
+        // 合并传入的选项和默认选项（传入的选项优先级更高）
+        const callOptions = {
             timeoutMs: 22000,
-            retries: 1
-        });
+            retries: 1,
+            ...options  // 传入的选项可以覆盖默认值
+        };
+
+        return await this.callAI(messages, 'detailed-materials', essayType, callOptions);
     }
 
     /**
@@ -436,7 +440,11 @@ Output format:
             { role: 'user', content: promptMap[essayType] }
         ];
 
-        return await this.callAI(messages, 'materials', essayType);
+        // 简化版本也应有合理的超时和重试机制
+        return await this.callAI(messages, 'materials', essayType, {
+            timeoutMs: 18000,
+            retries: 1
+        });
     }
 
     /**

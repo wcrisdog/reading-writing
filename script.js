@@ -1330,14 +1330,20 @@ async function showMaterials() {
     
     // 显示素材面板并展示加载状态（步骤2：系统分析）
     materialsPanel.style.display = 'block';
-    materialsList.innerHTML = `
-        <p class="loading">🔄 ${currentLanguage === 'zh' 
-            ? `AI正在为"${topic}"分析和筛选相关素材...` 
-            : `AI is analyzing and filtering materials for "${topic}"...`}</p>
-    `;
+    let attemptCount = 0;
+    const showLoadingMessage = (message) => {
+        materialsList.innerHTML = `
+            <p class="loading">🔄 ${message}</p>
+        `;
+    };
 
     try {
-        // 使用带重试和退避策略的请求
+        // 先尝试完整的AI推荐
+        showLoadingMessage(currentLanguage === 'zh' 
+            ? `AI正在为"${topic}"分析和筛选相关素材...` 
+            : `AI is analyzing and filtering materials for "${topic}"...`);
+
+        // 使用带重试和退避策略的请求（3次重试）
         const result = await fetchMaterialsWithRetry({
             type: currentType,
             language: currentLanguage,
@@ -1346,40 +1352,121 @@ async function showMaterials() {
             preferences: userMaterialPreferences,
             guidance: userGuidanceAnswers,
             context: mainEditor.value
-        }, 2);
+        }, 3);
 
         // 步骤3：以卡片形式展示素材
         displayMaterialCards(result.message, topic);
         showNotification(currentLanguage === 'zh' ? '✓ AI素材推荐已生成' : '✓ AI materials generated');
+        
     } catch (error) {
-        console.error('素材推荐失败:', error);
+        console.error('素材推荐失败，开始使用fallback策略:', error);
+        
+        // 更细致的错误分类
         const errorMsg = error.message || String(error);
         const isNetworkError = /fetch|network|Failed to fetch/i.test(errorMsg);
-        const isTimeoutError = /timeout/i.test(errorMsg);
+        const isTimeoutError = /timeout|AbortError/i.test(errorMsg);
+        const isServerError = /502|503|504|500/i.test(errorMsg);
+        const isRateLimited = /429|rate|quota/i.test(errorMsg);
+        
+        let userMessage = '';
+        if (isNetworkError) {
+            userMessage = currentLanguage === 'zh' ? '网络连接可能存在问题，' : 'Network connection issue. ';
+        } else if (isTimeoutError) {
+            userMessage = currentLanguage === 'zh' ? 'AI服务响应较慢，' : 'AI response slow. ';
+        } else if (isServerError) {
+            userMessage = currentLanguage === 'zh' ? 'AI服务暂不可用，' : 'AI service temporarily unavailable. ';
+        } else if (isRateLimited) {
+            userMessage = currentLanguage === 'zh' ? 'AI服务请求过于频繁，' : 'Too many requests. ';
+        }
 
-        let errorText = currentLanguage === 'zh' ? '服务器响应错误，请稍后重试' : 'Server error, please try later';
-        if (isNetworkError) errorText = currentLanguage === 'zh' ? '网络连接中断，请检查网络后重试' : 'Network error, please check connection';
-        else if (isTimeoutError) errorText = currentLanguage === 'zh' ? 'AI处理超时，请稍后重试或使用本地素材' : 'AI response timeout, please try later or use local materials';
+        // Fallback策略1：尝试使用简化版AI推荐（更小的参数）
+        try {
+            showLoadingMessage(currentLanguage === 'zh' 
+                ? '尝试使用简化版素材推荐...' 
+                : 'Trying simplified material recommendation...');
 
-        materialsList.innerHTML = `
-            <div class="material-error">
-                <p class="error-title">⚠️ ${currentLanguage === 'zh' ? 'AI素材推荐暂时不可用' : 'Material recommendation unavailable'}</p>
-                <p class="error-msg">${errorText}</p>
-                <div style="display:flex;gap:8px;margin-top:8px;">
-                    <button class="retry-btn" onclick="showMaterials()" style="padding: 10px 16px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">🔄 ${currentLanguage === 'zh' ? '重试' : 'Retry'}</button>
-                    <button class="fallback-btn" onclick="displayFallbackMaterials('${topic}')" style="padding: 10px 16px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">📚 ${currentLanguage === 'zh' ? '使用本地素材' : 'Use local materials'}</button>
+            const simplifiedResult = await aiService.generateMaterials(
+                currentType,
+                currentLanguage,
+                topic
+            );
+            
+            displayMaterialCards(simplifiedResult.message, topic);
+            showNotification(
+                currentLanguage === 'zh' 
+                    ? `✓ 已使用简化版素材推荐（${userMessage}已自动降级）` 
+                    : `✓ Simplified materials loaded (${userMessage}auto-fallback)`
+            );
+            return;
+            
+        } catch (fallback1Error) {
+            console.error('简化版推荐也失败:', fallback1Error);
+        }
+
+        // Fallback策略2：使用本地缓存（如果有）或显示本地素材库
+        try {
+            showLoadingMessage(currentLanguage === 'zh' 
+                ? '使用本地素材库...' 
+                : 'Loading local materials...');
+            
+            // 给用户一些反馈时间，避免闪烁
+            await new Promise(r => setTimeout(r, 500));
+            
+            displayFallbackMaterials(topic);
+            showNotification(
+                currentLanguage === 'zh' 
+                    ? '✓ 已为你准备本地素材库（AI暂时不可用）' 
+                    : '✓ Using local materials library (AI unavailable)'
+            );
+            return;
+            
+        } catch (fallback2Error) {
+            console.error('本地素材库加载失败:', fallback2Error);
+        }
+
+        // Fallback策略3：显示通用错误界面并提供多个操作选项
+        const errorUI = `
+            <div class="material-error" style="padding: 20px; text-align: center;">
+                <p class="error-title">⚠️ ${currentLanguage === 'zh' ? '素材推荐暂不可用' : 'Materials temporarily unavailable'}</p>
+                <p class="error-msg" style="margin: 12px 0; font-size: 13px; line-height: 1.6;">
+                    ${userMessage}
+                    ${currentLanguage === 'zh' 
+                        ? '请选择以下操作之一继续写作' 
+                        : 'Please choose an action below to continue'}
+                </p>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px;">
+                    <button class="retry-btn" onclick="showMaterials()" style="padding: 12px 8px; background: var(--primary-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">🔄 ${currentLanguage === 'zh' ? '重试' : 'Retry'}</button>
+                    <button class="local-btn" onclick="displayFallbackMaterials('${topic}')" style="padding: 12px 8px; background: var(--success-color); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 500;">📚 ${currentLanguage === 'zh' ? '本地素材' : 'Local'}</button>
                 </div>
+                <p style="margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
+                    ${currentLanguage === 'zh' 
+                        ? '💡 提示：你也可以手动输入或编辑文章，系统会随时准备好提供帮助' 
+                        : '💡 Tip: You can manually write or edit. Help is always ready'}
+                </p>
             </div>
         `;
+        materialsList.innerHTML = errorUI;
+        
+        showNotification(
+            currentLanguage === 'zh' 
+                ? '⚠️ 素材推荐遇到问题，请稍后重试或使用本地素材' 
+                : '⚠️ Material recommendation failed, please retry or use local materials',
+            'warning',
+            5000
+        );
     }
 }
 
-// Helper: fetch materials with retries + exponential backoff
-async function fetchMaterialsWithRetry(params, maxRetries = 2) {
+// Helper: fetch materials with retries + exponential backoff + improved error handling
+async function fetchMaterialsWithRetry(params, maxRetries = 3) {
     let attempt = 0;
     let lastError = null;
+    
     while (attempt <= maxRetries) {
         try {
+            // 根据重试次数调整超时时间
+            const adjustedTimeoutMs = 22000 + (attempt * 3000);
+            
             return await aiService.generateDetailedMaterials(
                 params.type,
                 params.language,
@@ -1387,16 +1474,21 @@ async function fetchMaterialsWithRetry(params, maxRetries = 2) {
                 params.level,
                 params.preferences,
                 params.guidance,
-                params.context
+                params.context,
+                { timeoutMs: adjustedTimeoutMs, retries: 0 } // 在服务层已处理，此处不再重试
             );
         } catch (err) {
             lastError = err;
             attempt++;
-            const delay = 500 * Math.pow(2, attempt); // 500ms, 1000ms, 2000ms...
-            await new Promise(r => setTimeout(r, delay));
+            
+            if (attempt <= maxRetries) {
+                const delay = 800 * Math.pow(2, attempt); // 800ms, 1600ms, 3200ms...
+                console.log(`素材推荐重试 ${attempt}/${maxRetries}，待机 ${delay}ms...`);
+                await new Promise(r => setTimeout(r, delay));
+            }
         }
     }
-    throw lastError || new Error('fetchMaterials failed');
+    throw lastError || new Error('fetchMaterials failed after retries');
 }
 
 function displayMaterialCards(aiResponse, topic) {
@@ -1623,14 +1715,23 @@ async function refreshMaterials(topic) {
             language: currentLanguage,
             topic,
             level: currentLevel,
-            preferences: userMaterialPreferences
-        }, 1);
+            preferences: userMaterialPreferences,
+            guidance: userGuidanceAnswers,
+            context: mainEditor.value
+        }, 2);  // 改进：增加到 2 次重试
 
         displayMaterialCards(result.message, topic);
+        showNotification(currentLanguage === 'zh' ? '✓ 新素材已加载' : '✓ New materials loaded');
         
     } catch (error) {
         console.error('刷新素材失败:', error);
         // 发生错误时尝试本地回退
+        showNotification(
+            currentLanguage === 'zh' 
+                ? '⚠️ 无法加载新素材，已使用本地素材库' 
+                : '⚠️ Unable to load new materials, using local library',
+            'warning'
+        );
         displayFallbackMaterials(topic);
     }
 }
