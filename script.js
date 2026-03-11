@@ -23,6 +23,12 @@ let currentRightPanelView = 'outline';
 let optimizationRecords = [];
 let rawPromptInput = ''; // 保存原始题目输入
 
+// =========== 草稿与会话恢复相关变量 ===========
+let lastGuidanceType = '';         // 上次启动引导时的文章类型（用于草稿匹配）
+let lastGuidanceLanguage = '';     // 上次启动引导时的语言
+let currentOptimizationQuestions = []; // 当前优化修补的问题列表（用于会话恢复）
+let currentOptimizationIdx = 0;        // 当前优化修补所在问题索引
+
 // =========== Phase 3: 报告和视图相关全局变量 ===========
 let reportContent = null;
 let writeViewTab = null;
@@ -1183,21 +1189,75 @@ function startGuidance() {
     recordToolUsage('guidance');  // 记录工具使用
     const modal = document.getElementById('guidanceModal');
     const content = document.getElementById('guidanceContent');
-    guidanceStep = 0;
-    userGuidanceAnswers = [];
-    currentAISuggestion = '';
-    
-    // 如果用户输入了原始题目，作为第0步添加到引导回答中
-    if (rawPromptInput) {
-        userGuidanceAnswers.push({
-            step: 0,
-            question: currentLanguage === 'zh' ? '原始题目' : 'Original Prompt',
-            answer: rawPromptInput
-        });
+
+        // 尝试从 localStorage 恢复草稿（若内存中无草稿）
+        const memoryHasDraft = userGuidanceAnswers.filter(a => a.step > 0).length > 0
+            && lastGuidanceType === currentType
+            && lastGuidanceLanguage === currentLanguage;
+        if (!memoryHasDraft) {
+            try {
+                const saved = JSON.parse(localStorage.getItem('guidanceSessionDraft') || 'null');
+                if (saved && saved.type === currentType && saved.language === currentLanguage
+                        && Array.isArray(saved.answers) && saved.answers.filter(a => a.step > 0).length > 0) {
+                    userGuidanceAnswers = saved.answers;
+                    guidanceStep = saved.step || 0;
+                }
+            } catch (e) {}
+        }
+
+        lastGuidanceType = currentType;
+        lastGuidanceLanguage = currentLanguage;
+        const hasDraft = userGuidanceAnswers.filter(a => a.step > 0).length > 0;
+
+        if (hasDraft) {
+            const stepLabel = guidanceStep > 0
+                ? (currentLanguage === 'zh' ? `第 ${guidanceStep + 1} 步` : `Step ${guidanceStep + 1}`)
+                : '';
+            content.innerHTML = `
+                <div class="guidance-step">
+                    <p class="question-text">${currentLanguage === 'zh'
+                        ? `检测到上次未完成的引导草稿${stepLabel ? '（' + stepLabel + '）' : ''}，是否继续？`
+                        : `A previous guidance draft was found${stepLabel ? ' (' + stepLabel + ')' : ''}. Continue?`}</p>
+                    <div style="display:flex;gap:12px;margin-top:16px;">
+                        <button class="guidance-next-btn" id="restoreGuidanceDraftBtn" style="flex:1;">${currentLanguage === 'zh' ? '继续上次 →' : 'Continue →'}</button>
+                        <button class="guidance-back-btn" id="freshGuidanceStartBtn" style="flex:1;background:var(--text-secondary);">${currentLanguage === 'zh' ? '重新开始' : 'Start Fresh'}</button>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+            document.getElementById('restoreGuidanceDraftBtn').addEventListener('click', () => {
+                showGuidanceQuestion(content, modal);
+            });
+            document.getElementById('freshGuidanceStartBtn').addEventListener('click', () => {
+                guidanceStep = 0;
+                userGuidanceAnswers = [];
+                currentAISuggestion = '';
+                try { localStorage.removeItem('guidanceSessionDraft'); } catch (e) {}
+                if (rawPromptInput) {
+                    userGuidanceAnswers.push({
+                        step: 0,
+                        question: currentLanguage === 'zh' ? '原始题目' : 'Original Prompt',
+                        answer: rawPromptInput
+                    });
+                }
+                showGuidanceQuestion(content, modal);
+            });
+            return;
+        }
+
+        // 全新开始
+        guidanceStep = 0;
+        userGuidanceAnswers = [];
+        currentAISuggestion = '';
+        if (rawPromptInput) {
+            userGuidanceAnswers.push({
+                step: 0,
+                question: currentLanguage === 'zh' ? '原始题目' : 'Original Prompt',
+                answer: rawPromptInput
+            });
+        }
+        showGuidanceQuestion(content, modal);
     }
-    
-    showGuidanceQuestion(content, modal);
-}
 
 async function showGuidanceQuestion(container, modal) {
     const questions = guidanceQuestions[currentType][currentLanguage];
@@ -1278,6 +1338,17 @@ async function showGuidanceQuestion(container, modal) {
         const textarea = container.querySelector('.guidance-textarea');
         
         // 添加返回上一步按钮的容器
+            // 实时保存当前步骤草稿到 localStorage
+            const _gDraftKey = `guidanceStepDraft_${currentType}_${currentLanguage}_${guidanceStep}`;
+            try {
+                const _sd = localStorage.getItem(_gDraftKey);
+                if (_sd && !textarea.value) textarea.value = _sd;
+            } catch (e) {}
+            textarea.addEventListener('input', () => {
+                try { localStorage.setItem(_gDraftKey, textarea.value); } catch (e) {}
+            });
+
+            // 添加返回上一步按钮的容器
         const buttonContainer = nextBtn.parentElement;
         if (guidanceStep > 0) {
             const backBtn = document.createElement('button');
@@ -1541,8 +1612,33 @@ async function generateOutlineFromAnswers(userAnswers = null) {
 }
 
 function closeGuidanceModal() {
+    // 关闭前：将当前步骤正在输入的文本框内容保存到 userGuidanceAnswers（draft 标记）
+    const _gc = document.getElementById('guidanceContent');
+    if (_gc) {
+        const _ta = _gc.querySelector('.guidance-textarea');
+        if (_ta && _ta.value.trim()) {
+            const _qs = guidanceQuestions[currentType]?.[currentLanguage];
+            if (_qs && guidanceStep < _qs.length) {
+                setGuidanceAnswer({
+                    step: guidanceStep + 1,
+                    question: _qs[guidanceStep].question,
+                    answer: _ta.value,
+                    isDraft: true
+                });
+            }
+        }
+    }
+    // 持久化到 localStorage，以防页面刷新后丢失
+    try {
+        localStorage.setItem('guidanceSessionDraft', JSON.stringify({
+            step: guidanceStep,
+            answers: userGuidanceAnswers,
+            type: currentType,
+            language: currentLanguage
+        }));
+    } catch (e) {}
     document.getElementById('guidanceModal').style.display = 'none';
-    guidanceStep = 0;
+    // 不重置 guidanceStep 和 userGuidanceAnswers，保留草稿以供下次恢复
 }
 
 function openRawPromptModal() {
@@ -2312,38 +2408,85 @@ async function startOptimization() {
 
     const modal = document.getElementById('optimizationModal');
     const content = document.getElementById('optimizationContent');
-    userOptimizationAnswers = [];
-    
-    // 显示加载状态
-    content.innerHTML = '<p class="loading">🔄 ' + 
-        (currentLanguage === 'zh' ? 'AI正在分析你的文章，生成优化建议...' : 'AI is analyzing your article to generate optimization suggestions...') + 
-        '</p>';
-    modal.style.display = 'flex';
+
+        // 检查是否有已暂停的优化修补会话可恢复
+        const _hasPausedOpt = currentOptimizationQuestions.length > 0
+            && userOptimizationAnswers.some(a => a && (a.answer || a.isDraft));
+        let _restoreOptSession = null;
+
+        if (_hasPausedOpt) {
+            const _stepLbl = currentLanguage === 'zh'
+                ? `第 ${currentOptimizationIdx + 1} 题`
+                : `Question ${currentOptimizationIdx + 1}`;
+            const _shouldRestore = await new Promise(resolve => {
+                content.innerHTML = `
+                    <div class="guidance-step">
+                        <p class="question-text">${currentLanguage === 'zh'
+                            ? `检测到上次未完成的优化修补（${_stepLbl}），是否继续？`
+                            : `Previous optimization session found (${_stepLbl}). Continue?`}</p>
+                        <div style="display:flex;gap:12px;margin-top:16px;">
+                            <button class="guidance-next-btn" id="restoreOptBtn" style="flex:1;">${currentLanguage === 'zh' ? '继续上次 →' : 'Continue →'}</button>
+                            <button class="guidance-back-btn" id="freshOptBtn" style="flex:1;background:var(--text-secondary);">${currentLanguage === 'zh' ? '重新开始' : 'Start Fresh'}</button>
+                        </div>
+                    </div>
+                `;
+                modal.style.display = 'flex';
+                document.getElementById('restoreOptBtn').addEventListener('click', () => resolve(true));
+                document.getElementById('freshOptBtn').addEventListener('click', () => resolve(false));
+            });
+            if (_shouldRestore) {
+                _restoreOptSession = { questions: [...currentOptimizationQuestions], idx: currentOptimizationIdx };
+            } else {
+                userOptimizationAnswers = [];
+                currentOptimizationQuestions = [];
+                currentOptimizationIdx = 0;
+            }
+        } else {
+            userOptimizationAnswers = [];
+        }
+
+        if (!_restoreOptSession) {
+            // 显示加载状态
+            content.innerHTML = '<p class="loading">🔄 ' +
+                (currentLanguage === 'zh' ? 'AI正在分析你的文章，生成优化建议...' : 'AI is analyzing your article to generate optimization suggestions...') +
+                '</p>';
+            modal.style.display = 'flex';
+        }
 
     try {
-        // 调用AI生成针对性问题
-        const result = await aiService.generateOptimizationQuestions(
-            currentType,
-            currentLanguage,
-            mainEditor.value
-        );
-        
-        const aiQuestions = result.message;
-        
-        // 将AI返回的问题按行分割，强制限制在3-5个
-        const questionsList = parseOptimizationQuestions(aiQuestions);
-        
-        // 添加调试日志
-        console.log(`✅ 优化修补问题已解析，共 ${questionsList.length} 个问题`);
-        
-        // 如果问题数量被调整了，可以给用户一个提示（可选）
-        if (questionsList.length < 3 || questionsList.length > 5) {
-            console.log(`⚠️ 问题数量已自动调整为 ${questionsList.length} 个`);
+        let questionsList;
+        let questionIdx;
+
+        if (_restoreOptSession) {
+            // 恢复上次会话：跳过 AI 调用，直接使用保存的问题列表
+            questionsList = _restoreOptSession.questions;
+            questionIdx = _restoreOptSession.idx;
+        } else {
+            // 调用AI生成针对性问题
+            const result = await aiService.generateOptimizationQuestions(
+                currentType,
+                currentLanguage,
+                mainEditor.value
+            );
+
+            const aiQuestions = result.message;
+
+            // 将AI返回的问题按行分割，强制限制在3-5个
+            questionsList = parseOptimizationQuestions(aiQuestions);
+            questionIdx = 0;
+
+            // 添加调试日志
+            console.log(`✅ 优化修补问题已解析，共 ${questionsList.length} 个问题`);
+
+            // 如果问题数量被调整了，可以给用户一个提示（可选）
+            if (questionsList.length < 3 || questionsList.length > 5) {
+                console.log(`⚠️ 问题数量已自动调整为 ${questionsList.length} 个`);
+            }
         }
-        
-        let questionIdx = 0;
+        currentOptimizationQuestions = questionsList; // 保存到模块级变量供会话恢复使用
 
         function showOptimizationQuestion() {
+            currentOptimizationIdx = questionIdx; // 追踪当前问题索引，供关闭时保存草稿
             if (questionIdx >= questionsList.length) {
                 // 所有问题完成，生成总结
                 showOptimizationSummary();
@@ -2378,7 +2521,19 @@ async function startOptimization() {
                 </div>
             `;
 
-            // 上一步按钮
+                // 实时保存草稿（用户每次输入时更新 userOptimizationAnswers）
+                const _optDraftTa = content.querySelector('.optimization-answer');
+                if (_optDraftTa) {
+                    _optDraftTa.addEventListener('input', () => {
+                        userOptimizationAnswers[questionIdx] = {
+                            question: q,
+                            answer: _optDraftTa.value,
+                            isDraft: true
+                        };
+                    });
+                }
+
+                // 上一步按钮
             if (questionIdx > 0) {
                 document.getElementById('previousQuestion').addEventListener('click', () => {
                     questionIdx--;
@@ -2684,45 +2839,60 @@ async function startOptimization() {
         
         console.log(`✅ 使用本地问题库，共 ${questions.length} 个问题`);
         
-        let questionIdx = 0;
+            currentOptimizationQuestions = questions; // 保存到模块级变量
+            let questionIdx = 0;
 
-        function showOptimizationQuestion() {
-            if (questionIdx >= questions.length) {
-                content.innerHTML = `
-                    <div class="optimization-complete">
-                        <p>✓ ${currentLanguage === 'zh' 
-                            ? '你已经完成了优化修补检查。根据这些问题反思并改进你的文章。' 
-                            : 'Optimization complete. Reflect on these questions and improve your article.'}</p>
-                        <button class="primary-btn" id="closeOptimizationBtn">
-                            ${currentLanguage === 'zh' ? '返回写作' : 'Return to Writing'}
-                        </button>
-                    </div>
-                `;
-                document.getElementById('closeOptimizationBtn')?.addEventListener('click', closeOptimizationModal);
-                return;
-            }
+            function showOptimizationQuestion() {
+                currentOptimizationIdx = questionIdx; // 追踪当前问题索引
+                if (questionIdx >= questions.length) {
+                    content.innerHTML = `
+                        <div class="optimization-complete">
+                            <p>✓ ${currentLanguage === 'zh'
+                                ? '你已经完成了优化修补检查。根据这些问题反思并改进你的文章。'
+                                : 'Optimization complete. Reflect on these questions and improve your article.'}</p>
+                            <button class="primary-btn" id="closeOptimizationBtn">
+                                ${currentLanguage === 'zh' ? '返回写作' : 'Return to Writing'}
+                            </button>
+                        </div>
+                    `;
+                    document.getElementById('closeOptimizationBtn')?.addEventListener('click', closeOptimizationModal);
+                    return;
+                }
 
                 const q = questions[questionIdx];
-            content.innerHTML = `
-                <div class="optimization-question">
-                    <p class="question-label">${currentLanguage === 'zh' ? '🔍 问题' : '🔍 Question'} ${questionIdx + 1}/${questions.length}</p>
-                    <p class="question-text">${q}</p>
-                    <textarea class="optimization-answer" placeholder="${currentLanguage === 'zh' ? '在这里记录你的思考...' : 'Record your thoughts here...'}"></textarea>
-                    <div class="optimization-buttons">
-                        <button class="secondary-btn" id="nextQuestion">
-                            ${currentLanguage === 'zh' ? '下一个问题 →' : 'Next →'}
-                        </button>
+                const previousAnswer = userOptimizationAnswers[questionIdx]?.answer || '';
+                content.innerHTML = `
+                    <div class="optimization-question">
+                        <p class="question-label">${currentLanguage === 'zh' ? '🔍 问题' : '🔍 Question'} ${questionIdx + 1}/${questions.length}</p>
+                        <p class="question-text">${q}</p>
+                        <textarea class="optimization-answer" placeholder="${currentLanguage === 'zh' ? '在这里记录你的思考...' : 'Record your thoughts here...'}" rows="4">${previousAnswer}</textarea>
+                        <div class="optimization-buttons">
+                            <button class="secondary-btn" id="nextQuestion">
+                                ${currentLanguage === 'zh' ? '下一个问题 →' : 'Next →'}
+                            </button>
+                        </div>
                     </div>
-                </div>
-            `;
+                `;
 
-            document.getElementById('nextQuestion').addEventListener('click', () => {
-                questionIdx++;
-                showOptimizationQuestion();
-            });
-        }
+                // 实时保存草稿
+                const _fbDraftTa = content.querySelector('.optimization-answer');
+                if (_fbDraftTa) {
+                    _fbDraftTa.addEventListener('input', () => {
+                        userOptimizationAnswers[questionIdx] = {
+                            question: q,
+                            answer: _fbDraftTa.value,
+                            isDraft: true
+                        };
+                    });
+                }
 
-        showOptimizationQuestion();
+                document.getElementById('nextQuestion').addEventListener('click', () => {
+                    questionIdx++;
+                    showOptimizationQuestion();
+                });
+            }
+
+            showOptimizationQuestion();
     }
 }
 
@@ -2814,8 +2984,24 @@ function parseOptimizationQuestions(aiResponse) {
 }
 
 function closeOptimizationModal() {
+    // 关闭前：将当前正在输入的文本框内容保存为草稿
+    const _oc = document.getElementById('optimizationContent');
+    if (_oc) {
+        const _ota = _oc.querySelector('.optimization-answer');
+        const _curQ = currentOptimizationQuestions[currentOptimizationIdx];
+        if (_ota && _ota.value.trim() && _curQ) {
+            const existing = userOptimizationAnswers[currentOptimizationIdx];
+            if (!existing || existing.isDraft) {
+                userOptimizationAnswers[currentOptimizationIdx] = {
+                    question: _curQ,
+                    answer: _ota.value,
+                    isDraft: true
+                };
+            }
+        }
+    }
     document.getElementById('optimizationModal').style.display = 'none';
-    userOptimizationAnswers = [];
+    // 不清空 userOptimizationAnswers，保留草稿以供恢复
 }
 
 // =========== 模板更新 ===========
@@ -4042,6 +4228,13 @@ function clearContent() {
         localStorage.removeItem('currentContent');
         localStorage.removeItem('contentHistory');
 
+            // 清空草稿恢复相关状态和 localStorage
+            currentOptimizationQuestions = [];
+            currentOptimizationIdx = 0;
+            lastGuidanceType = '';
+            lastGuidanceLanguage = '';
+            try { localStorage.removeItem('guidanceSessionDraft'); } catch (e) {}
+
         document.getElementById('lastSaved').textContent = currentLanguage === 'zh' ? '从未' : 'Never';
         updateStats();
         showNotification(currentLanguage === 'zh' ? '✓ 已清空全部内容（含AI生成）' : '✓ All content cleared (including AI outputs)');
@@ -4131,6 +4324,15 @@ function changeEssayType(newType, newLevel, clickedBtn) {
         document.getElementById('lastSaved').textContent = currentLanguage === 'zh' ? '从未' : 'Never';
 
         // 修改文体
+
+            // 清空草稿恢复相关状态和 localStorage
+            currentOptimizationQuestions = [];
+            currentOptimizationIdx = 0;
+            lastGuidanceType = '';
+            lastGuidanceLanguage = '';
+            try { localStorage.removeItem('guidanceSessionDraft'); } catch (e) {}
+
+            // 修改文体
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
         clickedBtn.classList.add('active');
         currentType = newType;
