@@ -1185,6 +1185,15 @@ function pruneGuidanceAnswersFrom(step) {
     userGuidanceAnswers = userGuidanceAnswers.filter(a => a.step < step);
 }
 
+function clearGuidanceStepDraftStorage(type, language) {
+    try {
+        const questions = guidanceQuestions[type]?.[language] || [];
+        for (let i = 0; i < questions.length; i++) {
+            localStorage.removeItem(`guidanceStepDraft_${type}_${language}_${i}`);
+        }
+    } catch (e) {}
+}
+
 function startGuidance() {
     recordToolUsage('guidance');  // 记录工具使用
     const modal = document.getElementById('guidanceModal');
@@ -1233,6 +1242,7 @@ function startGuidance() {
                 userGuidanceAnswers = [];
                 currentAISuggestion = '';
                 try { localStorage.removeItem('guidanceSessionDraft'); } catch (e) {}
+                clearGuidanceStepDraftStorage(currentType, currentLanguage);
                 if (rawPromptInput) {
                     userGuidanceAnswers.push({
                         step: 0,
