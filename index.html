@@ -190,7 +190,10 @@
             </div>
 
             <div class="info-card" id="materialsPanel" style="display:none;">
-                <h3>📚 推荐素材</h3>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                    <h3 style="margin: 0;">📚 推荐素材</h3>
+                    <button class="enlarge-btn" id="enlargeMaterialsBtn" title="放大查看 / Enlarge">⛶</button>
+                </div>
                 <div id="materialsList"></div>
             </div>
 
@@ -208,6 +211,15 @@
                 <div id="growthPanel" style="display:none;"></div>
             </div>
         </aside>
+    </div>
+
+    <!-- Materials Enlarge Modal -->
+    <div id="materialsModal" class="modal" style="display:none;">
+        <div class="modal-content materials-modal-content">
+            <button class="modal-close" id="closeMaterialsModal">✕</button>
+            <h2>📚 推荐素材 / Material Recommendations</h2>
+            <div id="materialsModalBody" class="materials-modal-body"></div>
+        </div>
     </div>
 
     <!-- Launch Guidance Modal -->

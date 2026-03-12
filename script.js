@@ -783,6 +783,27 @@ function closeOutlineResultModal() {
     }
 }
 
+function showMaterialsModal() {
+    const modal = document.getElementById('materialsModal');
+    const body = document.getElementById('materialsModalBody');
+    if (!modal || !body) return;
+    const src = document.getElementById('materialsList');
+    if (!src || !src.innerHTML.trim()) {
+        showNotification(
+            currentLanguage === 'zh' ? '暂无素材可显示' : 'No materials to display',
+            'warning'
+        );
+        return;
+    }
+    body.innerHTML = src.innerHTML;
+    modal.style.display = 'flex';
+}
+
+function closeMaterialsModal() {
+    const modal = document.getElementById('materialsModal');
+    if (modal) modal.style.display = 'none';
+}
+
 function showAILoadingModal() {
     const modal = document.getElementById('aiLoadingModal');
     if (modal) {
@@ -1090,11 +1111,18 @@ function setupEventListeners() {
     if (exportBtn) exportBtn.addEventListener('click', exportContent);
     if (autoSaveToggle) autoSaveToggle.addEventListener('click', toggleAutoSave);
 
+    // 素材放大按钮
+    const enlargeMaterialsBtn = document.getElementById('enlargeMaterialsBtn');
+    const closeMaterialsModalBtn = document.getElementById('closeMaterialsModal');
+    if (enlargeMaterialsBtn) enlargeMaterialsBtn.addEventListener('click', showMaterialsModal);
+    if (closeMaterialsModalBtn) closeMaterialsModalBtn.addEventListener('click', closeMaterialsModal);
+
     // 点击模态框背景关闭
     const guidanceModal = document.getElementById('guidanceModal');
     const optimizationModal = document.getElementById('optimizationModal');
     const outlineResultModal = document.getElementById('outlineResultModal');
     const rawPromptModal = document.getElementById('rawPromptModal');
+    const materialsModal = document.getElementById('materialsModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
@@ -1120,6 +1148,11 @@ function setupEventListeners() {
     if (rawPromptModal) {
         rawPromptModal.addEventListener('click', (e) => {
             if (e.target.id === 'rawPromptModal') closeRawPromptModal();
+        });
+    }
+    if (materialsModal) {
+        materialsModal.addEventListener('click', (e) => {
+            if (e.target.id === 'materialsModal') closeMaterialsModal();
         });
     }
     

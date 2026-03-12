@@ -1995,6 +1995,50 @@ body {
     padding: 0 24px 20px 24px;
 }
 
+/* 素材推荐放大模态框 */
+.materials-modal-content {
+    max-width: 900px;
+    width: 95%;
+}
+
+.materials-modal-content h2 {
+    padding: 20px 24px 0 24px;
+    font-size: 18px;
+    color: var(--text-primary);
+    margin-bottom: 0;
+}
+
+.materials-modal-body {
+    padding: 16px 24px 24px 24px;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0;
+}
+
+.materials-modal-body .materials-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+    grid-column: 1 / -1;
+}
+
+.materials-modal-body .material-card {
+    margin-bottom: 0;
+}
+
+/* 放大框中素材卡片两列排列 */
+@media (min-width: 640px) {
+    .materials-modal-body {
+        grid-template-columns: 1fr 1fr;
+        column-gap: 16px;
+        row-gap: 16px;
+    }
+    .materials-modal-body .materials-header {
+        grid-column: 1 / -1;
+    }
+}
+
 /* 三部分反馈样式 */
 .feedback-sections {
     display: flex;
