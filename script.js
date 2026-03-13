@@ -938,13 +938,15 @@ function setupEventListeners() {
     const getInspirationBtn = document.getElementById('getInspiration');
     const optimizationBtn = document.getElementById('optimization');
     const inputRawPromptBtn = document.getElementById('inputRawPrompt');
+    const openUserGuideBtn = document.getElementById('openUserGuide');
     
     console.log('🎯 Button elements:', {
         launchGuidance: !!launchGuidanceBtn,
         getMaterials: !!getMaterialsBtn,
         getInspiration: !!getInspirationBtn,
         optimization: !!optimizationBtn,
-        inputRawPrompt: !!inputRawPromptBtn
+        inputRawPrompt: !!inputRawPromptBtn,
+        openUserGuide: !!openUserGuideBtn
     });
     
     if (launchGuidanceBtn) {
@@ -995,6 +997,15 @@ function setupEventListeners() {
         });
     } else {
         console.error('❌ inputRawPromptBtn not found!');
+    }
+
+    if (openUserGuideBtn) {
+        console.log('✅ Adding openUserGuide click listener');
+        openUserGuideBtn.addEventListener('click', () => {
+            window.open('user-guide.html', '_blank', 'noopener');
+        });
+    } else {
+        console.error('❌ openUserGuideBtn not found!');
     }
     
     // 写作完成按钮
