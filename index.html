@@ -114,13 +114,6 @@
                         <small>Writing Report</small>
                     </div>
                 </button>
-                <button class="feature-btn" id="openUserGuide">
-                    <span class="feature-icon">📘</span>
-                    <div class="feature-text">
-                        <strong>用户指南</strong>
-                        <small>User Guide</small>
-                    </div>
-                </button>
             </div>
         </section>
 
@@ -261,6 +254,21 @@
         </div>
     </div>
 
+    <div class="floating-guide-shell" id="floatingGuideShell">
+        <div class="guide-hint-bubble" id="userGuideHint" role="status" aria-live="polite">
+            <button class="guide-hint-close" id="dismissUserGuideHint" aria-label="关闭提示">✕</button>
+            <p>第一次使用？先看这里。</p>
+            <small>打开帮助中心，快速了解功能和演示视频</small>
+        </div>
+        <button class="floating-guide-btn" id="openUserGuide" title="打开用户指南 / Open User Guide">
+            <span class="floating-guide-icon">📘</span>
+            <span class="floating-guide-copy">
+                <strong>帮助中心</strong>
+                <small>查看用户指南</small>
+            </span>
+        </button>
+    </div>
+
     <!-- Outline Result Modal -->
     <div id="outlineResultModal" class="modal" style="display:none;">
         <div class="modal-content">
@@ -300,6 +308,12 @@
             const sidebarToggle = document.getElementById('sidebarToggle');
             const sidebar = document.getElementById('sidebar');
             const container = document.querySelector('.container');
+            const body = document.body;
+
+            function syncFloatingGuidePosition() {
+                const shouldOffset = window.innerWidth > 1024 && sidebar && !sidebar.classList.contains('collapsed');
+                body.classList.toggle('guide-with-sidebar', shouldOffset);
+            }
             
             if (sidebarToggle && sidebar) {
                 sidebarToggle.addEventListener('click', function() {
@@ -313,8 +327,13 @@
                     } else {
                         icon.textContent = '✕';
                     }
+
+                    syncFloatingGuidePosition();
                 });
             }
+
+            syncFloatingGuidePosition();
+            window.addEventListener('resize', syncFloatingGuidePosition);
         });
         
         window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };

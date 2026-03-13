@@ -939,6 +939,20 @@ function setupEventListeners() {
     const optimizationBtn = document.getElementById('optimization');
     const inputRawPromptBtn = document.getElementById('inputRawPrompt');
     const openUserGuideBtn = document.getElementById('openUserGuide');
+    const userGuideHint = document.getElementById('userGuideHint');
+    const dismissUserGuideHintBtn = document.getElementById('dismissUserGuideHint');
+    const userGuideHintStorageKey = 'userGuideHintDismissed';
+
+    const dismissUserGuideHint = () => {
+        if (userGuideHint) {
+            userGuideHint.classList.remove('visible');
+        }
+        localStorage.setItem(userGuideHintStorageKey, '1');
+    };
+
+    const shouldShowUserGuideHint = () => {
+        return !localStorage.getItem(userGuideHintStorageKey);
+    };
     
     console.log('🎯 Button elements:', {
         launchGuidance: !!launchGuidanceBtn,
@@ -946,7 +960,8 @@ function setupEventListeners() {
         getInspiration: !!getInspirationBtn,
         optimization: !!optimizationBtn,
         inputRawPrompt: !!inputRawPromptBtn,
-        openUserGuide: !!openUserGuideBtn
+        openUserGuide: !!openUserGuideBtn,
+        userGuideHint: !!userGuideHint
     });
     
     if (launchGuidanceBtn) {
@@ -1002,10 +1017,28 @@ function setupEventListeners() {
     if (openUserGuideBtn) {
         console.log('✅ Adding openUserGuide click listener');
         openUserGuideBtn.addEventListener('click', () => {
+            dismissUserGuideHint();
             window.open('user-guide.html', '_blank', 'noopener');
         });
     } else {
         console.error('❌ openUserGuideBtn not found!');
+    }
+
+    if (dismissUserGuideHintBtn) {
+        dismissUserGuideHintBtn.addEventListener('click', (event) => {
+            event.stopPropagation();
+            dismissUserGuideHint();
+        });
+    }
+
+    if (userGuideHint && shouldShowUserGuideHint()) {
+        window.setTimeout(() => {
+            userGuideHint.classList.add('visible');
+        }, 700);
+
+        window.setTimeout(() => {
+            dismissUserGuideHint();
+        }, 9000);
     }
     
     // 写作完成按钮
