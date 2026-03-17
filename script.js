@@ -137,16 +137,6 @@ function enableAuthBypassMode() {
         logoutBtn.style.display = 'none';
         logoutBtn.disabled = true;
     }
-
-    if (currentUserName) {
-        currentUserName.textContent = currentLanguage === 'zh' ? '开发模式' : 'Dev Mode';
-    }
-
-    if (currentUserMeta) {
-        currentUserMeta.textContent = currentLanguage === 'zh'
-            ? '已跳过登录界面（开发者开关）'
-            : 'Login gate bypassed by developer toggle';
-    }
 }
 
 function getScopedStorageKey(baseKey) {
