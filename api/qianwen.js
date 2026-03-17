@@ -86,8 +86,8 @@ export default async function handler(req, res) {
         let lastErrorStatus = 0;
 
         const attempts = [
-            { model: 'qwen-plus', maxTokens: chosenMaxTokens, timeoutMs: 16000 },
-            { model: 'qwen-turbo', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.7)), timeoutMs: 12000 }
+            { model: 'qwen-max', maxTokens: chosenMaxTokens, timeoutMs: 16000 },
+            { model: 'qwen-long', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.7)), timeoutMs: 12000 }
         ];
 
         for (let i = 0; i < attempts.length; i++) {
