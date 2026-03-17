@@ -32,7 +32,8 @@ body {
 
 body.auth-locked {
     min-height: 100vh;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
 }
 
 body.auth-ready {
@@ -53,8 +54,9 @@ body.auth-ready .app-shell {
 
 .auth-gate {
     position: relative;
-    min-height: 100vh;
-    overflow: hidden;
+    min-height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
     background:
         radial-gradient(circle at top left, rgba(99, 102, 241, 0.28), transparent 38%),
         radial-gradient(circle at bottom right, rgba(16, 185, 129, 0.22), transparent 36%),
@@ -76,7 +78,7 @@ body.auth-ready .auth-gate {
 .auth-layout {
     position: relative;
     z-index: 1;
-    min-height: 100vh;
+    min-height: 100dvh;
     display: grid;
     grid-template-columns: minmax(320px, 1.08fr) minmax(360px, 460px);
     gap: 32px;
@@ -2254,13 +2256,22 @@ body.guide-with-sidebar .floating-guide-shell {
     }
 
     .auth-layout {
-        padding: 20px 14px;
+        min-height: auto;
+        align-items: start;
+        padding: 14px 12px 20px;
         gap: 18px;
     }
 
+    .auth-brand-panel {
+        order: 2;
+        padding-top: 0;
+    }
+
     .auth-card {
+        order: 1;
         padding: 20px 16px;
         border-radius: 22px;
+        max-width: 100%;
     }
 
     .auth-card-header {
@@ -2429,6 +2440,18 @@ body.guide-with-sidebar .floating-guide-shell {
 }
 
 @media (max-width: 480px) {
+    .auth-layout {
+        padding: 10px 10px 16px;
+    }
+
+    .auth-brand-panel h1 {
+        font-size: 34px;
+    }
+
+    .auth-feature-item {
+        padding: 14px 14px;
+    }
+
     .auth-tabs,
     .auth-method-switch {
         width: 100%;
