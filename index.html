@@ -424,6 +424,11 @@
 
     </div>
 
+    <script>
+        // 开发者开关：设为 false 可直接跳过登录/注册界面
+        window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
+        window.__APP_CONFIG__.authGateEnabled = false;
+    </script>
     <script src="ai-service.js"></script>
     <script src="script.js"></script>
     <script>

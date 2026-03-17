@@ -115,6 +115,40 @@ let currentUserMeta = null;
 let logoutBtn = null;
 let pendingVerificationChallenges = {};
 
+function isAuthGateEnabled() {
+    const explicitToggle = window.__AUTH_GATE_ENABLED;
+    const configToggle = window.__APP_CONFIG__?.authGateEnabled;
+
+    if (typeof explicitToggle === 'boolean') return explicitToggle;
+    if (typeof configToggle === 'boolean') return configToggle;
+    return true;
+}
+
+function enableAuthBypassMode() {
+    cacheAuthElements();
+    document.body.classList.remove('auth-locked');
+    document.body.classList.add('auth-ready');
+
+    if (authGate) {
+        authGate.style.display = 'none';
+    }
+
+    if (logoutBtn) {
+        logoutBtn.style.display = 'none';
+        logoutBtn.disabled = true;
+    }
+
+    if (currentUserName) {
+        currentUserName.textContent = currentLanguage === 'zh' ? '开发模式' : 'Dev Mode';
+    }
+
+    if (currentUserMeta) {
+        currentUserMeta.textContent = currentLanguage === 'zh'
+            ? '已跳过登录界面（开发者开关）'
+            : 'Login gate bypassed by developer toggle';
+    }
+}
+
 function getScopedStorageKey(baseKey) {
     const scope = currentUser?.id || 'guest';
     return `${AUTH_APP_NAMESPACE}:${scope}:${baseKey}`;
@@ -1564,7 +1598,11 @@ document.addEventListener('DOMContentLoaded', () => {
         aiOutput: !!aiOutput
     });
 
-    initializeAuth();
+    if (isAuthGateEnabled()) {
+        initializeAuth();
+    } else {
+        enableAuthBypassMode();
+    }
     
     // 初始化应用
     loadSavedContent();
