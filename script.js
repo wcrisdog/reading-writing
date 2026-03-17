@@ -1049,20 +1049,20 @@ function getUserByMethod(method, rawValue, users = readAuthUsers()) {
     return users.find(user => normalizeEmail(user.email) === normalized) || null;
 }
 
-// function updateCurrentUserBadge() {
-//     if (!currentUserName || !currentUserMeta) return;
+function updateCurrentUserBadge() {
+    if (!currentUserName || !currentUserMeta) return;
 
-//     if (!currentUser) {
-//         currentUserName.textContent = currentLanguage === 'zh' ? '未登录' : 'Signed out';
-//         currentUserMeta.textContent = currentLanguage === 'zh' ? '登录后显示当前账号' : 'Current account appears here';
-//         return;
-//     }
+    if (!currentUser) {
+        currentUserName.textContent = currentLanguage === 'zh' ? '未登录' : 'Signed out';
+        currentUserMeta.textContent = currentLanguage === 'zh' ? '登录后显示当前账号' : 'Current account appears here';
+        return;
+    }
 
-//     currentUserName.textContent = currentUser.username;
-//     currentUserMeta.textContent = currentUser.phone
-//         ? `手机号 ${maskContact('phone', currentUser.phone)}`
-//         : `邮箱 ${maskContact('email', currentUser.email)}`;
-// }
+    currentUserName.textContent = currentUser.username;
+    currentUserMeta.textContent = currentUser.phone
+        ? `手机号 ${maskContact('phone', currentUser.phone)}`
+        : `邮箱 ${maskContact('email', currentUser.email)}`;
+}
 
 function switchAuthMode(mode) {
     currentAuthMode = mode;
