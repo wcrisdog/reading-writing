@@ -15,10 +15,11 @@ let currentOutline = null;
 let writingStartTime = null; // 写作开始时间
 let totalWritingTime = 0; // 总写作时长（秒）
 let lastStatsUpdate = Date.now();
-let targetWordsConfig = {
+const defaultTargetWordsConfig = {
     argumentative: 800,
     narrative: 600
 };
+let targetWordsConfig = { ...defaultTargetWordsConfig };
 let currentRightPanelView = 'outline';
 let optimizationRecords = [];
 let rawPromptInput = ''; // 保存原始题目输入
@@ -56,20 +57,233 @@ let writingProcessData = {
     wordCountChanges: []         // 字数变化记录
 };
 
-// =========== 成长档案系统 ===========
-let growthProfile = {
-    essays: [],                  // 历史写作记录
-    abilities: {                 // 六维能力评分（0-100）
-        structure: 0,            // 结构
-        argumentation: 0,        // 论证
-        language: 0,             // 语言
-        materials: 0,            // 素材
-        logic: 0,               // 逻辑
-        reflection: 0           // 反思
-    },
-    milestones: [],             // 进步里程碑
-    weaknesses: []              // 薄弱项记录
-};
+// =========== 成长档案系统 ==========
+function createEmptyGrowthProfile() {
+    return {
+        essays: [],
+        abilities: {
+            structure: 0,
+            argumentation: 0,
+            language: 0,
+            materials: 0,
+            logic: 0,
+            reflection: 0
+        },
+        milestones: [],
+        weaknesses: []
+    };
+}
+
+let growthProfile = createEmptyGrowthProfile();
+
+// =========== 认证与账号隔离 ==========
+const AUTH_USERS_KEY = 'rwAuthUsers';
+const AUTH_SESSION_KEY = 'rwAuthSession';
+const AUTH_CODES_KEY = 'rwAuthCodes';
+const AUTH_APP_NAMESPACE = 'readingWriting';
+
+let currentUser = null;
+let currentAuthMode = 'login';
+let currentLoginMethod = 'username';
+let authCountdownTimers = {};
+
+let authGate = null;
+let appShell = null;
+let authStatusMessage = null;
+let authDeliveryHint = null;
+let loginPanel = null;
+let registerPanel = null;
+let loginIdentifierLabel = null;
+let loginIdentifier = null;
+let loginPasswordGroup = null;
+let loginPassword = null;
+let loginCodeGroup = null;
+let loginCodeLabel = null;
+let loginCode = null;
+let sendLoginCodeBtn = null;
+let registerUsername = null;
+let registerPassword = null;
+let registerPasswordConfirm = null;
+let registerContactType = null;
+let registerContactLabel = null;
+let registerContact = null;
+let registerCodeLabel = null;
+let registerCode = null;
+let sendRegisterCodeBtn = null;
+let currentUserName = null;
+let currentUserMeta = null;
+let logoutBtn = null;
+let pendingVerificationChallenges = {};
+
+function getScopedStorageKey(baseKey) {
+    const scope = currentUser?.id || 'guest';
+    return `${AUTH_APP_NAMESPACE}:${scope}:${baseKey}`;
+}
+
+function getScopedStorageValue(baseKey) {
+    return localStorage.getItem(getScopedStorageKey(baseKey));
+}
+
+function setScopedStorageValue(baseKey, value) {
+    localStorage.setItem(getScopedStorageKey(baseKey), value);
+}
+
+function removeScopedStorageValue(baseKey) {
+    localStorage.removeItem(getScopedStorageKey(baseKey));
+}
+
+function getGuidanceSessionStorageKey() {
+    return 'guidanceSessionDraft';
+}
+
+function getGuidanceStepStorageKey(type, language, stepIndex) {
+    return `guidanceStepDraft_${type}_${language}_${stepIndex}`;
+}
+
+function getVerificationChallengeStorageKey(purpose, type, target) {
+    return `verificationChallenge:${purpose}:${type}:${target}`;
+}
+
+function normalizeVerificationTarget(type, target) {
+    if (type === 'phone') {
+        const digits = normalizePhone(target);
+        if (digits.length === 11 && digits.startsWith('1')) {
+            return `+86${digits}`;
+        }
+        return String(target || '').trim();
+    }
+
+    return normalizeEmail(target);
+}
+
+function getAuthApiUrl(path) {
+    const customBaseUrl = String(window.__AUTH_API_BASE_URL || window.__AI_API_BASE_URL || '').trim().replace(/\/$/, '');
+    return customBaseUrl ? `${customBaseUrl}${path}` : path;
+}
+
+async function callAuthApi(path, payload) {
+    const response = await fetch(getAuthApiUrl(path), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(payload)
+    });
+
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        throw new Error(data.error || data.message || '认证服务请求失败');
+    }
+
+    return data;
+}
+
+function rememberVerificationChallenge(purpose, type, target, challengeToken) {
+    const key = getVerificationChallengeStorageKey(purpose, type, target);
+    pendingVerificationChallenges[key] = challengeToken || '';
+    if (challengeToken) {
+        setScopedStorageValue(key, challengeToken);
+    } else {
+        removeScopedStorageValue(key);
+    }
+}
+
+function readVerificationChallenge(purpose, type, target) {
+    const key = getVerificationChallengeStorageKey(purpose, type, target);
+    return pendingVerificationChallenges[key] || getScopedStorageValue(key) || '';
+}
+
+function clearVerificationChallenge(purpose, type, target) {
+    const key = getVerificationChallengeStorageKey(purpose, type, target);
+    delete pendingVerificationChallenges[key];
+    removeScopedStorageValue(key);
+}
+
+function readAuthUsers() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_USERS_KEY) || '[]');
+    } catch (error) {
+        console.error('读取用户列表失败:', error);
+        return [];
+    }
+}
+
+function writeAuthUsers(users) {
+    localStorage.setItem(AUTH_USERS_KEY, JSON.stringify(users));
+}
+
+function readAuthCodes() {
+    try {
+        return JSON.parse(localStorage.getItem(AUTH_CODES_KEY) || '{}');
+    } catch (error) {
+        console.error('读取验证码缓存失败:', error);
+        return {};
+    }
+}
+
+function writeAuthCodes(codes) {
+    localStorage.setItem(AUTH_CODES_KEY, JSON.stringify(codes));
+}
+
+function createUserId() {
+    return `u_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function normalizePhone(phone) {
+    return String(phone || '').replace(/\D/g, '');
+}
+
+function normalizeEmail(email) {
+    return String(email || '').trim().toLowerCase();
+}
+
+function normalizeUsername(username) {
+    return String(username || '').trim();
+}
+
+function maskContact(type, value) {
+    if (type === 'phone') {
+        const normalized = normalizePhone(value);
+        if (normalized.length < 7) return normalized;
+        return `${normalized.slice(0, 3)}****${normalized.slice(-4)}`;
+    }
+
+    const normalized = normalizeEmail(value);
+    const [name = '', domain = ''] = normalized.split('@');
+    if (!domain) return normalized;
+    const visible = name.length <= 2 ? `${name[0] || ''}*` : `${name.slice(0, 2)}***`;
+    return `${visible}@${domain}`;
+}
+
+function validatePhone(phone) {
+    return /^1\d{10}$/.test(normalizePhone(phone));
+}
+
+function validateEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizeEmail(email));
+}
+
+function validateUsername(username) {
+    return /^[\w\u4e00-\u9fa5-]{3,20}$/.test(normalizeUsername(username));
+}
+
+function setAuthStatus(message, type = 'info') {
+    if (!authStatusMessage) return;
+
+    authStatusMessage.textContent = message;
+    authStatusMessage.style.color =
+        type === 'error'
+            ? 'var(--danger-color)'
+            : type === 'success'
+                ? 'var(--success-color)'
+                : 'var(--text-secondary)';
+    authStatusMessage.style.borderColor =
+        type === 'error'
+            ? 'rgba(239, 68, 68, 0.18)'
+            : type === 'success'
+                ? 'rgba(16, 185, 129, 0.18)'
+                : 'rgba(99, 102, 241, 0.12)';
+}
 
 // =========== 写作类型配置 ===========
 const essayTypes = {
@@ -762,6 +976,501 @@ const optimizationQuestions = {
     }
 };
 
+function cacheAuthElements() {
+    authGate = document.getElementById('authGate');
+    appShell = document.getElementById('appShell');
+    authStatusMessage = document.getElementById('authStatusMessage');
+    authDeliveryHint = document.getElementById('authDeliveryHint');
+    loginPanel = document.getElementById('loginPanel');
+    registerPanel = document.getElementById('registerPanel');
+    loginIdentifierLabel = document.getElementById('loginIdentifierLabel');
+    loginIdentifier = document.getElementById('loginIdentifier');
+    loginPasswordGroup = document.getElementById('loginPasswordGroup');
+    loginPassword = document.getElementById('loginPassword');
+    loginCodeGroup = document.getElementById('loginCodeGroup');
+    loginCodeLabel = document.getElementById('loginCodeLabel');
+    loginCode = document.getElementById('loginCode');
+    sendLoginCodeBtn = document.getElementById('sendLoginCodeBtn');
+    registerUsername = document.getElementById('registerUsername');
+    registerPassword = document.getElementById('registerPassword');
+    registerPasswordConfirm = document.getElementById('registerPasswordConfirm');
+    registerContactType = document.getElementById('registerContactType');
+    registerContactLabel = document.getElementById('registerContactLabel');
+    registerContact = document.getElementById('registerContact');
+    registerCodeLabel = document.getElementById('registerCodeLabel');
+    registerCode = document.getElementById('registerCode');
+    sendRegisterCodeBtn = document.getElementById('sendRegisterCodeBtn');
+    currentUserName = document.getElementById('currentUserName');
+    currentUserMeta = document.getElementById('currentUserMeta');
+    logoutBtn = document.getElementById('logoutBtn');
+}
+
+function getVerificationCacheKey(purpose, type, target) {
+    const normalizedTarget = type === 'phone' ? normalizePhone(target) : normalizeEmail(target);
+    return `${purpose}:${type}:${normalizedTarget}`;
+}
+
+function getUserByMethod(method, rawValue, users = readAuthUsers()) {
+    if (method === 'username') {
+        const normalized = normalizeUsername(rawValue);
+        return users.find(user => normalizeUsername(user.username) === normalized) || null;
+    }
+
+    if (method === 'phone') {
+        const normalized = normalizePhone(rawValue);
+        return users.find(user => normalizePhone(user.phone) === normalized) || null;
+    }
+
+    const normalized = normalizeEmail(rawValue);
+    return users.find(user => normalizeEmail(user.email) === normalized) || null;
+}
+
+function updateCurrentUserBadge() {
+    if (!currentUserName || !currentUserMeta) return;
+
+    if (!currentUser) {
+        currentUserName.textContent = currentLanguage === 'zh' ? '未登录' : 'Signed out';
+        currentUserMeta.textContent = currentLanguage === 'zh' ? '登录后显示当前账号' : 'Current account appears here';
+        return;
+    }
+
+    currentUserName.textContent = currentUser.username;
+    currentUserMeta.textContent = currentUser.phone
+        ? `手机号 ${maskContact('phone', currentUser.phone)}`
+        : `邮箱 ${maskContact('email', currentUser.email)}`;
+}
+
+function switchAuthMode(mode) {
+    currentAuthMode = mode;
+
+    document.querySelectorAll('[data-auth-mode]').forEach(button => {
+        button.classList.toggle('active', button.dataset.authMode === mode);
+    });
+
+    if (loginPanel) loginPanel.classList.toggle('active', mode === 'login');
+    if (registerPanel) registerPanel.classList.toggle('active', mode === 'register');
+
+    if (mode === 'login') {
+        setAuthStatus('请选择登录方式并完成认证。');
+    } else {
+        setAuthStatus('注册后会自动进入主界面，并绑定手机号或邮箱。');
+    }
+}
+
+function updateLoginMethodUI(method) {
+    currentLoginMethod = method;
+
+    document.querySelectorAll('[data-login-method]').forEach(button => {
+        button.classList.toggle('active', button.dataset.loginMethod === method);
+    });
+
+    if (!loginIdentifier || !loginIdentifierLabel || !loginPasswordGroup || !loginCodeGroup || !loginCodeLabel) {
+        return;
+    }
+
+    if (method === 'username') {
+        loginIdentifierLabel.textContent = '用户名';
+        loginIdentifier.placeholder = '请输入用户名';
+        loginIdentifier.type = 'text';
+        loginPasswordGroup.classList.remove('hidden');
+        loginCodeGroup.classList.add('hidden');
+        setAuthStatus('用户名登录使用密码验证。');
+        return;
+    }
+
+    const isPhone = method === 'phone';
+    loginIdentifierLabel.textContent = isPhone ? '手机号' : '邮箱';
+    loginIdentifier.placeholder = isPhone ? '请输入手机号' : '请输入邮箱';
+    loginIdentifier.type = isPhone ? 'tel' : 'email';
+    loginPasswordGroup.classList.add('hidden');
+    loginCodeGroup.classList.remove('hidden');
+    loginCodeLabel.textContent = isPhone ? '短信验证码' : '邮箱验证码';
+    setAuthStatus(isPhone ? '请输入手机号并发送验证码。' : '请输入邮箱并发送验证码。');
+}
+
+function updateRegisterContactUI(type) {
+    if (!registerContactLabel || !registerContact || !registerCodeLabel) return;
+
+    const isPhone = type === 'phone';
+    registerContactLabel.textContent = isPhone ? '手机号' : '邮箱';
+    registerContact.placeholder = isPhone ? '请输入手机号' : '请输入邮箱';
+    registerContact.type = isPhone ? 'tel' : 'email';
+    registerCodeLabel.textContent = isPhone ? '短信验证码' : '邮箱验证码';
+}
+
+function startAuthCountdown(button, cacheKey) {
+    if (!button) return;
+
+    clearInterval(authCountdownTimers[cacheKey]);
+
+    let remain = 60;
+    button.disabled = true;
+    button.textContent = `${remain}s`;
+
+    authCountdownTimers[cacheKey] = setInterval(() => {
+        remain -= 1;
+        if (remain <= 0) {
+            clearInterval(authCountdownTimers[cacheKey]);
+            delete authCountdownTimers[cacheKey];
+            button.disabled = false;
+            button.textContent = '发送验证码';
+            return;
+        }
+
+        button.textContent = `${remain}s`;
+    }, 1000);
+}
+
+async function sendVerificationCode(purpose, type, target, button) {
+    const normalizedTarget = type === 'phone' ? normalizePhone(target) : normalizeEmail(target);
+    const verificationTarget = normalizeVerificationTarget(type, target);
+    const isValid = type === 'phone' ? validatePhone(normalizedTarget) : validateEmail(normalizedTarget);
+
+    if (!isValid) {
+        const message = type === 'phone' ? '请输入正确的手机号' : '请输入正确的邮箱地址';
+        setAuthStatus(message, 'error');
+        showNotification(message, 'warning');
+        return false;
+    }
+
+    try {
+        if (button) {
+            button.disabled = true;
+            button.textContent = '发送中...';
+        }
+
+        const channel = type === 'phone' ? 'sms' : 'email';
+        const result = await callAuthApi('/api/auth/send-code', {
+            purpose,
+            channel,
+            target: verificationTarget
+        });
+
+        rememberVerificationChallenge(purpose, type, verificationTarget, result.challengeToken || '');
+        startAuthCountdown(button, getVerificationCacheKey(purpose, type, verificationTarget));
+
+        const masked = maskContact(type, normalizedTarget);
+        const sentMessage = `${channel === 'sms' ? '验证码已发送至' : '验证码邮件已发送至'} ${masked}`;
+        setAuthStatus(`${sentMessage}，请查收并输入验证码。`, 'success');
+        if (authDeliveryHint) {
+            authDeliveryHint.textContent = channel === 'sms'
+                ? `短信服务已触发发送到 ${masked}。请确保服务端已配置 UniSMS。`
+                : `邮件服务已发送到 ${masked}。请确保服务端已配置 Resend 与已验证发件邮箱。`;
+        }
+        showNotification(sentMessage, 'success', 4500);
+        return true;
+    } catch (error) {
+        if (button) {
+            button.disabled = false;
+            button.textContent = '发送验证码';
+        }
+        setAuthStatus(error.message || '验证码发送失败，请稍后重试。', 'error');
+        showNotification(error.message || '验证码发送失败，请稍后重试。', 'error');
+        return false;
+    }
+}
+
+async function consumeVerificationCode(purpose, type, target, inputCode) {
+    const verificationTarget = normalizeVerificationTarget(type, target);
+    const channel = type === 'phone' ? 'sms' : 'email';
+    const challengeToken = readVerificationChallenge(purpose, type, verificationTarget);
+
+    if (channel === 'email' && !challengeToken) {
+        setAuthStatus('请先发送验证码。', 'error');
+        return false;
+    }
+
+    try {
+        await callAuthApi('/api/auth/verify-code', {
+            purpose,
+            channel,
+            target: verificationTarget,
+            code: String(inputCode || '').trim(),
+            challengeToken
+        });
+        clearVerificationChallenge(purpose, type, verificationTarget);
+        return true;
+    } catch (error) {
+        setAuthStatus(error.message || '验证码校验失败，请重试。', 'error');
+        return false;
+    }
+}
+
+function resetWorkspaceForUserSwitch() {
+    contentHistory = [];
+    userGuidanceAnswers = [];
+    currentAISuggestion = '';
+    guidanceStep = 0;
+    userMaterialPreferences = [];
+    userOptimizationAnswers = [];
+    optimizationRecords = [];
+    currentOutline = null;
+    rawPromptInput = '';
+    lastGuidanceType = '';
+    lastGuidanceLanguage = '';
+    currentOptimizationQuestions = [];
+    currentOptimizationIdx = 0;
+    targetWordsConfig = { ...defaultTargetWordsConfig };
+    currentType = 'argumentative';
+    currentLevel = 'high-school';
+    currentLanguage = 'zh';
+    growthProfile = createEmptyGrowthProfile();
+    writingStartTime = null;
+    totalWritingTime = 0;
+    lastStatsUpdate = Date.now();
+
+    if (titleInput) titleInput.value = '';
+    if (mainEditor) mainEditor.value = '';
+
+    if (aiOutput) {
+        aiOutput.innerHTML = '<p class="placeholder">AI 建议将显示在这里<br>AI suggestions will appear here</p>';
+    }
+
+    if (materialsList) materialsList.innerHTML = '';
+    if (materialsPanel) materialsPanel.style.display = 'none';
+    if (outlinePanel) outlinePanel.innerHTML = '';
+    if (optimizationPanel) {
+        optimizationPanel.innerHTML = '';
+        optimizationPanel.style.display = 'none';
+    }
+
+    document.querySelectorAll('.nav-btn').forEach(button => {
+        button.classList.toggle('active', button.dataset.type === 'argumentative');
+    });
+    document.querySelectorAll('input[name="language"]').forEach(radio => {
+        radio.checked = radio.value === 'zh';
+    });
+
+    if (document.getElementById('lastSaved')) {
+        document.getElementById('lastSaved').textContent = '从未';
+    }
+}
+
+function loadWorkspaceForCurrentUser() {
+    if (!titleInput || !mainEditor) return;
+
+    resetWorkspaceForUserSwitch();
+    loadSavedContent();
+    loadGrowthProfile();
+    applyTargetWordsConfig();
+    updateTemplate();
+    renderOptimizationRecords();
+    updateStats();
+    renderSidebarGrowthArchive();
+}
+
+function enterAuthenticatedApp(user, options = {}) {
+    const { notify = true } = options;
+    currentUser = user;
+    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+        userId: user.id,
+        loggedInAt: new Date().toISOString()
+    }));
+
+    document.body.classList.remove('auth-locked');
+    document.body.classList.add('auth-ready');
+    updateCurrentUserBadge();
+    loadWorkspaceForCurrentUser();
+
+    if (notify) {
+        showNotification(`欢迎回来，${user.username}`, 'success');
+        setAuthStatus(`已登录为 ${user.username}。`, 'success');
+    }
+}
+
+function leaveAuthenticatedApp() {
+    currentUser = null;
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    document.body.classList.remove('auth-ready', 'guide-with-sidebar');
+    document.body.classList.add('auth-locked');
+    updateCurrentUserBadge();
+    resetWorkspaceForUserSwitch();
+    updateTemplate();
+    updateStats();
+    setAuthStatus('请选择登录方式并完成认证。');
+}
+
+function restoreAuthSession() {
+    try {
+        const session = JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || 'null');
+        if (!session?.userId) {
+            leaveAuthenticatedApp();
+            return false;
+        }
+
+        const user = readAuthUsers().find(item => item.id === session.userId);
+        if (!user) {
+            leaveAuthenticatedApp();
+            return false;
+        }
+
+        enterAuthenticatedApp(user, { notify: false });
+        return true;
+    } catch (error) {
+        console.error('恢复登录态失败:', error);
+        leaveAuthenticatedApp();
+        return false;
+    }
+}
+
+async function handleLoginSubmit(event) {
+    event.preventDefault();
+
+    const users = readAuthUsers();
+    const identifierValue = loginIdentifier?.value?.trim() || '';
+
+    if (!identifierValue) {
+        setAuthStatus('请输入登录账号。', 'error');
+        return;
+    }
+
+    if (currentLoginMethod === 'username') {
+        const passwordValue = loginPassword?.value || '';
+        const user = getUserByMethod('username', identifierValue, users);
+        if (!user || user.password !== passwordValue) {
+            setAuthStatus('用户名或密码不正确。', 'error');
+            showNotification('登录失败，请检查用户名和密码', 'error');
+            return;
+        }
+
+        enterAuthenticatedApp(user);
+        return;
+    }
+
+    const contactType = currentLoginMethod;
+    const inputCode = loginCode?.value?.trim() || '';
+    const user = getUserByMethod(contactType, identifierValue, users);
+    if (!user) {
+        setAuthStatus(contactType === 'phone' ? '该手机号尚未注册。' : '该邮箱尚未注册。', 'error');
+        return;
+    }
+
+    if (!inputCode) {
+        setAuthStatus('请输入验证码。', 'error');
+        return;
+    }
+
+    if (!await consumeVerificationCode('login', contactType, identifierValue, inputCode)) {
+        return;
+    }
+
+    enterAuthenticatedApp(user);
+}
+
+async function handleRegisterSubmit(event) {
+    event.preventDefault();
+
+    const usernameValue = registerUsername?.value?.trim() || '';
+    const passwordValue = registerPassword?.value || '';
+    const confirmValue = registerPasswordConfirm?.value || '';
+    const contactType = registerContactType?.value || 'phone';
+    const contactValue = registerContact?.value?.trim() || '';
+    const codeValue = registerCode?.value?.trim() || '';
+    const users = readAuthUsers();
+
+    if (!validateUsername(usernameValue)) {
+        setAuthStatus('用户名需为 3-20 位，可包含中文、字母、数字、下划线。', 'error');
+        return;
+    }
+
+    if (passwordValue.length < 6) {
+        setAuthStatus('密码至少需要 6 位。', 'error');
+        return;
+    }
+
+    if (passwordValue !== confirmValue) {
+        setAuthStatus('两次输入的密码不一致。', 'error');
+        return;
+    }
+
+    const validContact = contactType === 'phone' ? validatePhone(contactValue) : validateEmail(contactValue);
+    if (!validContact) {
+        setAuthStatus(contactType === 'phone' ? '请输入正确的手机号。' : '请输入正确的邮箱地址。', 'error');
+        return;
+    }
+
+    if (!codeValue) {
+        setAuthStatus('请输入验证码完成注册。', 'error');
+        return;
+    }
+
+    if (users.some(user => normalizeUsername(user.username) === normalizeUsername(usernameValue))) {
+        setAuthStatus('该用户名已被占用，请更换。', 'error');
+        return;
+    }
+
+    if (users.some(user => contactType === 'phone'
+        ? normalizePhone(user.phone) === normalizePhone(contactValue)
+        : normalizeEmail(user.email) === normalizeEmail(contactValue))) {
+        setAuthStatus(contactType === 'phone' ? '该手机号已注册，请直接登录。' : '该邮箱已注册，请直接登录。', 'error');
+        return;
+    }
+
+    if (!await consumeVerificationCode('register', contactType, contactValue, codeValue)) {
+        return;
+    }
+
+    const user = {
+        id: createUserId(),
+        username: normalizeUsername(usernameValue),
+        password: passwordValue,
+        phone: contactType === 'phone' ? normalizePhone(contactValue) : '',
+        email: contactType === 'email' ? normalizeEmail(contactValue) : '',
+        createdAt: new Date().toISOString()
+    };
+
+    users.push(user);
+    writeAuthUsers(users);
+    enterAuthenticatedApp(user);
+}
+
+function initializeAuth() {
+    cacheAuthElements();
+    updateCurrentUserBadge();
+
+    document.querySelectorAll('[data-auth-mode]').forEach(button => {
+        button.addEventListener('click', () => switchAuthMode(button.dataset.authMode));
+    });
+
+    document.querySelectorAll('[data-login-method]').forEach(button => {
+        button.addEventListener('click', () => updateLoginMethodUI(button.dataset.loginMethod));
+    });
+
+    if (registerContactType) {
+        registerContactType.addEventListener('change', (event) => {
+            updateRegisterContactUI(event.target.value);
+        });
+    }
+
+    if (sendLoginCodeBtn) {
+        sendLoginCodeBtn.addEventListener('click', async () => {
+            await sendVerificationCode('login', currentLoginMethod, loginIdentifier?.value || '', sendLoginCodeBtn);
+        });
+    }
+
+    if (sendRegisterCodeBtn) {
+        sendRegisterCodeBtn.addEventListener('click', async () => {
+            await sendVerificationCode('register', registerContactType?.value || 'phone', registerContact?.value || '', sendRegisterCodeBtn);
+        });
+    }
+
+    const loginForm = document.getElementById('loginForm');
+    const registerForm = document.getElementById('registerForm');
+    if (loginForm) loginForm.addEventListener('submit', handleLoginSubmit);
+    if (registerForm) registerForm.addEventListener('submit', handleRegisterSubmit);
+    if (logoutBtn) {
+        logoutBtn.addEventListener('click', () => {
+            leaveAuthenticatedApp();
+            showNotification('你已退出登录', 'warning');
+        });
+    }
+
+    switchAuthMode(currentAuthMode);
+    updateLoginMethodUI(currentLoginMethod);
+    updateRegisterContactUI(registerContactType?.value || 'phone');
+    restoreAuthSession();
+}
+
 // =========== DOM 元素（全局变量声明）===========
 let mainEditor, titleInput, charCount, wordCount, paraCount;
 let templateInfo, aiOutput, outlinePanel, optimizationPanel, materialsList, materialsPanel;
@@ -854,6 +1563,8 @@ document.addEventListener('DOMContentLoaded', () => {
         templateInfo: !!templateInfo,
         aiOutput: !!aiOutput
     });
+
+    initializeAuth();
     
     // 初始化应用
     loadSavedContent();
@@ -1266,7 +1977,7 @@ function clearGuidanceStepDraftStorage(type, language) {
     try {
         const questions = guidanceQuestions[type]?.[language] || [];
         for (let i = 0; i < questions.length; i++) {
-            localStorage.removeItem(`guidanceStepDraft_${type}_${language}_${i}`);
+            removeScopedStorageValue(getGuidanceStepStorageKey(type, language, i));
         }
     } catch (e) {}
 }
@@ -1282,7 +1993,7 @@ function startGuidance() {
             && lastGuidanceLanguage === currentLanguage;
         if (!memoryHasDraft) {
             try {
-                const saved = JSON.parse(localStorage.getItem('guidanceSessionDraft') || 'null');
+                const saved = JSON.parse(getScopedStorageValue(getGuidanceSessionStorageKey()) || 'null');
                 if (saved && saved.type === currentType && saved.language === currentLanguage
                         && Array.isArray(saved.answers) && saved.answers.filter(a => a.step > 0).length > 0) {
                     userGuidanceAnswers = saved.answers;
@@ -1318,7 +2029,7 @@ function startGuidance() {
                 guidanceStep = 0;
                 userGuidanceAnswers = [];
                 currentAISuggestion = '';
-                try { localStorage.removeItem('guidanceSessionDraft'); } catch (e) {}
+                try { removeScopedStorageValue(getGuidanceSessionStorageKey()); } catch (e) {}
                 clearGuidanceStepDraftStorage(currentType, currentLanguage);
                 if (rawPromptInput) {
                     userGuidanceAnswers.push({
@@ -1426,13 +2137,13 @@ async function showGuidanceQuestion(container, modal) {
         
         // 添加返回上一步按钮的容器
             // 实时保存当前步骤草稿到 localStorage
-            const _gDraftKey = `guidanceStepDraft_${currentType}_${currentLanguage}_${guidanceStep}`;
+            const _gDraftKey = getGuidanceStepStorageKey(currentType, currentLanguage, guidanceStep);
             try {
-                const _sd = localStorage.getItem(_gDraftKey);
+                const _sd = getScopedStorageValue(_gDraftKey);
                 if (_sd && !textarea.value) textarea.value = _sd;
             } catch (e) {}
             textarea.addEventListener('input', () => {
-                try { localStorage.setItem(_gDraftKey, textarea.value); } catch (e) {}
+                try { setScopedStorageValue(_gDraftKey, textarea.value); } catch (e) {}
             });
 
             // 添加返回上一步按钮的容器
@@ -1717,7 +2428,7 @@ function closeGuidanceModal() {
     }
     // 持久化到 localStorage，以防页面刷新后丢失
     try {
-        localStorage.setItem('guidanceSessionDraft', JSON.stringify({
+        setScopedStorageValue(getGuidanceSessionStorageKey(), JSON.stringify({
             step: guidanceStep,
             answers: userGuidanceAnswers,
             type: currentType,
@@ -3240,10 +3951,10 @@ function saveContent() {
         timestamp: new Date().toISOString()
     };
 
-    localStorage.setItem('currentContent', JSON.stringify(content));
+    setScopedStorageValue('currentContent', JSON.stringify(content));
     contentHistory.unshift(content);
     if (contentHistory.length > 10) contentHistory.pop();
-    localStorage.setItem('contentHistory', JSON.stringify(contentHistory));
+    setScopedStorageValue('contentHistory', JSON.stringify(contentHistory));
 
     const now = new Date().toLocaleString(currentLanguage === 'zh' ? 'zh-CN' : 'en-US');
     document.getElementById('lastSaved').textContent = now;
@@ -3759,7 +4470,7 @@ function getWeaknessSuggestion(dimension, essayType) {
 }
 
 function loadGrowthProfile() {
-    const saved = localStorage.getItem('growthProfile');
+    const saved = getScopedStorageValue('growthProfile');
     if (saved) {
         const loaded = JSON.parse(saved);
         growthProfile.essays = loaded.essays || [];
@@ -3770,7 +4481,7 @@ function loadGrowthProfile() {
 }
 
 function saveGrowthProfile() {
-    localStorage.setItem('growthProfile', JSON.stringify(growthProfile));
+    setScopedStorageValue('growthProfile', JSON.stringify(growthProfile));
 }
 
 // 写作完成：生成写作报告（调用AI，失败则本地生成）
@@ -4233,7 +4944,7 @@ function generateLocalWritingReport(words, durationSec, saves) {
 // 显示原始题目输入对话框
 
 function loadSavedContent() {
-    const saved = localStorage.getItem('currentContent');
+    const saved = getScopedStorageValue('currentContent');
     if (saved) {
         const content = JSON.parse(saved);
         currentType = content.type || 'argumentative';
@@ -4252,7 +4963,7 @@ function loadSavedContent() {
         updateTemplate();
     }
 
-    const history = localStorage.getItem('contentHistory');
+    const history = getScopedStorageValue('contentHistory');
     if (history) contentHistory = JSON.parse(history);
 }
 
@@ -4312,15 +5023,15 @@ function clearContent() {
 
         // 清空持久化内容
         contentHistory = [];
-        localStorage.removeItem('currentContent');
-        localStorage.removeItem('contentHistory');
+        removeScopedStorageValue('currentContent');
+        removeScopedStorageValue('contentHistory');
 
             // 清空草稿恢复相关状态和 localStorage
             currentOptimizationQuestions = [];
             currentOptimizationIdx = 0;
             lastGuidanceType = '';
             lastGuidanceLanguage = '';
-            try { localStorage.removeItem('guidanceSessionDraft'); } catch (e) {}
+            try { removeScopedStorageValue(getGuidanceSessionStorageKey()); } catch (e) {}
 
         document.getElementById('lastSaved').textContent = currentLanguage === 'zh' ? '从未' : 'Never';
         updateStats();
@@ -4405,8 +5116,8 @@ function changeEssayType(newType, newLevel, clickedBtn) {
 
         // 清空持久化内容
         contentHistory = [];
-        localStorage.removeItem('currentContent');
-        localStorage.removeItem('contentHistory');
+        removeScopedStorageValue('currentContent');
+        removeScopedStorageValue('contentHistory');
 
         document.getElementById('lastSaved').textContent = currentLanguage === 'zh' ? '从未' : 'Never';
 
@@ -4417,7 +5128,7 @@ function changeEssayType(newType, newLevel, clickedBtn) {
             currentOptimizationIdx = 0;
             lastGuidanceType = '';
             lastGuidanceLanguage = '';
-            try { localStorage.removeItem('guidanceSessionDraft'); } catch (e) {}
+            try { removeScopedStorageValue(getGuidanceSessionStorageKey()); } catch (e) {}
 
             // 修改文体
         document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));

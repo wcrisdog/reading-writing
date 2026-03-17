@@ -14,7 +14,125 @@
     <link rel="manifest" href="/site.webmanifest">
     <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="auth-locked">
+    <section class="auth-gate" id="authGate">
+        <div class="auth-backdrop"></div>
+        <div class="auth-layout">
+            <div class="auth-brand-panel">
+                <span class="auth-kicker">AI Writing Workspace</span>
+                <h1>智引文思</h1>
+                <p>先完成注册或登录，再进入当前写作工作台。支持用户名密码、手机号验证码、邮箱验证码三种路径。</p>
+                <div class="auth-feature-list">
+                    <div class="auth-feature-item">
+                        <strong>账号体系</strong>
+                        <span>注册后自动保存你的草稿、报告与成长档案</span>
+                    </div>
+                    <div class="auth-feature-item">
+                        <strong>验证码登录</strong>
+                        <span>手机号或邮箱可直接获取 6 位验证码快速进入</span>
+                    </div>
+                    <div class="auth-feature-item">
+                        <strong>写作工作台</strong>
+                        <span>登录后进入现有 AI 写作主界面，不改变核心功能流</span>
+                    </div>
+                </div>
+                <div class="auth-trust-card">
+                    <span class="auth-trust-title">当前版本说明</span>
+                    <p id="authDeliveryHint">演示环境已启用前端验证码流程，便于本地直接体验完整登录交互。</p>
+                </div>
+            </div>
+
+            <div class="auth-card">
+                <div class="auth-card-header">
+                    <div>
+                        <p class="auth-eyebrow">Secure Access</p>
+                        <h2>登录或注册</h2>
+                    </div>
+                    <div class="auth-tabs" role="tablist" aria-label="认证模式切换">
+                        <button class="auth-tab active" id="loginTab" data-auth-mode="login" type="button">登录</button>
+                        <button class="auth-tab" id="registerTab" data-auth-mode="register" type="button">注册</button>
+                    </div>
+                </div>
+
+                <div class="auth-status" id="authStatusMessage">请选择登录方式并完成认证。</div>
+
+                <div class="auth-panel active" id="loginPanel">
+                    <div class="auth-method-switch" role="tablist" aria-label="登录方式">
+                        <button class="auth-method-btn active" type="button" data-login-method="username">用户名</button>
+                        <button class="auth-method-btn" type="button" data-login-method="phone">手机号</button>
+                        <button class="auth-method-btn" type="button" data-login-method="email">邮箱</button>
+                    </div>
+
+                    <form id="loginForm" class="auth-form">
+                        <label class="auth-field">
+                            <span id="loginIdentifierLabel">用户名</span>
+                            <input id="loginIdentifier" class="auth-input" type="text" autocomplete="username" placeholder="请输入用户名">
+                        </label>
+
+                        <label class="auth-field" id="loginPasswordGroup">
+                            <span>密码</span>
+                            <input id="loginPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="请输入密码">
+                        </label>
+
+                        <div class="auth-field auth-code-field hidden" id="loginCodeGroup">
+                            <span id="loginCodeLabel">短信验证码</span>
+                            <div class="auth-code-row">
+                                <input id="loginCode" class="auth-input" type="text" inputmode="numeric" maxlength="6" placeholder="请输入 6 位验证码">
+                                <button id="sendLoginCodeBtn" class="auth-code-btn" type="button">发送验证码</button>
+                            </div>
+                        </div>
+
+                        <button class="auth-submit-btn" type="submit">进入主界面</button>
+                    </form>
+                </div>
+
+                <div class="auth-panel" id="registerPanel">
+                    <form id="registerForm" class="auth-form">
+                        <label class="auth-field">
+                            <span>用户名</span>
+                            <input id="registerUsername" class="auth-input" type="text" autocomplete="username" placeholder="至少 3 位，支持中英文和数字">
+                        </label>
+
+                        <div class="auth-grid-two">
+                            <label class="auth-field">
+                                <span>密码</span>
+                                <input id="registerPassword" class="auth-input" type="password" autocomplete="new-password" placeholder="至少 6 位">
+                            </label>
+                            <label class="auth-field">
+                                <span>确认密码</span>
+                                <input id="registerPasswordConfirm" class="auth-input" type="password" autocomplete="new-password" placeholder="再次输入密码">
+                            </label>
+                        </div>
+
+                        <label class="auth-field">
+                            <span>注册方式</span>
+                            <select id="registerContactType" class="auth-input auth-select">
+                                <option value="phone">手机号注册</option>
+                                <option value="email">邮箱注册</option>
+                            </select>
+                        </label>
+
+                        <label class="auth-field">
+                            <span id="registerContactLabel">手机号</span>
+                            <input id="registerContact" class="auth-input" type="text" autocomplete="tel" placeholder="请输入手机号">
+                        </label>
+
+                        <div class="auth-field">
+                            <span id="registerCodeLabel">短信验证码</span>
+                            <div class="auth-code-row">
+                                <input id="registerCode" class="auth-input" type="text" inputmode="numeric" maxlength="6" placeholder="请输入 6 位验证码">
+                                <button id="sendRegisterCodeBtn" class="auth-code-btn" type="button">发送验证码</button>
+                            </div>
+                        </div>
+
+                        <button class="auth-submit-btn" type="submit">注册并进入</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="app-shell" id="appShell">
     <!-- 侧边栏折叠按钮 -->
     <button class="sidebar-toggle" id="sidebarToggle" title="切换侧边栏">
         <span class="toggle-icon">✕</span>
@@ -25,6 +143,14 @@
             <div class="logo">
                 <h1>智引文思</h1>
                 <p>AI辅助写作教练平台</p>
+            </div>
+
+            <div class="sidebar-account-card">
+                <div class="sidebar-account-copy">
+                    <strong id="currentUserName">未登录</strong>
+                    <small id="currentUserMeta">登录后显示当前账号</small>
+                </div>
+                <button class="account-logout-btn" id="logoutBtn" type="button">退出</button>
             </div>
 
             <nav class="nav-menu">
@@ -298,6 +424,8 @@
                 </div>
             </div>
         </div>
+    </div>
+
     </div>
 
     <script src="ai-service.js"></script>

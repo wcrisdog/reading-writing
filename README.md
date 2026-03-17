@@ -41,21 +41,37 @@ npm run dev
 ### 3) 部署到 Vercel
 
 1. 导入本仓库到 Vercel
-2. 配置环境变量：`QIANWEN_API_KEY`
-3. 部署后即可通过 `/api/qianwen/` 调用通义千问
+2. 按 `.env.example` 配置环境变量
+3. 部署后即可通过 `/api/qianwen/` 调用通义千问，并通过 `/api/auth/send-code`、`/api/auth/verify-code` 发送和校验真实验证码
 
 ## 环境变量
 
 | 变量名 | 必填 | 说明 |
 | --- | --- | --- |
 | `QIANWEN_API_KEY` | 是 | 阿里云 DashScope（通义千问）API Key |
+| `RESEND_API_KEY` | 邮箱验证码必填 | Resend 邮件发送服务 API Key |
+| `RESEND_FROM_EMAIL` | 邮箱验证码必填 | 已在 Resend 验证的发件邮箱，例如 `Write Bot <no-reply@yourdomain.com>` |
+| `VERIFICATION_CODE_SIGNING_SECRET` | 邮箱验证码必填 | 服务端签名邮箱验证码 challenge 的密钥，建议使用随机长字符串 |
+| `UNISMS_API_KEY` | 短信验证码必填 | UniSMS API Key |
+| `UNISMS_API_SECRET` | 建议填写 | UniSMS API Secret（如你的账户启用 Key+Secret 鉴权） |
+| `UNISMS_API_URL` | 否 | UniSMS 短信发送地址，默认 `https://api.unisms.io/v1/sms/messages` |
+| `UNISMS_SIGNATURE` | 否 | 短信签名（不填则默认显示“智引文思”） |
+
+## 验证码服务说明
+
+- 邮箱验证码：通过 Resend 真实发信，服务端生成 6 位验证码并签名 challenge，前端不再保存明文验证码。
+- 短信验证码：通过 UniSMS 真实下发；验证码校验改为服务端 challenge 签名校验，避免每次校验都调用第三方接口，降低成本。
+- 中国大陆手机号：前端输入仍按 11 位手机号处理，服务端会自动转换为 `+86` E.164 格式再调用短信服务。
+- 若只配置了邮箱或短信其中一种，未配置的渠道会在发送时返回明确错误提示。
 
 ## API 与架构说明
 
 - 前端通过 `ai-service.js` 调用同源接口：`/api/qianwen/`
-- 后端入口：`api/qianwen.js`（Vercel Serverless Function）
+- 认证接口通过前端脚本直接调用：`/api/auth/send-code`、`/api/auth/verify-code`
+- 后端入口：`api/qianwen.js`、`api/auth/send-code.js`、`api/auth/verify-code.js`
+- 验证码工具：`api/auth/_verification-utils.js`
 - 模型策略：优先 `qwen-plus`，失败时回退 `qwen-turbo`
-- 服务端管理密钥，前端不暴露 API Key
+- 服务端管理密钥，前端不暴露 API Key、邮件验证码或短信服务凭证
 
 ## 项目结构
 
@@ -65,8 +81,13 @@ reading-writing/
 ├── styles.css            # 主样式
 ├── script.js             # 前端主逻辑（状态、交互、存储、功能流程）
 ├── ai-service.js         # AI 调用封装（提示词与请求重试）
+├── .env.example          # 环境变量示例
 ├── api/
-│   └── qianwen.js        # Vercel Serverless API 代理
+│   ├── qianwen.js        # Vercel Serverless AI 代理
+│   └── auth/
+│       ├── send-code.js  # 发送真实短信/邮箱验证码
+│       ├── verify-code.js# 校验真实短信/邮箱验证码
+│       └── _verification-utils.js
 ├── vercel.json           # Vercel 函数资源与超时配置
 ├── package.json
 └── README.md
