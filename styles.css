@@ -703,6 +703,14 @@ body.guide-with-sidebar .floating-guide-shell {
     box-shadow: var(--shadow-md);
 }
 
+.feature-btn:disabled,
+.tool-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
 .feature-icon {
     font-size: 28px;
     margin-bottom: 6px;
