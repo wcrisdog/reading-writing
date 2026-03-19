@@ -1561,6 +1561,23 @@ function closeAILoadingModal() {
     }
 }
 
+function askRetryForAIGeneration(sceneLabel, error) {
+    const defaultDetail = currentLanguage === 'zh' ? '未知错误' : 'Unknown error';
+    const shortDetail = String(error?.message || error || defaultDetail).slice(0, 180);
+    const scene = sceneLabel || (currentLanguage === 'zh' ? '当前步骤' : 'Current step');
+
+    const notifyText = currentLanguage === 'zh'
+        ? `⚠️ ${scene}AI生成失败：${shortDetail}`
+        : `⚠️ AI generation failed at ${scene}: ${shortDetail}`;
+    showNotification(notifyText, 'error', 5000);
+
+    const confirmText = currentLanguage === 'zh'
+        ? `${scene}AI生成失败。\n原因：${shortDetail}\n\n是否重新生成？`
+        : `AI generation failed at ${scene}.\nReason: ${shortDetail}\n\nRegenerate now?`;
+
+    return window.confirm(confirmText);
+}
+
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 DOMContentLoaded event triggered');
@@ -2368,6 +2385,14 @@ async function generateDetailedOutline(userAnswers) {
         
     } catch (error) {
         console.error('详细大纲生成失败:', error);
+
+        const shouldRetry = askRetryForAIGeneration(
+            currentLanguage === 'zh' ? '启动引导最后一步' : 'final guidance step',
+            error
+        );
+        if (shouldRetry) {
+            return await generateDetailedOutline(userAnswers);
+        }
         
         // 降级到基础大纲
         return await generateOutlineFromAnswers(userAnswers);
@@ -3617,6 +3642,16 @@ async function startOptimization() {
                 
             } catch (error) {
                 console.error('反馈生成失败:', error);
+
+                const shouldRetry = askRetryForAIGeneration(
+                    currentLanguage === 'zh' ? '优化修补建议生成' : 'optimization feedback generation',
+                    error
+                );
+                if (shouldRetry) {
+                    await showAnswerFeedback(question, answer, currentIdx, total);
+                    return;
+                }
+
                 const fallbackFeedback = currentLanguage === 'zh'
                     ? '1. 回到原文，检查该问题对应段落是否有明确论据。\n2. 检查段落之间的过渡是否清晰自然。\n3. 验证相关表达是否准确可验证。'
                     : '1. Revisit the related paragraph and verify clear evidence.\n2. Check if transitions between paragraphs are clear and natural.\n3. Verify that relevant expressions are accurate and verifiable.';
@@ -3659,6 +3694,15 @@ async function startOptimization() {
         
     } catch (error) {
         console.error('优化修补失败:', error);
+
+        const shouldRetry = askRetryForAIGeneration(
+            currentLanguage === 'zh' ? '优化修补问题生成' : 'optimization question generation',
+            error
+        );
+        if (shouldRetry) {
+            await startOptimization();
+            return;
+        }
         
         // 降级到本地问题库（强制限制3-5个）
         const allQuestions = optimizationQuestions[currentType][currentLanguage];
