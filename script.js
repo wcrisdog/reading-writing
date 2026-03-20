@@ -969,7 +969,7 @@ function renderInspirationVersion() {
     aiOutput.innerHTML = `
         <div class="inspiration-tip">
             <div class="versioned-inspiration-header">
-                <p class="tip-header">💡 ${item.title}</p>
+                <p class="tip-header" aria-label="Inspiration">💡</p>
                 <button class="primary-btn version-regenerate-btn" onclick="checkInspirationNeeded()">🔄 ${currentLanguage === 'zh' ? '重新生成' : 'Regenerate'}</button>
             </div>
             <p class="suggestion">${String(item.suggestion || '').replace(/\n/g, '<br>')}</p>
