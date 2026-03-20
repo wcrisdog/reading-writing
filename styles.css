@@ -2629,6 +2629,40 @@ body.guide-with-sidebar .floating-guide-shell {
     .floating-guide-btn {
         padding: 10px 14px 10px 10px;
     }
+
+    .versioned-inspiration-header {
+        grid-template-columns: minmax(0, 1fr) auto;
+        column-gap: 8px;
+    }
+
+    .versioned-inspiration-header .tip-header {
+        font-size: 18px;
+    }
+
+    .versioned-inspiration-header .version-regenerate-btn {
+        min-width: 0;
+        padding: 6px 8px;
+        font-size: 12px;
+    }
+
+    .materials-header-top {
+        flex-wrap: wrap;
+        align-items: flex-start;
+    }
+
+    .materials-header-actions {
+        flex-wrap: wrap;
+    }
+
+    .version-nav-row {
+        row-gap: 6px;
+    }
+
+    .info-card,
+    .materials-modal-content,
+    .materials-modal-body {
+        overflow-x: hidden;
+    }
 }
 
 @media (max-width: 480px) {
@@ -2727,6 +2761,24 @@ body.guide-with-sidebar .floating-guide-shell {
         height: 28px;
         min-width: 28px;
         font-size: 13px;
+    }
+
+    .materials-header-top,
+    .materials-header-actions,
+    .version-nav-row {
+        width: 100%;
+    }
+
+    .materials-header-actions .version-nav-btn,
+    .version-nav-row .version-nav-btn {
+        flex: 1 1 calc(50% - 8px);
+        min-width: 0;
+        text-align: center;
+    }
+
+    .versioned-inspiration-header .version-regenerate-btn,
+    .materials-header-top .refresh-materials-btn {
+        white-space: nowrap;
     }
 }
 
