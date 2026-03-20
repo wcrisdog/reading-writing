@@ -92,6 +92,17 @@
         </section>
     </main>
 
+    <div id="profileFeedbackModal" class="profile-feedback-modal" style="display:none;">
+        <div class="profile-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="profileFeedbackTitle">
+            <button id="closeProfileFeedbackBtn" class="profile-feedback-close" type="button" aria-label="关闭">✕</button>
+            <h3 id="profileFeedbackTitle">提示</h3>
+            <p id="profileFeedbackMessage"></p>
+            <div class="profile-feedback-actions">
+                <button id="confirmProfileFeedbackBtn" class="primary-btn" type="button">我知道了</button>
+            </div>
+        </div>
+    </div>
+
     <script src="profile-home.js"></script>
 </body>
 </html>

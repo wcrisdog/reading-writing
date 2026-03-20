@@ -207,6 +207,56 @@ h1 {
     padding: 10px;
 }
 
+.ability-radar-wrap {
+    margin-top: 8px;
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+}
+
+.ability-radar {
+    width: min(100%, 340px);
+    aspect-ratio: 1;
+    overflow: visible;
+}
+
+.radar-level {
+    fill: rgba(99, 102, 241, 0.05);
+    stroke: rgba(99, 102, 241, 0.18);
+    stroke-width: 1;
+}
+
+.radar-axis {
+    stroke: rgba(99, 102, 241, 0.2);
+    stroke-width: 1;
+}
+
+.radar-shape {
+    fill: rgba(16, 185, 129, 0.24);
+    stroke: #0ea5a5;
+    stroke-width: 2;
+}
+
+.radar-dot {
+    fill: #0ea5a5;
+}
+
+.radar-label {
+    fill: #334155;
+    font-size: 11px;
+    font-weight: 700;
+}
+
+.ability-radar-meta {
+    margin: 0;
+    font-size: 13px;
+    color: var(--muted);
+}
+
+.ability-radar-meta strong {
+    color: #0f766e;
+}
+
 .ability-row {
     display: grid;
     grid-template-columns: 68px 1fr 36px;
@@ -234,12 +284,171 @@ h1 {
 }
 
 .report-html {
-    border: 1px solid #e2e8f0;
-    border-radius: 10px;
-    padding: 12px;
-    background: #fbfcff;
+    border: 1px solid #dbe4f0;
+    border-radius: 14px;
+    padding: 14px;
+    background:
+        radial-gradient(circle at 0% 0%, rgba(99, 102, 241, 0.08), transparent 34%),
+        #fbfcff;
     max-height: 520px;
     overflow: auto;
+}
+
+.report-html .writing-report-comprehensive {
+    padding: 16px;
+    border: 1px solid #dbe4f0;
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 12px 24px -18px rgba(15, 23, 42, 0.35);
+}
+
+.report-html .report-title {
+    margin: 0 0 12px;
+    text-align: center;
+    font-size: 21px;
+    color: #334155;
+}
+
+.report-html .ai-badge {
+    width: fit-content;
+    margin: 0 auto 16px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #2563eb, #14b8a6);
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.report-html .report-section {
+    border: 1px solid #e2e8f0;
+    border-left: 4px solid #6366f1;
+    background: #f8fbff;
+    border-radius: 10px;
+    padding: 14px;
+    margin-bottom: 14px;
+}
+
+.report-html .report-section h5 {
+    margin: 0 0 10px;
+    color: #1f2937;
+    font-size: 17px;
+}
+
+.report-html .report-section h6 {
+    margin: 12px 0 8px;
+    color: #475569;
+    font-size: 14px;
+}
+
+.report-html .overall-comment,
+.report-html .diagnostics,
+.report-html .pause-analysis,
+.report-html .tool-usage,
+.report-html .materials-adopted,
+.report-html .writing-rhythm,
+.report-html .milestones,
+.report-html .weaknesses,
+.report-html .trend {
+    margin-top: 10px;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    background: #ffffff;
+    padding: 10px 12px;
+}
+
+.report-html .score-number {
+    color: #0f766e;
+    font-size: clamp(42px, 8vw, 64px);
+    line-height: 1;
+}
+
+.report-html .ability-bars {
+    gap: 10px;
+}
+
+.report-html .bar-container {
+    background: #e2e8f0;
+    border-radius: 999px;
+}
+
+.report-html .bar-fill {
+    background: linear-gradient(90deg, #2563eb, #14b8a6);
+}
+
+.report-html .diagnostic-list li,
+.report-html .milestone-list li,
+.report-html .weakness-list li,
+.report-html .tool-usage ul li {
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.profile-feedback-modal {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.48);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1200;
+    padding: 16px;
+}
+
+.profile-feedback-dialog {
+    width: min(100%, 420px);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    box-shadow: 0 24px 50px -32px rgba(15, 23, 42, 0.65);
+    padding: 18px;
+    position: relative;
+}
+
+.profile-feedback-close {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-size: 20px;
+    cursor: pointer;
+}
+
+.profile-feedback-dialog h3 {
+    margin: 0;
+    font-size: 18px;
+    color: var(--text);
+}
+
+.profile-feedback-dialog p {
+    margin: 12px 0 0;
+    color: var(--muted);
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.profile-feedback-actions {
+    margin-top: 16px;
+    display: flex;
+    justify-content: flex-end;
+}
+
+.profile-feedback-dialog.is-success {
+    border-color: rgba(34, 197, 94, 0.35);
+}
+
+.profile-feedback-dialog.is-success h3 {
+    color: #15803d;
+}
+
+.profile-feedback-dialog.is-error {
+    border-color: rgba(239, 68, 68, 0.35);
+}
+
+.profile-feedback-dialog.is-error h3 {
+    color: #b91c1c;
 }
 
 @media (max-width: 900px) {
@@ -270,7 +479,19 @@ h1 {
         grid-template-columns: 1fr;
     }
 
+    .radar-label {
+        font-size: 10px;
+    }
+
     .ghost-btn {
+        width: 100%;
+    }
+
+    .profile-feedback-actions {
+        justify-content: stretch;
+    }
+
+    .profile-feedback-actions .primary-btn {
         width: 100%;
     }
 }

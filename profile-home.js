@@ -42,6 +42,26 @@ function setScopedStorageValue(baseKey, value) {
     localStorage.setItem(getScopedStorageKey(baseKey), value);
 }
 
+function showProfileFeedbackModal({ title, message, type = 'success' }) {
+    const modal = document.getElementById('profileFeedbackModal');
+    const dialog = document.querySelector('.profile-feedback-dialog');
+    const titleEl = document.getElementById('profileFeedbackTitle');
+    const messageEl = document.getElementById('profileFeedbackMessage');
+
+    if (!modal || !dialog || !titleEl || !messageEl) return;
+
+    dialog.classList.remove('is-success', 'is-error');
+    dialog.classList.add(type === 'error' ? 'is-error' : 'is-success');
+    titleEl.textContent = title || (type === 'error' ? '保存失败' : '保存成功');
+    messageEl.textContent = message || '';
+    modal.style.display = 'flex';
+}
+
+function closeProfileFeedbackModal() {
+    const modal = document.getElementById('profileFeedbackModal');
+    if (modal) modal.style.display = 'none';
+}
+
 function convertFileToDataUrl(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -134,11 +154,91 @@ function saveProfile() {
 
     try {
         setScopedStorageValue('userProfile', JSON.stringify(profileState));
-        alert('个人资料已保存');
+        showProfileFeedbackModal({
+            title: '保存成功',
+            message: '个人资料已保存。',
+            type: 'success'
+        });
     } catch (error) {
         console.error('保存个人资料失败:', error);
-        alert('保存失败：头像可能过大，请更换更小图片后重试');
+        showProfileFeedbackModal({
+            title: '保存失败',
+            message: '头像可能过大，请更换更小图片后重试。',
+            type: 'error'
+        });
     }
+}
+
+function getAbilityScore(abilities, key) {
+    return Math.max(0, Math.min(100, Number(abilities?.[key] || 0)));
+}
+
+function buildAbilityRadarChart(abilities, abilityLabels) {
+    const keys = ['structure', 'argumentation', 'language', 'materials', 'logic', 'reflection'];
+    const size = 300;
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = 104;
+    const angleStep = (Math.PI * 2) / keys.length;
+    const startAngle = -Math.PI / 2;
+    const values = keys.map(key => getAbilityScore(abilities, key));
+
+    const levelPolygons = [20, 40, 60, 80, 100]
+        .map((level) => {
+            const points = keys.map((_, index) => {
+                const angle = startAngle + index * angleStep;
+                const x = cx + Math.cos(angle) * radius * (level / 100);
+                const y = cy + Math.sin(angle) * radius * (level / 100);
+                return `${x.toFixed(2)},${y.toFixed(2)}`;
+            }).join(' ');
+            return `<polygon class="radar-level" points="${points}"></polygon>`;
+        }).join('');
+
+    const axisLines = keys.map((_, index) => {
+        const angle = startAngle + index * angleStep;
+        const x = cx + Math.cos(angle) * radius;
+        const y = cy + Math.sin(angle) * radius;
+        return `<line class="radar-axis" x1="${cx}" y1="${cy}" x2="${x.toFixed(2)}" y2="${y.toFixed(2)}"></line>`;
+    }).join('');
+
+    const radarPoints = keys.map((_, index) => {
+        const angle = startAngle + index * angleStep;
+        const pointRadius = radius * (values[index] / 100);
+        const x = cx + Math.cos(angle) * pointRadius;
+        const y = cy + Math.sin(angle) * pointRadius;
+        return `${x.toFixed(2)},${y.toFixed(2)}`;
+    }).join(' ');
+
+    const radarDots = keys.map((_, index) => {
+        const angle = startAngle + index * angleStep;
+        const pointRadius = radius * (values[index] / 100);
+        const x = cx + Math.cos(angle) * pointRadius;
+        const y = cy + Math.sin(angle) * pointRadius;
+        return `<circle class="radar-dot" cx="${x.toFixed(2)}" cy="${y.toFixed(2)}" r="3.2"></circle>`;
+    }).join('');
+
+    const labels = keys.map((key, index) => {
+        const angle = startAngle + index * angleStep;
+        const x = cx + Math.cos(angle) * (radius + 24);
+        const y = cy + Math.sin(angle) * (radius + 24);
+        const anchor = Math.cos(angle) > 0.2 ? 'start' : (Math.cos(angle) < -0.2 ? 'end' : 'middle');
+        return `<text class="radar-label" x="${x.toFixed(2)}" y="${y.toFixed(2)}" text-anchor="${anchor}">${abilityLabels[key] || key} ${values[index]}</text>`;
+    }).join('');
+
+    const avg = Math.round(values.reduce((sum, value) => sum + value, 0) / values.length);
+
+    return `
+        <div class="ability-radar-wrap">
+            <svg class="ability-radar" viewBox="0 0 ${size} ${size}" role="img" aria-label="六维能力雷达图">
+                ${levelPolygons}
+                ${axisLines}
+                <polygon class="radar-shape" points="${radarPoints}"></polygon>
+                ${radarDots}
+                ${labels}
+            </svg>
+            <p class="ability-radar-meta">六维平均分：<strong>${avg}</strong></p>
+        </div>
+    `;
 }
 
 function renderGrowthArchive() {
@@ -176,17 +276,7 @@ function renderGrowthArchive() {
         reflection: '反思/立意'
     };
 
-    let abilityHtml = '';
-    Object.entries(abilities).forEach(([key, score]) => {
-        const numericScore = Math.max(0, Math.min(100, Number(score || 0)));
-        abilityHtml += `
-            <div class="ability-row">
-                <span>${abilityLabels[key] || key}</span>
-                <div class="ability-track"><div class="ability-fill" style="width:${numericScore}%"></div></div>
-                <strong>${numericScore}</strong>
-            </div>
-        `;
-    });
+    const radarHtml = buildAbilityRadarChart(abilities, abilityLabels);
 
     const avgScore = Math.round(essays.reduce((sum, essay) => sum + Number(essay.totalScore || 0), 0) / essays.length);
     const bestScore = Math.max(...essays.map(essay => Number(essay.totalScore || 0)));
@@ -218,7 +308,7 @@ function renderGrowthArchive() {
 
         <div class="growth-item">
             <strong>六维能力</strong>
-            <div>${abilityHtml}</div>
+            <div>${radarHtml}</div>
         </div>
 
         ${latestMilestone ? `<div class="growth-item"><strong>最近里程碑</strong><p class="muted">${latestMilestone.description || '-'}</p></div>` : ''}
@@ -261,6 +351,9 @@ function bindEvents() {
     const resetAvatarBtn = document.getElementById('resetAvatarBtn');
     const saveProfileBtn = document.getElementById('saveProfileBtn');
     const closePageBtn = document.getElementById('closePageBtn');
+    const closeProfileFeedbackBtn = document.getElementById('closeProfileFeedbackBtn');
+    const confirmProfileFeedbackBtn = document.getElementById('confirmProfileFeedbackBtn');
+    const profileFeedbackModal = document.getElementById('profileFeedbackModal');
 
     if (avatarInput) {
         avatarInput.addEventListener('change', async (event) => {
@@ -273,7 +366,11 @@ function bindEvents() {
                 updateAvatarDisplay(profileState.avatar);
             } catch (error) {
                 console.error('头像处理失败:', error);
-                alert(error.message || '头像处理失败，请更换图片后重试');
+                showProfileFeedbackModal({
+                    title: '头像处理失败',
+                    message: error.message || '请更换图片后重试。',
+                    type: 'error'
+                });
             }
 
             event.target.value = '';
@@ -298,6 +395,22 @@ function bindEvents() {
                 return;
             }
             window.location.href = 'index.html';
+        });
+    }
+
+    if (closeProfileFeedbackBtn) {
+        closeProfileFeedbackBtn.addEventListener('click', closeProfileFeedbackModal);
+    }
+
+    if (confirmProfileFeedbackBtn) {
+        confirmProfileFeedbackBtn.addEventListener('click', closeProfileFeedbackModal);
+    }
+
+    if (profileFeedbackModal) {
+        profileFeedbackModal.addEventListener('click', (event) => {
+            if (event.target === profileFeedbackModal) {
+                closeProfileFeedbackModal();
+            }
         });
     }
 

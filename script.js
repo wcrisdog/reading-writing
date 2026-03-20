@@ -23,6 +23,11 @@ let targetWordsConfig = { ...defaultTargetWordsConfig };
 let currentRightPanelView = 'outline';
 let optimizationRecords = [];
 let rawPromptInput = ''; // 保存原始题目输入
+let inspirationHistory = [];
+let inspirationHistoryIndex = -1;
+let materialsHistory = [];
+let materialsHistoryIndex = -1;
+let materialsHistoryTopic = '';
 
 // =========== 草稿与会话恢复相关变量 ===========
 let lastGuidanceType = '';         // 上次启动引导时的文章类型（用于草稿匹配）
@@ -911,22 +916,17 @@ async function checkInspirationNeeded() {
         
         const aiTip = result.message;
         const progress = hasTarget ? (wordCount / targetWords * 100).toFixed(0) : null;
-        
-        aiOutput.innerHTML = `
-            <div class="inspiration-tip">
-                <p class="tip-header">💡 ${currentLanguage === 'zh' ? 'AI灵感建议' : 'AI Inspiration'}</p>
-                <p class="suggestion">${aiTip}</p>
-                <p class="progress-info">📊 ${
-                    hasTarget
-                        ? (currentLanguage === 'zh'
-                            ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
-                            : `Progress: ${wordCount}/${targetWords} words (${progress}%)`)
-                        : (currentLanguage === 'zh'
-                            ? `当前字数: ${wordCount} 字`
-                            : `Current words: ${wordCount}`)
-                }</p>
-            </div>
-        `;
+        const progressText = hasTarget
+            ? (currentLanguage === 'zh'
+                ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
+                : `Progress: ${wordCount}/${targetWords} words (${progress}%)`)
+            : (currentLanguage === 'zh' ? `当前字数: ${wordCount} 字` : `Current words: ${wordCount}`);
+
+        pushInspirationVersion({
+            title: currentLanguage === 'zh' ? 'AI灵感建议' : 'AI Inspiration',
+            suggestion: aiTip,
+            progressText
+        });
         
         showNotification(
             currentLanguage === 'zh'
@@ -943,12 +943,54 @@ async function checkInspirationNeeded() {
             ? tips.stallTips[Math.floor(Math.random() * tips.stallTips.length)]
             : tips.progressTips[Math.floor(Math.random() * tips.progressTips.length)];
         
-        aiOutput.innerHTML = `
-            <div class="inspiration-tip">
-                <p class="suggestion">${tip}</p>
-            </div>
-        `;
+        pushInspirationVersion({
+            title: currentLanguage === 'zh' ? '本地灵感提示' : 'Local Inspiration',
+            suggestion: tip,
+            progressText: ''
+        });
     }
+}
+
+function pushInspirationVersion(entry) {
+    if (inspirationHistoryIndex < inspirationHistory.length - 1) {
+        inspirationHistory = inspirationHistory.slice(0, inspirationHistoryIndex + 1);
+    }
+    inspirationHistory.push(entry);
+    inspirationHistoryIndex = inspirationHistory.length - 1;
+    renderInspirationVersion();
+}
+
+function renderInspirationVersion() {
+    if (!aiOutput || inspirationHistory.length === 0 || inspirationHistoryIndex < 0) return;
+
+    const item = inspirationHistory[inspirationHistoryIndex];
+    const indexLabel = `${inspirationHistoryIndex + 1}/${inspirationHistory.length}`;
+
+    aiOutput.innerHTML = `
+        <div class="inspiration-tip">
+            <p class="tip-header">💡 ${item.title}</p>
+            <p class="suggestion">${String(item.suggestion || '').replace(/\n/g, '<br>')}</p>
+            ${item.progressText ? `<p class="progress-info">📊 ${item.progressText}</p>` : ''}
+            <div class="version-nav-row">
+                <button class="secondary-btn version-nav-btn" onclick="prevInspirationVersion()" ${inspirationHistoryIndex <= 0 ? 'disabled' : ''}>← ${currentLanguage === 'zh' ? '上一个' : 'Prev'}</button>
+                <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
+                <button class="secondary-btn version-nav-btn" onclick="nextInspirationVersion()" ${inspirationHistoryIndex >= inspirationHistory.length - 1 ? 'disabled' : ''}>${currentLanguage === 'zh' ? '下一个' : 'Next'} →</button>
+                <button class="primary-btn version-regenerate-btn" onclick="checkInspirationNeeded()">🔄 ${currentLanguage === 'zh' ? '重新生成' : 'Regenerate'}</button>
+            </div>
+        </div>
+    `;
+}
+
+function prevInspirationVersion() {
+    if (inspirationHistoryIndex <= 0) return;
+    inspirationHistoryIndex--;
+    renderInspirationVersion();
+}
+
+function nextInspirationVersion() {
+    if (inspirationHistoryIndex >= inspirationHistory.length - 1) return;
+    inspirationHistoryIndex++;
+    renderInspirationVersion();
 }
 
 function playNotificationSound() {
@@ -2653,6 +2695,12 @@ async function showMaterials() {
         );
         return;
     }
+
+    if (materialsHistoryTopic !== topic) {
+        materialsHistoryTopic = topic;
+        materialsHistory = [];
+        materialsHistoryIndex = -1;
+    }
     
     // 显示素材面板并展示加载状态（步骤2：系统分析）
     materialsPanel.style.display = 'block';
@@ -2821,17 +2869,10 @@ function displayMaterialCards(aiResponse, topic) {
     // 解析AI返回的素材并格式化为卡片
     const materials = parseAIMaterials(aiResponse);
     
-    let html = `
-        <div class="materials-header">
-            <h5>📚 ${currentLanguage === 'zh' ? '推荐素材' : 'Recommended Materials'}</h5>
-            <button class="refresh-materials-btn" onclick="refreshMaterials('${topic}')">
-                🔄 ${currentLanguage === 'zh' ? '换一批' : 'Refresh'}
-            </button>
-        </div>
-    `;
+    let bodyHtml = '';
     
     materials.forEach((material, idx) => {
-        html += `
+        bodyHtml += `
             <div class="material-card" data-material-id="${idx}">
                 <div class="material-category">${material.category || (currentLanguage === 'zh' ? '素材' : 'Material')}</div>
                 <div class="material-content">
@@ -2859,8 +2900,8 @@ function displayMaterialCards(aiResponse, topic) {
             </div>
         `;
     });
-    
-    materialsList.innerHTML = html;
+
+    pushMaterialsVersion(topic, bodyHtml);
 }
 
 function parseAIMaterials(aiResponse) {
@@ -2934,18 +2975,15 @@ function parseAIMaterials(aiResponse) {
 
 function displayFallbackMaterials(topic) {
     const materials = materialLibrary[currentType][currentLanguage].materials;
-    let html = `
+    let bodyHtml = `
         <p class="fallback-notice">⚠️ ${currentLanguage === 'zh' 
             ? '使用本地素材库（AI暂时不可用）' 
             : 'Using local materials (AI unavailable)'}</p>
-        <div class="materials-header">
-            <h5>📚 ${currentLanguage === 'zh' ? '推荐素材' : 'Recommended Materials'}</h5>
-        </div>
     `;
 
     materials.forEach((group, gidx) => {
         group.examples.forEach((example, eidx) => {
-            html += `
+            bodyHtml += `
                 <div class="material-card">
                     <div class="material-category">${group.category}</div>
                     <div class="material-content">"${example}"</div>
@@ -2959,7 +2997,54 @@ function displayFallbackMaterials(topic) {
         });
     });
 
-    materialsList.innerHTML = html;
+    pushMaterialsVersion(topic, bodyHtml);
+}
+
+function pushMaterialsVersion(topic, bodyHtml) {
+    if (materialsHistoryIndex < materialsHistory.length - 1) {
+        materialsHistory = materialsHistory.slice(0, materialsHistoryIndex + 1);
+    }
+
+    materialsHistory.push({
+        topic,
+        bodyHtml
+    });
+    materialsHistoryIndex = materialsHistory.length - 1;
+    renderMaterialsVersion();
+}
+
+function renderMaterialsVersion() {
+    if (!materialsList || materialsHistory.length === 0 || materialsHistoryIndex < 0) return;
+
+    const item = materialsHistory[materialsHistoryIndex];
+    const indexLabel = `${materialsHistoryIndex + 1}/${materialsHistory.length}`;
+    const prevLabel = currentLanguage === 'zh' ? '上一个' : 'Prev';
+    const nextLabel = currentLanguage === 'zh' ? '下一个' : 'Next';
+
+    materialsList.innerHTML = `
+        <div class="materials-header versioned-materials-header">
+            <h5>📚 ${currentLanguage === 'zh' ? '推荐素材' : 'Recommended Materials'}</h5>
+            <div class="materials-header-actions">
+                <button class="secondary-btn version-nav-btn" onclick="prevMaterialsVersion()" ${materialsHistoryIndex <= 0 ? 'disabled' : ''}>← ${prevLabel}</button>
+                <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
+                <button class="secondary-btn version-nav-btn" onclick="nextMaterialsVersion()" ${materialsHistoryIndex >= materialsHistory.length - 1 ? 'disabled' : ''}>${nextLabel} →</button>
+                <button class="refresh-materials-btn" onclick="refreshMaterials('${String(item.topic || '').replace(/'/g, "\\'")}')">🔄 ${currentLanguage === 'zh' ? '换一批' : 'Refresh'}</button>
+            </div>
+        </div>
+        ${item.bodyHtml}
+    `;
+}
+
+function prevMaterialsVersion() {
+    if (materialsHistoryIndex <= 0) return;
+    materialsHistoryIndex--;
+    renderMaterialsVersion();
+}
+
+function nextMaterialsVersion() {
+    if (materialsHistoryIndex >= materialsHistory.length - 1) return;
+    materialsHistoryIndex++;
+    renderMaterialsVersion();
 }
 
 // 步骤4：用户操作素材
@@ -3538,6 +3623,51 @@ async function startOptimization() {
         // 逐条展示反馈建议
         let feedbackItems = [];
         let currentFeedbackIdx = 0;
+        let feedbackVersions = [];
+        let feedbackVersionIdx = 0;
+
+        function applyFeedbackVersion(versionIdx, resetItemIdx = true) {
+            if (feedbackVersions.length === 0) return;
+            const safeIdx = Math.max(0, Math.min(versionIdx, feedbackVersions.length - 1));
+            feedbackVersionIdx = safeIdx;
+            feedbackItems = parseFeedbackItems(feedbackVersions[feedbackVersionIdx] || '');
+            if (resetItemIdx) {
+                currentFeedbackIdx = 0;
+            } else {
+                currentFeedbackIdx = Math.max(0, Math.min(currentFeedbackIdx, feedbackItems.length - 1));
+            }
+        }
+
+        async function regenerateCurrentFeedbackVersion(question, answer) {
+            content.innerHTML = '<p class="loading">🔄 ' +
+                (currentLanguage === 'zh' ? 'AI正在重新生成这组优化建议...' : 'AI is regenerating this suggestion set...') +
+                '</p>';
+
+            try {
+                const regenerated = await aiService.generateLogicFeedback(
+                    currentType,
+                    currentLanguage,
+                    question,
+                    answer,
+                    mainEditor.value.substring(0, 500)
+                );
+
+                if (feedbackVersionIdx < feedbackVersions.length - 1) {
+                    feedbackVersions = feedbackVersions.slice(0, feedbackVersionIdx + 1);
+                }
+                feedbackVersions.push(regenerated.message || '');
+                applyFeedbackVersion(feedbackVersions.length - 1, true);
+                showSingleFeedbackItem();
+            } catch (error) {
+                console.error('重新生成优化建议失败:', error);
+                showNotification(
+                    currentLanguage === 'zh' ? '⚠️ 重新生成失败，请稍后重试' : '⚠️ Regeneration failed, please retry later',
+                    'warning'
+                );
+                applyFeedbackVersion(feedbackVersionIdx, false);
+                showSingleFeedbackItem();
+            }
+        }
         
         function showSingleFeedbackItem() {
             if (currentFeedbackIdx >= feedbackItems.length) {
@@ -3569,6 +3699,12 @@ async function startOptimization() {
                     <p class="feedback-hint">${currentLanguage === 'zh' 
                         ? '💡 提示：请认真思考这条建议，并判断是否需要根据它改进文章。' 
                         : '💡 Tip: Consider this suggestion carefully and decide if you need to improve your article accordingly.'}</p>
+                    <div class="version-nav-row">
+                        <button class="secondary-btn version-nav-btn" id="prevFeedbackVersion" ${feedbackVersionIdx <= 0 ? 'disabled' : ''}>← ${currentLanguage === 'zh' ? '上一个版本' : 'Prev Version'}</button>
+                        <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${feedbackVersionIdx + 1}/${feedbackVersions.length}</span>
+                        <button class="secondary-btn version-nav-btn" id="nextFeedbackVersion" ${feedbackVersionIdx >= feedbackVersions.length - 1 ? 'disabled' : ''}>${currentLanguage === 'zh' ? '下一个版本' : 'Next Version'} →</button>
+                        <button class="primary-btn version-regenerate-btn" id="regenerateFeedbackVersion">🔄 ${currentLanguage === 'zh' ? '重新生成建议' : 'Regenerate'}</button>
+                    </div>
                     <div class="optimization-buttons">
                         ${currentFeedbackIdx > 0 ? `
                             <button class="secondary-btn" id="prevFeedback">
@@ -3615,6 +3751,24 @@ async function startOptimization() {
             document.getElementById('nextFeedback')?.addEventListener('click', () => {
                 currentFeedbackIdx++;
                 showSingleFeedbackItem();
+            });
+
+            document.getElementById('prevFeedbackVersion')?.addEventListener('click', () => {
+                if (feedbackVersionIdx <= 0) return;
+                applyFeedbackVersion(feedbackVersionIdx - 1, true);
+                showSingleFeedbackItem();
+            });
+
+            document.getElementById('nextFeedbackVersion')?.addEventListener('click', () => {
+                if (feedbackVersionIdx >= feedbackVersions.length - 1) return;
+                applyFeedbackVersion(feedbackVersionIdx + 1, true);
+                showSingleFeedbackItem();
+            });
+
+            document.getElementById('regenerateFeedbackVersion')?.addEventListener('click', async () => {
+                const currentQuestion = userOptimizationAnswers[questionIdx]?.question || '';
+                const currentAnswer = userOptimizationAnswers[questionIdx]?.answer || '';
+                await regenerateCurrentFeedbackVersion(currentQuestion, currentAnswer);
             });
         }
         
@@ -3693,9 +3847,9 @@ async function startOptimization() {
                 appendOptimizationRecord(question, answer, feedback);
                 switchRightPanel('optimization');
                 
-                // 解析反馈为多条建议
-                feedbackItems = parseFeedbackItems(feedback);
-                currentFeedbackIdx = 0;
+                // 初始化该问题的反馈版本（第1版）
+                feedbackVersions = [feedback];
+                applyFeedbackVersion(0, true);
                 
                 console.log(`✅ 反馈已解析为 ${feedbackItems.length} 条建议`);
                 
@@ -3721,9 +3875,9 @@ async function startOptimization() {
                 appendOptimizationRecord(question, answer, fallbackFeedback);
                 switchRightPanel('optimization');
                 
-                // 解析回退反馈为多条建议
-                feedbackItems = parseFeedbackItems(fallbackFeedback);
-                currentFeedbackIdx = 0;
+                // 初始化回退反馈版本（第1版）
+                feedbackVersions = [fallbackFeedback];
+                applyFeedbackVersion(0, true);
                 
                 // 开始逐条展示
                 showSingleFeedbackItem();
