@@ -91,7 +91,6 @@ function createEmptyUserProfile() {
 }
 
 let userProfile = createEmptyUserProfile();
-let profileAvatarDraft = '';
 
 // =========== 认证与账号隔离 ==========
 const AUTH_USERS_KEY = 'rwAuthUsers';
@@ -1609,62 +1608,39 @@ function updateAvatarDisplay(imgEl, fallbackEl, avatarUrl) {
     }
 }
 
-function openProfileModal() {
-    const profileModal = document.getElementById('profileModal');
-    const profileAvatarPreview = document.getElementById('profileAvatarPreview');
-    const profileAvatarPreviewFallback = document.getElementById('profileAvatarPreviewFallback');
-    const profileNickname = document.getElementById('profileNickname');
-    const profileRealName = document.getElementById('profileRealName');
-    const profileGender = document.getElementById('profileGender');
-    const profileGrade = document.getElementById('profileGrade');
-    const profileWritingStyle = document.getElementById('profileWritingStyle');
+function openProfileHomePage() {
+    const pageUrl = 'profile-home.html';
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
 
-    if (!profileModal) return;
+    if (isMobile) {
+        window.open(pageUrl, '_blank', 'noopener');
+        return;
+    }
 
-    loadUserProfile();
-    profileAvatarDraft = userProfile.avatar || '';
+    const width = Math.min(980, Math.max(840, window.innerWidth - 80));
+    const height = Math.min(860, Math.max(680, window.innerHeight - 80));
+    const left = Math.max(20, Math.round((window.screen.width - width) / 2));
+    const top = Math.max(20, Math.round((window.screen.height - height) / 2));
+    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
 
-    if (profileNickname) profileNickname.value = userProfile.nickname || '';
-    if (profileRealName) profileRealName.value = userProfile.realName || '';
-    if (profileGender) profileGender.value = userProfile.gender || '';
-    if (profileGrade) profileGrade.value = userProfile.grade || '';
-    if (profileWritingStyle) profileWritingStyle.value = userProfile.writingStyle || '';
-    updateAvatarDisplay(profileAvatarPreview, profileAvatarPreviewFallback, profileAvatarDraft);
-
-    profileModal.style.display = 'flex';
-}
-
-function closeProfileModal() {
-    const profileModal = document.getElementById('profileModal');
-    if (profileModal) {
-        profileModal.style.display = 'none';
+    const popup = window.open(pageUrl, 'ProfileHomeWindow', features);
+    if (!popup) {
+        window.location.href = pageUrl;
     }
 }
 
-function saveProfileFromModal() {
-    const profileNickname = document.getElementById('profileNickname');
-    const profileRealName = document.getElementById('profileRealName');
-    const profileGender = document.getElementById('profileGender');
-    const profileGrade = document.getElementById('profileGrade');
-    const profileWritingStyle = document.getElementById('profileWritingStyle');
-
-    loadUserProfile();
-
-    userProfile.avatar = profileAvatarDraft || '';
-    userProfile.nickname = String(profileNickname?.value || '').trim();
-    userProfile.realName = String(profileRealName?.value || '').trim();
-    userProfile.gender = String(profileGender?.value || '').trim();
-    userProfile.grade = String(profileGrade?.value || '').trim();
-    userProfile.writingStyle = String(profileWritingStyle?.value || '').trim();
-
-    saveUserProfile();
-    renderSidebarGrowthArchive();
-    closeProfileModal();
-
-    showNotification(
-        currentLanguage === 'zh' ? '个人主页已更新' : 'Profile updated',
-        'success'
-    );
+function saveLatestWritingReport(reportHtml, words, durationSec, useAIEvaluation) {
+    const payload = {
+        html: String(reportHtml || ''),
+        words: Number(words || 0),
+        durationSec: Number(durationSec || 0),
+        useAIEvaluation: Boolean(useAIEvaluation),
+        language: currentLanguage,
+        type: currentType,
+        title: String(titleInput?.value || '').trim(),
+        updatedAt: Date.now()
+    };
+    setScopedStorageValue('latestWritingReport', JSON.stringify(payload));
 }
 
 // =========== 初始化 ===========
@@ -1914,59 +1890,17 @@ function setupEventListeners() {
     const closeOptimizationModalBtn = document.getElementById('closeOptimizationModal');
     const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
     const closeRawPromptModalBtn = document.getElementById('closeRawPromptModal');
-    const closeProfileModalBtn = document.getElementById('closeProfileModal');
     const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
     const enlargeOutlineBtn = document.getElementById('enlargeOutlineBtn');
     const enlargeOutlineFromPanelBtn = document.getElementById('enlargeOutlineFromPanelBtn');
-    const saveProfileBtn = document.getElementById('saveProfileBtn');
-    const cancelProfileBtn = document.getElementById('cancelProfileBtn');
-    const profileAvatarInput = document.getElementById('profileAvatarInput');
-    const clearProfileAvatarBtn = document.getElementById('clearProfileAvatarBtn');
     
     if (closeModalBtn) closeModalBtn.addEventListener('click', closeGuidanceModal);
     if (closeOptimizationModalBtn) closeOptimizationModalBtn.addEventListener('click', closeOptimizationModal);
     if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
     if (closeRawPromptModalBtn) closeRawPromptModalBtn.addEventListener('click', closeRawPromptModal);
-    if (closeProfileModalBtn) closeProfileModalBtn.addEventListener('click', closeProfileModal);
 
     if (openProfileHomeBtn) {
-        openProfileHomeBtn.addEventListener('click', openProfileModal);
-    }
-
-    if (saveProfileBtn) {
-        saveProfileBtn.addEventListener('click', saveProfileFromModal);
-    }
-
-    if (cancelProfileBtn) {
-        cancelProfileBtn.addEventListener('click', closeProfileModal);
-    }
-
-    if (profileAvatarInput) {
-        profileAvatarInput.addEventListener('change', (event) => {
-            const file = event.target?.files?.[0];
-            if (!file) return;
-
-            const profileAvatarPreview = document.getElementById('profileAvatarPreview');
-            const profileAvatarPreviewFallback = document.getElementById('profileAvatarPreviewFallback');
-            const reader = new FileReader();
-
-            reader.onload = () => {
-                profileAvatarDraft = String(reader.result || '');
-                updateAvatarDisplay(profileAvatarPreview, profileAvatarPreviewFallback, profileAvatarDraft);
-            };
-            reader.readAsDataURL(file);
-
-            event.target.value = '';
-        });
-    }
-
-    if (clearProfileAvatarBtn) {
-        clearProfileAvatarBtn.addEventListener('click', () => {
-            const profileAvatarPreview = document.getElementById('profileAvatarPreview');
-            const profileAvatarPreviewFallback = document.getElementById('profileAvatarPreviewFallback');
-            profileAvatarDraft = '';
-            updateAvatarDisplay(profileAvatarPreview, profileAvatarPreviewFallback, '');
-        });
+        openProfileHomeBtn.addEventListener('click', openProfileHomePage);
     }
     
     // 原始题目模态框事件
@@ -2072,7 +2006,6 @@ function setupEventListeners() {
     const outlineResultModal = document.getElementById('outlineResultModal');
     const rawPromptModal = document.getElementById('rawPromptModal');
     const materialsModal = document.getElementById('materialsModal');
-    const profileModal = document.getElementById('profileModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
@@ -2105,11 +2038,12 @@ function setupEventListeners() {
             if (e.target.id === 'materialsModal') closeMaterialsModal();
         });
     }
-    if (profileModal) {
-        profileModal.addEventListener('click', (e) => {
-            if (e.target.id === 'profileModal') closeProfileModal();
-        });
-    }
+    window.addEventListener('storage', (event) => {
+        if (!event.key) return;
+        if (event.key.endsWith(':userProfile')) {
+            renderSidebarGrowthArchive();
+        }
+    });
     
     // Phase 3: 编辑器内视图切换事件监听器
     if (writeViewTab) {
@@ -4812,6 +4746,7 @@ async function finishWriting() {
         } else {
             aiOutput.innerHTML = reportHtml; // 备用输出
         }
+        saveLatestWritingReport(reportHtml, words, durationSec, useAIEvaluation);
         
         // 显示视图切换标签并切换到报告视图
         if (editorViewTabs) {
@@ -4844,6 +4779,7 @@ async function finishWriting() {
         } else {
             aiOutput.innerHTML = fallbackHtml;
         }
+        saveLatestWritingReport(fallbackHtml, words, durationSec, false);
         
         // 显示视图切换标签并切换到报告视图
         if (editorViewTabs) {
