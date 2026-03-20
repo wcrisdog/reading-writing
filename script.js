@@ -103,9 +103,16 @@ const AUTH_SESSION_KEY = 'rwAuthSession';
 const AUTH_CODES_KEY = 'rwAuthCodes';
 const AUTH_APP_NAMESPACE = 'readingWriting';
 
+// 认证能力开关：后续接入短信时，只需把 smsCode 改为 true。
+const AUTH_LOGIN_FEATURES = {
+    emailCode: true,
+    smsCode: false,
+    usernamePassword: false
+};
+
 let currentUser = null;
 let currentAuthMode = 'login';
-let currentLoginMethod = 'username';
+let currentLoginMethod = AUTH_LOGIN_FEATURES.emailCode ? 'email' : 'username';
 let authCountdownTimers = {};
 
 let authGate = null;
@@ -1147,13 +1154,50 @@ function switchAuthMode(mode) {
     if (registerPanel) registerPanel.classList.toggle('active', mode === 'register');
 
     if (mode === 'login') {
-        setAuthStatus('请选择登录方式并完成认证。');
+        setAuthStatus('请使用邮箱完成登录认证。');
     } else {
-        setAuthStatus('注册后会自动进入主界面，并绑定手机号或邮箱。');
+        setAuthStatus('注册后会自动进入主界面，并绑定邮箱。');
+    }
+}
+
+function isLoginMethodEnabled(method) {
+    if (method === 'email') return AUTH_LOGIN_FEATURES.emailCode;
+    if (method === 'phone') return AUTH_LOGIN_FEATURES.smsCode;
+    if (method === 'username') return AUTH_LOGIN_FEATURES.usernamePassword;
+    return false;
+}
+
+function getPreferredLoginMethod() {
+    if (isLoginMethodEnabled('email')) return 'email';
+    if (isLoginMethodEnabled('phone')) return 'phone';
+    if (isLoginMethodEnabled('username')) return 'username';
+    return 'email';
+}
+
+function applyAuthFeatureAvailability() {
+    document.querySelectorAll('[data-login-method]').forEach(button => {
+        const method = button.dataset.loginMethod;
+        const enabled = isLoginMethodEnabled(method);
+        button.disabled = !enabled;
+        button.style.display = enabled ? '' : 'none';
+    });
+
+    if (registerContactType) {
+        registerContactType.value = 'email';
+        registerContactType.disabled = !AUTH_LOGIN_FEATURES.smsCode;
+    }
+
+    if (authDeliveryHint) {
+        authDeliveryHint.textContent = AUTH_LOGIN_FEATURES.smsCode
+            ? '邮箱和短信验证码均可使用。'
+            : '当前仅支持邮箱验证码，短信登录即将上线。';
     }
 }
 
 function updateLoginMethodUI(method) {
+    if (!isLoginMethodEnabled(method)) {
+        method = getPreferredLoginMethod();
+    }
     currentLoginMethod = method;
 
     document.querySelectorAll('[data-login-method]').forEach(button => {
@@ -1218,6 +1262,13 @@ function startAuthCountdown(button, cacheKey) {
 }
 
 async function sendVerificationCode(purpose, type, target, button) {
+    if (type === 'phone' && !AUTH_LOGIN_FEATURES.smsCode) {
+        const msg = '当前暂不支持短信验证码，请使用邮箱登录。';
+        setAuthStatus(msg, 'error');
+        showNotification(msg, 'warning');
+        return false;
+    }
+
     const normalizedTarget = type === 'phone' ? normalizePhone(target) : normalizeEmail(target);
     const verificationTarget = normalizeVerificationTarget(type, target);
     const isValid = type === 'phone' ? validatePhone(normalizedTarget) : validateEmail(normalizedTarget);
@@ -1420,7 +1471,7 @@ async function handleLoginSubmit(event) {
         return;
     }
 
-    if (currentLoginMethod === 'username') {
+    if (currentLoginMethod === 'username' && AUTH_LOGIN_FEATURES.usernamePassword) {
         const passwordValue = loginPassword?.value || '';
         const user = getUserByMethod('username', identifierValue, users);
         if (!user || user.password !== passwordValue) {
@@ -1433,7 +1484,7 @@ async function handleLoginSubmit(event) {
         return;
     }
 
-    const contactType = currentLoginMethod;
+    const contactType = isLoginMethodEnabled(currentLoginMethod) ? currentLoginMethod : getPreferredLoginMethod();
     const inputCode = loginCode?.value?.trim() || '';
     const user = getUserByMethod(contactType, identifierValue, users);
     if (!user) {
@@ -1459,7 +1510,7 @@ async function handleRegisterSubmit(event) {
     const usernameValue = registerUsername?.value?.trim() || '';
     const passwordValue = registerPassword?.value || '';
     const confirmValue = registerPasswordConfirm?.value || '';
-    const contactType = registerContactType?.value || 'phone';
+    const contactType = AUTH_LOGIN_FEATURES.smsCode ? (registerContactType?.value || 'email') : 'email';
     const contactValue = registerContact?.value?.trim() || '';
     const codeValue = registerCode?.value?.trim() || '';
     const users = readAuthUsers();
@@ -1523,6 +1574,7 @@ async function handleRegisterSubmit(event) {
 function initializeAuth() {
     cacheAuthElements();
     updateCurrentUserBadge();
+    applyAuthFeatureAvailability();
 
     document.querySelectorAll('[data-auth-mode]').forEach(button => {
         button.addEventListener('click', () => switchAuthMode(button.dataset.authMode));
@@ -1562,8 +1614,9 @@ function initializeAuth() {
     }
 
     switchAuthMode(currentAuthMode);
+    currentLoginMethod = getPreferredLoginMethod();
     updateLoginMethodUI(currentLoginMethod);
-    updateRegisterContactUI(registerContactType?.value || 'phone');
+    updateRegisterContactUI(AUTH_LOGIN_FEATURES.smsCode ? (registerContactType?.value || 'email') : 'email');
     restoreAuthSession();
 }
 

@@ -21,7 +21,7 @@
             <div class="auth-brand-panel">
                 <span class="auth-kicker">AI Writing Workspace</span>
                 <h1>智引文思</h1>
-                <p>先完成注册或登录，再进入当前写作工作台。支持用户名密码、手机号验证码、邮箱验证码三种路径。</p>
+                <p>先完成注册或登录，再进入当前写作工作台。当前仅支持邮箱验证码登录与注册。</p>
                 <div class="auth-feature-list">
                     <div class="auth-feature-item">
                         <strong>账号体系</strong>
@@ -29,7 +29,7 @@
                     </div>
                     <div class="auth-feature-item">
                         <strong>验证码登录</strong>
-                        <span>手机号或邮箱可直接获取 6 位验证码快速进入</span>
+                        <span>目前使用邮箱获取 6 位验证码快速进入</span>
                     </div>
                     <div class="auth-feature-item">
                         <strong>写作工作台</strong>
@@ -37,6 +37,8 @@
                     </div>
                 </div>
             </div>
+
+            <div class="auth-sms-coming-soon" aria-live="polite">📱 未来将支持手机短信登录</div>
 
             <div class="auth-card">
                 <div class="auth-card-header">
@@ -54,24 +56,22 @@
 
                 <div class="auth-panel active" id="loginPanel">
                     <div class="auth-method-switch" role="tablist" aria-label="登录方式">
-                        <button class="auth-method-btn active" type="button" data-login-method="username">用户名</button>
-                        <button class="auth-method-btn" type="button" data-login-method="phone">手机号</button>
-                        <button class="auth-method-btn" type="button" data-login-method="email">邮箱</button>
+                        <button class="auth-method-btn active" type="button" data-login-method="email">邮箱</button>
                     </div>
 
                     <form id="loginForm" class="auth-form">
                         <label class="auth-field">
-                            <span id="loginIdentifierLabel">用户名</span>
-                            <input id="loginIdentifier" class="auth-input" type="text" autocomplete="username" placeholder="请输入用户名">
+                            <span id="loginIdentifierLabel">邮箱</span>
+                            <input id="loginIdentifier" class="auth-input" type="email" autocomplete="email" placeholder="请输入邮箱">
                         </label>
 
-                        <label class="auth-field" id="loginPasswordGroup">
+                        <label class="auth-field hidden" id="loginPasswordGroup">
                             <span>密码</span>
                             <input id="loginPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="请输入密码">
                         </label>
 
-                        <div class="auth-field auth-code-field hidden" id="loginCodeGroup">
-                            <span id="loginCodeLabel">短信验证码</span>
+                        <div class="auth-field auth-code-field" id="loginCodeGroup">
+                            <span id="loginCodeLabel">邮箱验证码</span>
                             <div class="auth-code-row">
                                 <input id="loginCode" class="auth-input" type="text" inputmode="numeric" maxlength="6" placeholder="请输入 6 位验证码">
                                 <button id="sendLoginCodeBtn" class="auth-code-btn" type="button">发送验证码</button>
@@ -102,19 +102,19 @@
 
                         <label class="auth-field">
                             <span>注册方式</span>
-                            <select id="registerContactType" class="auth-input auth-select">
-                                <option value="phone">手机号注册</option>
-                                <option value="email">邮箱注册</option>
+                            <select id="registerContactType" class="auth-input auth-select" disabled>
+                                <option value="email" selected>邮箱注册</option>
+                                <option value="phone">手机号注册（即将支持）</option>
                             </select>
                         </label>
 
                         <label class="auth-field">
-                            <span id="registerContactLabel">手机号</span>
-                            <input id="registerContact" class="auth-input" type="text" autocomplete="tel" placeholder="请输入手机号">
+                            <span id="registerContactLabel">邮箱</span>
+                            <input id="registerContact" class="auth-input" type="email" autocomplete="email" placeholder="请输入邮箱">
                         </label>
 
                         <div class="auth-field">
-                            <span id="registerCodeLabel">短信验证码</span>
+                            <span id="registerCodeLabel">邮箱验证码</span>
                             <div class="auth-code-row">
                                 <input id="registerCode" class="auth-input" type="text" inputmode="numeric" maxlength="6" placeholder="请输入 6 位验证码">
                                 <button id="sendRegisterCodeBtn" class="auth-code-btn" type="button">发送验证码</button>

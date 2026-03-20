@@ -91,6 +91,21 @@ body.auth-ready .auth-gate {
     padding: 24px 12px;
 }
 
+.auth-sms-coming-soon {
+    position: absolute;
+    right: 24px;
+    top: 24px;
+    z-index: 2;
+    padding: 8px 12px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.45);
+    color: rgba(255, 255, 255, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    font-size: 12px;
+    font-weight: 600;
+    backdrop-filter: blur(8px);
+}
+
 .auth-kicker,
 .auth-eyebrow {
     display: inline-flex;
@@ -2457,6 +2472,13 @@ body.guide-with-sidebar .floating-guide-shell {
     .auth-brand-panel {
         order: 2;
         padding-top: 0;
+    }
+
+    .auth-sms-coming-soon {
+        top: 10px;
+        right: 10px;
+        font-size: 11px;
+        padding: 6px 10px;
     }
 
     .auth-card {
