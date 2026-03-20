@@ -968,14 +968,18 @@ function renderInspirationVersion() {
 
     aiOutput.innerHTML = `
         <div class="inspiration-tip">
-            <p class="tip-header">💡 ${item.title}</p>
+            <div class="versioned-inspiration-header">
+                <p class="tip-header">💡 ${item.title}</p>
+                <button class="primary-btn version-regenerate-btn" onclick="checkInspirationNeeded()">🔄 ${currentLanguage === 'zh' ? '重新生成' : 'Regenerate'}</button>
+            </div>
             <p class="suggestion">${String(item.suggestion || '').replace(/\n/g, '<br>')}</p>
             ${item.progressText ? `<p class="progress-info">📊 ${item.progressText}</p>` : ''}
-            <div class="version-nav-row">
+            <div class="version-nav-row compact-nav-row">
                 <button class="secondary-btn version-nav-btn" onclick="prevInspirationVersion()" ${inspirationHistoryIndex <= 0 ? 'disabled' : ''}>← ${currentLanguage === 'zh' ? '上一个' : 'Prev'}</button>
-                <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
                 <button class="secondary-btn version-nav-btn" onclick="nextInspirationVersion()" ${inspirationHistoryIndex >= inspirationHistory.length - 1 ? 'disabled' : ''}>${currentLanguage === 'zh' ? '下一个' : 'Next'} →</button>
-                <button class="primary-btn version-regenerate-btn" onclick="checkInspirationNeeded()">🔄 ${currentLanguage === 'zh' ? '重新生成' : 'Regenerate'}</button>
+            </div>
+            <div class="version-meta-row">
+                <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
             </div>
         </div>
     `;
@@ -3023,12 +3027,16 @@ function renderMaterialsVersion() {
 
     materialsList.innerHTML = `
         <div class="materials-header versioned-materials-header">
-            <h5>📚 ${currentLanguage === 'zh' ? '推荐素材' : 'Recommended Materials'}</h5>
-            <div class="materials-header-actions">
-                <button class="secondary-btn version-nav-btn" onclick="prevMaterialsVersion()" ${materialsHistoryIndex <= 0 ? 'disabled' : ''}>← ${prevLabel}</button>
-                <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
-                <button class="secondary-btn version-nav-btn" onclick="nextMaterialsVersion()" ${materialsHistoryIndex >= materialsHistory.length - 1 ? 'disabled' : ''}>${nextLabel} →</button>
+            <div class="materials-header-top">
+                <h5>📚 ${currentLanguage === 'zh' ? '推荐素材' : 'Recommended Materials'}</h5>
                 <button class="refresh-materials-btn" onclick="refreshMaterials('${String(item.topic || '').replace(/'/g, "\\'")}')">🔄 ${currentLanguage === 'zh' ? '换一批' : 'Refresh'}</button>
+            </div>
+            <div class="materials-header-actions compact-nav-row">
+                <button class="secondary-btn version-nav-btn" onclick="prevMaterialsVersion()" ${materialsHistoryIndex <= 0 ? 'disabled' : ''}>← ${prevLabel}</button>
+                <button class="secondary-btn version-nav-btn" onclick="nextMaterialsVersion()" ${materialsHistoryIndex >= materialsHistory.length - 1 ? 'disabled' : ''}>${nextLabel} →</button>
+            </div>
+            <div class="version-meta-row">
+                <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
             </div>
         </div>
         ${item.bodyHtml}
@@ -3700,9 +3708,7 @@ async function startOptimization() {
                         ? '💡 提示：请认真思考这条建议，并判断是否需要根据它改进文章。' 
                         : '💡 Tip: Consider this suggestion carefully and decide if you need to improve your article accordingly.'}</p>
                     <div class="version-nav-row">
-                        <button class="secondary-btn version-nav-btn" id="prevFeedbackVersion" ${feedbackVersionIdx <= 0 ? 'disabled' : ''}>← ${currentLanguage === 'zh' ? '上一个版本' : 'Prev Version'}</button>
                         <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${feedbackVersionIdx + 1}/${feedbackVersions.length}</span>
-                        <button class="secondary-btn version-nav-btn" id="nextFeedbackVersion" ${feedbackVersionIdx >= feedbackVersions.length - 1 ? 'disabled' : ''}>${currentLanguage === 'zh' ? '下一个版本' : 'Next Version'} →</button>
                         <button class="primary-btn version-regenerate-btn" id="regenerateFeedbackVersion">🔄 ${currentLanguage === 'zh' ? '重新生成建议' : 'Regenerate'}</button>
                     </div>
                     <div class="optimization-buttons">
@@ -3750,18 +3756,6 @@ async function startOptimization() {
             // 下一条/下一个问题按钮
             document.getElementById('nextFeedback')?.addEventListener('click', () => {
                 currentFeedbackIdx++;
-                showSingleFeedbackItem();
-            });
-
-            document.getElementById('prevFeedbackVersion')?.addEventListener('click', () => {
-                if (feedbackVersionIdx <= 0) return;
-                applyFeedbackVersion(feedbackVersionIdx - 1, true);
-                showSingleFeedbackItem();
-            });
-
-            document.getElementById('nextFeedbackVersion')?.addEventListener('click', () => {
-                if (feedbackVersionIdx >= feedbackVersions.length - 1) return;
-                applyFeedbackVersion(feedbackVersionIdx + 1, true);
                 showSingleFeedbackItem();
             });
 
