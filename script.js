@@ -1623,6 +1623,49 @@ function closeAILoadingModal() {
     }
 }
 
+const AI_OPERATION_CANCELLED_CODE = 'AI_OPERATION_CANCELLED';
+
+function buildAIOperationCancelledError(sceneLabel = '') {
+    const error = new Error(sceneLabel || 'AI operation cancelled by user');
+    error.code = AI_OPERATION_CANCELLED_CODE;
+    return error;
+}
+
+function isAIOperationCancelled(error) {
+    return error?.code === AI_OPERATION_CANCELLED_CODE;
+}
+
+function cancelCurrentAIOperation(sceneLabel, onRollback) {
+    try {
+        if (window.aiService && typeof window.aiService.cancelPendingRequests === 'function') {
+            window.aiService.cancelPendingRequests();
+        }
+    } catch (cancelError) {
+        console.warn('取消 AI 请求失败:', cancelError);
+    }
+
+    closeAILoadingModal();
+
+    const retryModal = document.getElementById('aiRetryModal');
+    if (retryModal) retryModal.remove();
+
+    if (typeof onRollback === 'function') {
+        try {
+            onRollback();
+        } catch (rollbackError) {
+            console.warn('回退到上一步失败:', rollbackError);
+        }
+    }
+
+    showNotification(
+        currentLanguage === 'zh'
+            ? `已取消${sceneLabel ? `：${sceneLabel}` : ''}，并回退到上一步`
+            : `Cancelled${sceneLabel ? `: ${sceneLabel}` : ''} and returned to previous step`,
+        'warning',
+        2600
+    );
+}
+
 function showAIGenerationRetryModal(scene, shortDetail) {
     return new Promise((resolve) => {
         const existing = document.getElementById('aiRetryModal');
@@ -1669,7 +1712,8 @@ function showAIGenerationRetryModal(scene, shortDetail) {
     });
 }
 
-async function askRetryForAIGeneration(sceneLabel, error) {
+async function askRetryForAIGeneration(sceneLabel, error, options = {}) {
+    const { onCancel } = options;
     const defaultDetail = currentLanguage === 'zh' ? '未知错误' : 'Unknown error';
     const shortDetail = String(error?.message || error || defaultDetail).slice(0, 180);
     const scene = sceneLabel || (currentLanguage === 'zh' ? '当前步骤' : 'Current step');
@@ -1679,7 +1723,11 @@ async function askRetryForAIGeneration(sceneLabel, error) {
         : `⚠️ AI generation failed at ${scene}: ${shortDetail}`;
     showNotification(notifyText, 'error', 5000);
 
-    return await showAIGenerationRetryModal(scene, shortDetail);
+    const shouldRetry = await showAIGenerationRetryModal(scene, shortDetail);
+    if (shouldRetry) return true;
+
+    cancelCurrentAIOperation(scene, onCancel);
+    throw buildAIOperationCancelledError(scene);
 }
 
 function updateAvatarDisplay(imgEl, fallbackEl, avatarUrl) {
@@ -2308,6 +2356,10 @@ async function showGuidanceQuestion(container, modal) {
                 5000
             );
         } catch (error) {
+            if (isAIOperationCancelled(error)) {
+                closeAILoadingModal();
+                return;
+            }
             console.error('生成大纲失败:', error);
             closeAILoadingModal();
             showNotification(
@@ -2553,16 +2605,24 @@ async function generateDetailedOutline(userAnswers) {
     } catch (error) {
         console.error('详细大纲生成失败:', error);
 
-        const shouldRetry = await askRetryForAIGeneration(
+        const finalStepQuestions = guidanceQuestions[currentType]?.[currentLanguage] || [];
+        await askRetryForAIGeneration(
             currentLanguage === 'zh' ? '启动引导最后一步' : 'final guidance step',
-            error
+            error,
+            {
+                onCancel: () => {
+                    guidanceStep = Math.max(0, finalStepQuestions.length - 1);
+                    const modal = document.getElementById('guidanceModal');
+                    const content = document.getElementById('guidanceContent');
+                    if (modal && content) {
+                        modal.style.display = 'flex';
+                        showGuidanceQuestion(content, modal);
+                    }
+                }
+            }
         );
-        if (shouldRetry) {
-            return await generateDetailedOutline(userAnswers);
-        }
-        
-        // 降级到基础大纲
-        return await generateOutlineFromAnswers(userAnswers);
+
+        return await generateDetailedOutline(userAnswers);
     }
 }
 
@@ -3853,13 +3913,23 @@ async function startOptimization() {
             } catch (error) {
                 console.error('反馈生成失败:', error);
 
-                const shouldRetry = await askRetryForAIGeneration(
-                    currentLanguage === 'zh' ? '优化修补建议生成' : 'optimization feedback generation',
-                    error
-                );
-                if (shouldRetry) {
+                try {
+                    await askRetryForAIGeneration(
+                        currentLanguage === 'zh' ? '优化修补建议生成' : 'optimization feedback generation',
+                        error,
+                        {
+                            onCancel: () => {
+                                showOptimizationQuestion();
+                            }
+                        }
+                    );
+
                     await showAnswerFeedback(question, answer, currentIdx, total);
                     return;
+                } catch (retryError) {
+                    if (isAIOperationCancelled(retryError)) {
+                        return;
+                    }
                 }
 
                 const fallbackFeedback = currentLanguage === 'zh'
@@ -3905,13 +3975,22 @@ async function startOptimization() {
     } catch (error) {
         console.error('优化修补失败:', error);
 
-        const shouldRetry = await askRetryForAIGeneration(
-            currentLanguage === 'zh' ? '优化修补问题生成' : 'optimization question generation',
-            error
-        );
-        if (shouldRetry) {
+        try {
+            await askRetryForAIGeneration(
+                currentLanguage === 'zh' ? '优化修补问题生成' : 'optimization question generation',
+                error,
+                {
+                    onCancel: () => {
+                        closeOptimizationModal();
+                    }
+                }
+            );
             await startOptimization();
             return;
+        } catch (retryError) {
+            if (isAIOperationCancelled(retryError)) {
+                return;
+            }
         }
         
         // 降级到本地问题库（强制限制3-5个）

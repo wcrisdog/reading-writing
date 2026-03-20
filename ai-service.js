@@ -9,8 +9,18 @@ class AIService {
         this.apiEndpoint = customBaseUrl
             ? `${customBaseUrl}/api/qianwen/`
             : '/api/qianwen/';
+        this.activeControllers = new Set();
         
         console.log('✨ AI服务已初始化，API密钥由后端管理');
+    }
+
+    cancelPendingRequests() {
+        this.activeControllers.forEach((controller) => {
+            try {
+                controller.abort('User cancelled');
+            } catch (e) {}
+        });
+        this.activeControllers.clear();
     }
 
     /**
@@ -28,6 +38,7 @@ class AIService {
 
         while (attempt <= maxRetries) {
             const controller = new AbortController();
+            this.activeControllers.add(controller);
             const timer = setTimeout(() => controller.abort('Request timeout'), timeoutMs);
 
             try {
@@ -59,6 +70,14 @@ class AIService {
                     usage: data.usage
                 };
             } catch (error) {
+                const abortReason = String(controller.signal?.reason || '');
+                const isUserCancelled = abortReason === 'User cancelled' || String(error?.message || '').includes('User cancelled');
+                if (isUserCancelled) {
+                    const cancelledError = new Error('AI request cancelled by user');
+                    cancelledError.code = 'AI_CANCELLED';
+                    throw cancelledError;
+                }
+
                 const isTimeout = error?.name === 'AbortError' || String(error?.message || '').includes('timeout');
                 const status = Number(error?.status || 0);
                 const isRetriable = isTimeout || status === 504 || status === 502 || status === 503;
@@ -76,6 +95,7 @@ class AIService {
                 attempt += 1;
             } finally {
                 clearTimeout(timer);
+                this.activeControllers.delete(controller);
             }
         }
 

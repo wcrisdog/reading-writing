@@ -2025,6 +2025,16 @@ body.guide-with-sidebar .floating-guide-shell {
     font-size: 13px;
 }
 
+.primary-btn.version-regenerate-btn {
+    flex: 0 0 auto;
+    width: auto;
+    min-width: 96px;
+    padding: 6px 10px;
+    font-size: 12px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
 .version-nav-btn[disabled] {
     opacity: 0.45;
     cursor: not-allowed;
