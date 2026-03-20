@@ -2200,12 +2200,23 @@ body.guide-with-sidebar .floating-guide-shell {
 }
 
 @media (max-width: 1024px) {
+    body.auth-ready {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
     .container {
         flex-direction: column;
         margin-left: 0;
         height: auto;
         min-height: 100dvh;
         overflow: visible;
+    }
+
+    .main-content {
+        margin-left: 0;
+        overflow: visible;
+        -webkit-overflow-scrolling: touch;
     }
 
     .sidebar {
