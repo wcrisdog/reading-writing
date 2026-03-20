@@ -1995,14 +1995,22 @@ body.guide-with-sidebar .floating-guide-shell {
 }
 
 .versioned-inspiration-header {
-    display: flex;
-    justify-content: space-between;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(96px, auto);
     align-items: center;
-    gap: 10px;
+    column-gap: 10px;
 }
 
 .versioned-inspiration-header .tip-header {
     margin: 0;
+    min-width: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.versioned-inspiration-header .version-regenerate-btn {
+    justify-self: end;
 }
 
 .version-index {
