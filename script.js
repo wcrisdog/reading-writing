@@ -37,8 +37,11 @@ let reportViewTab = null;
 let editorViewTabs = null;
 let writeView = null;
 let reportView = null;
-let sidebarGrowthPanel = null;
-let sidebarGrowthContent = null;
+let openProfileHomeBtn = null;
+let sidebarProfileAvatar = null;
+let sidebarProfileAvatarFallback = null;
+let sidebarProfileDisplayName = null;
+let sidebarProfileMeta = null;
 
 // =========== 写作过程追踪数据 ===========
 let writingProcessData = {
@@ -75,6 +78,20 @@ function createEmptyGrowthProfile() {
 }
 
 let growthProfile = createEmptyGrowthProfile();
+
+function createEmptyUserProfile() {
+    return {
+        avatar: '',
+        nickname: '',
+        realName: '',
+        gender: '',
+        grade: '',
+        writingStyle: ''
+    };
+}
+
+let userProfile = createEmptyUserProfile();
+let profileAvatarDraft = '';
 
 // =========== 认证与账号隔离 ==========
 const AUTH_USERS_KEY = 'rwAuthUsers';
@@ -1578,6 +1595,78 @@ function askRetryForAIGeneration(sceneLabel, error) {
     return window.confirm(confirmText);
 }
 
+function updateAvatarDisplay(imgEl, fallbackEl, avatarUrl) {
+    if (!imgEl || !fallbackEl) return;
+
+    if (avatarUrl) {
+        imgEl.src = avatarUrl;
+        imgEl.style.display = 'block';
+        fallbackEl.style.display = 'none';
+    } else {
+        imgEl.removeAttribute('src');
+        imgEl.style.display = 'none';
+        fallbackEl.style.display = 'inline';
+    }
+}
+
+function openProfileModal() {
+    const profileModal = document.getElementById('profileModal');
+    const profileAvatarPreview = document.getElementById('profileAvatarPreview');
+    const profileAvatarPreviewFallback = document.getElementById('profileAvatarPreviewFallback');
+    const profileNickname = document.getElementById('profileNickname');
+    const profileRealName = document.getElementById('profileRealName');
+    const profileGender = document.getElementById('profileGender');
+    const profileGrade = document.getElementById('profileGrade');
+    const profileWritingStyle = document.getElementById('profileWritingStyle');
+
+    if (!profileModal) return;
+
+    loadUserProfile();
+    profileAvatarDraft = userProfile.avatar || '';
+
+    if (profileNickname) profileNickname.value = userProfile.nickname || '';
+    if (profileRealName) profileRealName.value = userProfile.realName || '';
+    if (profileGender) profileGender.value = userProfile.gender || '';
+    if (profileGrade) profileGrade.value = userProfile.grade || '';
+    if (profileWritingStyle) profileWritingStyle.value = userProfile.writingStyle || '';
+    updateAvatarDisplay(profileAvatarPreview, profileAvatarPreviewFallback, profileAvatarDraft);
+
+    profileModal.style.display = 'flex';
+}
+
+function closeProfileModal() {
+    const profileModal = document.getElementById('profileModal');
+    if (profileModal) {
+        profileModal.style.display = 'none';
+    }
+}
+
+function saveProfileFromModal() {
+    const profileNickname = document.getElementById('profileNickname');
+    const profileRealName = document.getElementById('profileRealName');
+    const profileGender = document.getElementById('profileGender');
+    const profileGrade = document.getElementById('profileGrade');
+    const profileWritingStyle = document.getElementById('profileWritingStyle');
+
+    loadUserProfile();
+
+    userProfile.avatar = profileAvatarDraft || '';
+    userProfile.nickname = String(profileNickname?.value || '').trim();
+    userProfile.realName = String(profileRealName?.value || '').trim();
+    userProfile.gender = String(profileGender?.value || '').trim();
+    userProfile.grade = String(profileGrade?.value || '').trim();
+    userProfile.writingStyle = String(profileWritingStyle?.value || '').trim();
+
+    saveUserProfile();
+    renderSidebarGrowthArchive();
+    closeProfileModal();
+
+    showNotification(
+        currentLanguage === 'zh' ? '个人主页已更新' : 'Profile updated',
+        'success'
+    );
+}
+
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 DOMContentLoaded event triggered');
@@ -1598,15 +1687,18 @@ document.addEventListener('DOMContentLoaded', () => {
     targetSelectorWrap = document.getElementById('targetSelectorWrap');
     targetSelectorLabel = document.getElementById('targetSelectorLabel');
     
-    // 新增：报告和成长档案相关元素
+    // 新增：报告和个人主页相关元素
     reportContent = document.getElementById('reportContent');
     writeViewTab = document.getElementById('writeViewTab');
     reportViewTab = document.getElementById('reportViewTab');
     editorViewTabs = document.getElementById('editorViewTabs');
     writeView = document.getElementById('writeView');
     reportView = document.getElementById('reportView');
-    sidebarGrowthPanel = document.getElementById('sidebarGrowthPanel');
-    sidebarGrowthContent = document.getElementById('sidebarGrowthContent');
+    openProfileHomeBtn = document.getElementById('openProfileHomeBtn');
+    sidebarProfileAvatar = document.getElementById('sidebarProfileAvatar');
+    sidebarProfileAvatarFallback = document.getElementById('sidebarProfileAvatarFallback');
+    sidebarProfileDisplayName = document.getElementById('sidebarProfileDisplayName');
+    sidebarProfileMeta = document.getElementById('sidebarProfileMeta');
     
     console.log('✅ DOM elements fetched:', {
         mainEditor: !!mainEditor,
@@ -1658,6 +1750,7 @@ function setupEventListeners() {
             currentLanguage = e.target.value;
             updateTemplate();
             renderOptimizationRecords();
+            renderSidebarGrowthArchive();
         });
     });
 
@@ -1821,14 +1914,60 @@ function setupEventListeners() {
     const closeOptimizationModalBtn = document.getElementById('closeOptimizationModal');
     const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
     const closeRawPromptModalBtn = document.getElementById('closeRawPromptModal');
+    const closeProfileModalBtn = document.getElementById('closeProfileModal');
     const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
     const enlargeOutlineBtn = document.getElementById('enlargeOutlineBtn');
     const enlargeOutlineFromPanelBtn = document.getElementById('enlargeOutlineFromPanelBtn');
+    const saveProfileBtn = document.getElementById('saveProfileBtn');
+    const cancelProfileBtn = document.getElementById('cancelProfileBtn');
+    const profileAvatarInput = document.getElementById('profileAvatarInput');
+    const clearProfileAvatarBtn = document.getElementById('clearProfileAvatarBtn');
     
     if (closeModalBtn) closeModalBtn.addEventListener('click', closeGuidanceModal);
     if (closeOptimizationModalBtn) closeOptimizationModalBtn.addEventListener('click', closeOptimizationModal);
     if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
     if (closeRawPromptModalBtn) closeRawPromptModalBtn.addEventListener('click', closeRawPromptModal);
+    if (closeProfileModalBtn) closeProfileModalBtn.addEventListener('click', closeProfileModal);
+
+    if (openProfileHomeBtn) {
+        openProfileHomeBtn.addEventListener('click', openProfileModal);
+    }
+
+    if (saveProfileBtn) {
+        saveProfileBtn.addEventListener('click', saveProfileFromModal);
+    }
+
+    if (cancelProfileBtn) {
+        cancelProfileBtn.addEventListener('click', closeProfileModal);
+    }
+
+    if (profileAvatarInput) {
+        profileAvatarInput.addEventListener('change', (event) => {
+            const file = event.target?.files?.[0];
+            if (!file) return;
+
+            const profileAvatarPreview = document.getElementById('profileAvatarPreview');
+            const profileAvatarPreviewFallback = document.getElementById('profileAvatarPreviewFallback');
+            const reader = new FileReader();
+
+            reader.onload = () => {
+                profileAvatarDraft = String(reader.result || '');
+                updateAvatarDisplay(profileAvatarPreview, profileAvatarPreviewFallback, profileAvatarDraft);
+            };
+            reader.readAsDataURL(file);
+
+            event.target.value = '';
+        });
+    }
+
+    if (clearProfileAvatarBtn) {
+        clearProfileAvatarBtn.addEventListener('click', () => {
+            const profileAvatarPreview = document.getElementById('profileAvatarPreview');
+            const profileAvatarPreviewFallback = document.getElementById('profileAvatarPreviewFallback');
+            profileAvatarDraft = '';
+            updateAvatarDisplay(profileAvatarPreview, profileAvatarPreviewFallback, '');
+        });
+    }
     
     // 原始题目模态框事件
     const submitRawPromptBtn = document.getElementById('submitRawPromptBtn');
@@ -1933,6 +2072,7 @@ function setupEventListeners() {
     const outlineResultModal = document.getElementById('outlineResultModal');
     const rawPromptModal = document.getElementById('rawPromptModal');
     const materialsModal = document.getElementById('materialsModal');
+    const profileModal = document.getElementById('profileModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
@@ -1963,6 +2103,11 @@ function setupEventListeners() {
     if (materialsModal) {
         materialsModal.addEventListener('click', (e) => {
             if (e.target.id === 'materialsModal') closeMaterialsModal();
+        });
+    }
+    if (profileModal) {
+        profileModal.addEventListener('click', (e) => {
+            if (e.target.id === 'profileModal') closeProfileModal();
         });
     }
     
@@ -3144,84 +3289,25 @@ function renderGrowthPanel() {
 
 // Phase 3: 左侧sidebar成长档案显示函数
 function renderSidebarGrowthArchive() {
-    if (!sidebarGrowthContent) return;
-    
-    loadGrowthProfile();
-    
-    let html = '';
-    
-    if (growthProfile.essays.length === 0) {
-        html = `<div class="sidebar-empty-state">
-            <p style="font-size: 12px; color: #999;">
-                ${currentLanguage === 'zh' ? '完成写作后，成长档案将在这里显示' : 'Growth archive will appear here'}
-            </p>
-        </div>`;
-    } else {
-        // 六维能力简化显示
-        html += '<div class="sidebar-abilities-compact">';
-        const abilityNames = {
-            structure: '结构',
-            argumentation: '论证',
-            language: '语言',
-            materials: '素材',
-            logic: '逻辑',
-            reflection: '立意'
-        };
-        
-        for (const [key, score] of Object.entries(growthProfile.abilities)) {
-            const abilityLabel = currentLanguage === 'zh' ? abilityNames[key] : key;
-            // 用颜色编码显示分数级别
-            let scoreColor = '#d32f2f';
-            if (score >= 80) scoreColor = '#388e3c';
-            else if (score >= 60) scoreColor = '#f57c00';
-            
-            html += `<div class="ability-compact">
-                <span class="ability-label">${abilityLabel}</span>
-                <div class="ability-bar-mini">
-                    <div class="bar-fill-mini" style="width: ${Math.min(score, 100)}%; background-color: ${scoreColor};"></div>
-                </div>
-                <span class="ability-score-mini">${score}</span>
-            </div>`;
-        }
-        html += '</div>';
-        
-        // 最近成绩快速查看
-        if (growthProfile.essays.length > 0) {
-            const lastEssay = growthProfile.essays[growthProfile.essays.length - 1];
-            const date = new Date(lastEssay.timestamp).toLocaleDateString(
-                currentLanguage === 'zh' ? 'zh-CN' : 'en-US',
-                { month: 'short', day: 'numeric' }
-            );
-            const typeName = essayTypes[lastEssay.type]?.[currentLanguage]?.name || lastEssay.type;
-            
-            html += `<div class="sidebar-recent-essay">
-                <div style="font-size: 11px; color: #666; margin-bottom: 6px;">
-                    ${currentLanguage === 'zh' ? '最近' : 'Latest'}
-                </div>
-                <div class="essay-mini">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <span style="font-size: 12px; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${lastEssay.title}</span>
-                        <span style="font-size: 14px; font-weight: bold; color: ${lastEssay.totalScore >= 80 ? '#388e3c' : lastEssay.totalScore >= 70 ? '#f57c00' : '#d32f2f'};">${lastEssay.totalScore}</span>
-                    </div>
-                    <div style="font-size: 10px; color: #999; display: flex; gap: 8px;">
-                        <span>${typeName}</span>
-                        <span>${date}</span>
-                    </div>
-                </div>
-            </div>`;
-        }
-        
-        // 进步里程碑简化
-        if (growthProfile.milestones.length > 0) {
-            html += '<div class="sidebar-milestones">';
-            html += `<div style="font-size: 11px; color: #666; margin-bottom: 6px; margin-top: 10px;">🏆 ${currentLanguage === 'zh' ? '进步' : 'Progress'}</div>`;
-            const latestMilestone = growthProfile.milestones[growthProfile.milestones.length - 1];
-            html += `<div style="font-size: 11px; line-height: 1.4; color: #333;">${latestMilestone.description}</div>`;
-            html += '</div>';
-        }
-    }
-    
-    sidebarGrowthContent.innerHTML = html;
+    if (!sidebarProfileDisplayName || !sidebarProfileMeta) return;
+
+    loadUserProfile();
+
+    const displayName = userProfile.nickname || currentUser?.username || (currentLanguage === 'zh' ? '个人主页' : 'Profile');
+
+    const metaSegments = [
+        userProfile.grade,
+        userProfile.gender,
+        userProfile.writingStyle
+    ].filter(Boolean);
+
+    const fallbackMeta = currentLanguage === 'zh'
+        ? '点击完善头像与个人资料'
+        : 'Click to complete profile details';
+
+    sidebarProfileDisplayName.textContent = displayName;
+    sidebarProfileMeta.textContent = metaSegments.length > 0 ? metaSegments.join(' · ') : fallbackMeta;
+    updateAvatarDisplay(sidebarProfileAvatar, sidebarProfileAvatarFallback, userProfile.avatar || '');
 }
 
 function appendOptimizationRecord(question, answer, feedback) {
@@ -4564,6 +4650,28 @@ function loadGrowthProfile() {
 
 function saveGrowthProfile() {
     setScopedStorageValue('growthProfile', JSON.stringify(growthProfile));
+}
+
+function loadUserProfile() {
+    userProfile = createEmptyUserProfile();
+    const saved = getScopedStorageValue('userProfile');
+    if (!saved) return;
+
+    try {
+        const loaded = JSON.parse(saved);
+        userProfile.avatar = String(loaded.avatar || '');
+        userProfile.nickname = String(loaded.nickname || '');
+        userProfile.realName = String(loaded.realName || '');
+        userProfile.gender = String(loaded.gender || '');
+        userProfile.grade = String(loaded.grade || '');
+        userProfile.writingStyle = String(loaded.writingStyle || '');
+    } catch (error) {
+        console.warn('加载个人主页信息失败:', error);
+    }
+}
+
+function saveUserProfile() {
+    setScopedStorageValue('userProfile', JSON.stringify(userProfile));
 }
 
 // 写作完成：生成写作报告（调用AI，失败则本地生成）

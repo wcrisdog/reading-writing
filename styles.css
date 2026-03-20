@@ -658,6 +658,76 @@ body.guide-with-sidebar .floating-guide-shell {
     opacity: 0.7;
 }
 
+.user-home-entry {
+    width: 100%;
+    margin-top: 18px;
+    padding: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.22);
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.12);
+    color: white;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.user-home-entry:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px -18px rgba(15, 23, 42, 0.9);
+}
+
+.user-home-avatar-frame {
+    width: 46px;
+    height: 46px;
+    border-radius: 14px;
+    border: 2px solid rgba(255, 255, 255, 0.7);
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(16, 185, 129, 0.25));
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.user-home-avatar-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+#sidebarProfileAvatarFallback,
+#profileAvatarPreviewFallback {
+    font-size: 22px;
+}
+
+.user-home-copy {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+}
+
+.user-home-copy strong {
+    font-size: 14px;
+    font-weight: 700;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.user-home-copy small {
+    font-size: 11px;
+    color: rgba(255, 255, 255, 0.82);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 /* 中部功能面板 */
 .middle-panel {
     width: 200px;
@@ -3367,75 +3437,118 @@ body.guide-with-sidebar .floating-guide-shell {
     font-size: 11px;
     color: var(--text-secondary);
 }
-/* ============ Phase 3: Sidebar成长档案样式 ============ */
+/* ============ Personal Profile Modal ============ */
 
-.sidebar-abilities-compact {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 12px;
+.profile-modal-content {
+    max-width: 560px;
 }
 
-.ability-compact {
+.profile-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+
+.profile-avatar-editor {
     display: flex;
     align-items: center;
-    gap: 6px;
-    font-size: 12px;
+    gap: 16px;
+    padding: 14px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(16, 185, 129, 0.08));
+    border: 1px solid rgba(99, 102, 241, 0.14);
 }
 
-.ability-label {
-    width: 40px;
-    font-weight: 500;
-    color: var(--text-primary);
-}
-
-.ability-bar-mini {
-    flex: 1;
-    height: 6px;
-    background: var(--border-color);
-    border-radius: 3px;
+.profile-avatar-preview-frame {
+    width: 72px;
+    height: 72px;
+    border-radius: 20px;
     overflow: hidden;
-}
-
-.bar-fill-mini {
-    height: 100%;
-    background: var(--primary-color);
-    width: 0;
-    transition: width 0.3s ease;
-}
-
-.ability-score-mini {
-    width: 30px;
-    text-align: right;
-    font-weight: 600;
-    color: var(--text-secondary);
-}
-
-.sidebar-recent-essay {
-    padding: 10px;
-    background: var(--background-color);
-    border-radius: 6px;
-    margin: 10px 0;
-}
-
-.essay-mini {
-    display: flex;
-    flex-direction: column;
-}
-
-.sidebar-milestones {
-    padding: 10px 0;
-    margin-top: 8px;
-    border-top: 1px solid var(--border-color);
-}
-
-.sidebar-empty-state {
-    display: flex;
+    border: 2px solid rgba(99, 102, 241, 0.4);
+    background: #eef2ff;
+    display: inline-flex;
     align-items: center;
     justify-content: center;
-    padding: 20px;
-    text-align: center;
+    flex-shrink: 0;
+}
+
+.profile-avatar-preview-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: none;
+}
+
+.profile-avatar-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.profile-upload-btn,
+.profile-clear-btn {
+    border: none;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 10px 12px;
+}
+
+.profile-upload-btn {
+    background: var(--primary-color);
+    color: white;
+}
+
+.profile-clear-btn {
+    background: #e2e8f0;
     color: var(--text-secondary);
+}
+
+.profile-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.profile-field {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.profile-field span {
+    font-size: 12px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.profile-field input,
+.profile-field select {
+    min-height: 42px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 14px;
+    color: var(--text-primary);
+    background: var(--surface-color);
+}
+
+.profile-field input:focus,
+.profile-field select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.12);
+}
+
+.profile-field-full {
+    grid-column: 1 / -1;
+}
+
+.profile-form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
 }
 
 /* ============ Phase 3: 编辑器视图切换样式 ============ */
