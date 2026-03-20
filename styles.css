@@ -1862,6 +1862,32 @@ body.guide-with-sidebar .floating-guide-shell {
     box-shadow: var(--shadow-md);
 }
 
+.ai-retry-modal {
+    z-index: 1400;
+}
+
+.ai-retry-modal-content {
+    max-width: 520px;
+}
+
+.ai-retry-detail {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.18);
+    color: var(--text-secondary);
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+    padding: 10px 12px;
+    margin: -4px 0 0;
+}
+
+.ai-retry-actions {
+    margin-top: 14px;
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+}
+
 .guidance-skip-btn {
     background: var(--text-secondary);
 }

@@ -42,6 +42,49 @@ function setScopedStorageValue(baseKey, value) {
     localStorage.setItem(getScopedStorageKey(baseKey), value);
 }
 
+function convertFileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('头像读取失败，请重试'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function loadImageElement(dataUrl) {
+    return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = () => reject(new Error('头像图片格式不支持'));
+        img.src = dataUrl;
+    });
+}
+
+async function compressAvatarFile(file) {
+    if (!file || !String(file.type || '').startsWith('image/')) {
+        throw new Error('请选择图片文件作为头像');
+    }
+
+    const dataUrl = await convertFileToDataUrl(file);
+    const img = await loadImageElement(dataUrl);
+    const maxSide = 512;
+    const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+    const targetWidth = Math.max(1, Math.round(img.width * scale));
+    const targetHeight = Math.max(1, Math.round(img.height * scale));
+
+    const canvas = document.createElement('canvas');
+    canvas.width = targetWidth;
+    canvas.height = targetHeight;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('浏览器不支持头像处理');
+    ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+
+    // 优先转 JPEG 降低体积，必要时回退原图 dataURL。
+    const compressed = canvas.toDataURL('image/jpeg', 0.82);
+    return compressed.length < dataUrl.length ? compressed : dataUrl;
+}
+
 function updateAvatarDisplay(avatarUrl) {
     const imgEl = document.getElementById('profileAvatar');
     const fallbackEl = document.getElementById('profileAvatarFallback');
@@ -89,8 +132,13 @@ function saveProfile() {
     profileState.grade = String(document.getElementById('gradeInput').value || '').trim();
     profileState.writingStyle = String(document.getElementById('styleInput').value || '').trim();
 
-    setScopedStorageValue('userProfile', JSON.stringify(profileState));
-    alert('个人资料已保存');
+    try {
+        setScopedStorageValue('userProfile', JSON.stringify(profileState));
+        alert('个人资料已保存');
+    } catch (error) {
+        console.error('保存个人资料失败:', error);
+        alert('保存失败：头像可能过大，请更换更小图片后重试');
+    }
 }
 
 function renderGrowthArchive() {
@@ -215,16 +263,19 @@ function bindEvents() {
     const closePageBtn = document.getElementById('closePageBtn');
 
     if (avatarInput) {
-        avatarInput.addEventListener('change', (event) => {
+        avatarInput.addEventListener('change', async (event) => {
             const file = event.target?.files?.[0];
             if (!file) return;
 
-            const reader = new FileReader();
-            reader.onload = () => {
-                profileState.avatar = String(reader.result || '');
+            try {
+                const compressed = await compressAvatarFile(file);
+                profileState.avatar = compressed;
                 updateAvatarDisplay(profileState.avatar);
-            };
-            reader.readAsDataURL(file);
+            } catch (error) {
+                console.error('头像处理失败:', error);
+                alert(error.message || '头像处理失败，请更换图片后重试');
+            }
+
             event.target.value = '';
         });
     }
