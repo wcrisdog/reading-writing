@@ -1,0 +1,92 @@
+[
+  {
+    "id": "arg-001",
+    "essayType": "argumentative",
+    "language": "zh",
+    "tags": ["自律", "成长", "习惯", "青少年"],
+    "title": "微习惯与长期成长",
+    "source": "behavioral-science-note",
+    "content": "自律不是一次性爆发，而是可重复的小行动。论证时可用‘触发-行动-反馈’结构：先说明环境触发，再展示连续行动，最后给出可量化反馈。"
+  },
+  {
+    "id": "arg-002",
+    "essayType": "argumentative",
+    "language": "zh",
+    "tags": ["科技", "效率", "注意力", "学习"],
+    "title": "技术工具的双刃剑",
+    "source": "education-observation",
+    "content": "科技提高检索效率，但会稀释深度思考。可采用‘让步+转折’论证：先承认工具价值，再强调主动思考与信息筛选能力才是核心竞争力。"
+  },
+  {
+    "id": "arg-003",
+    "essayType": "argumentative",
+    "language": "zh",
+    "tags": ["社会责任", "青年", "公共参与"],
+    "title": "青年公共参与的路径",
+    "source": "civic-engagement-note",
+    "content": "青年参与公共议题可从校园、社区、网络倡议三层展开。写作时先给出现象，再举可执行行动，最后回应‘个人行动是否有意义’的反驳。"
+  },
+  {
+    "id": "nar-001",
+    "essayType": "narrative",
+    "language": "zh",
+    "tags": ["亲情", "细节", "场景", "情感"],
+    "title": "以动作细节推动情感",
+    "source": "narrative-writing-note",
+    "content": "避免直接说‘我很感动’，改用动作和物件细节：手势、停顿、光线、气味。情感表达可采用‘观察-触发-回忆-顿悟’四步。"
+  },
+  {
+    "id": "nar-002",
+    "essayType": "narrative",
+    "language": "zh",
+    "tags": ["校园", "成长", "冲突", "和解"],
+    "title": "冲突场景的叙事节奏",
+    "source": "school-story-pattern",
+    "content": "冲突段落可分三拍：误解发生、情绪升级、关键转折。每一拍只放一个核心动作，避免堆叠心理独白，结尾用一个具体行为完成和解。"
+  },
+  {
+    "id": "nar-003",
+    "essayType": "narrative",
+    "language": "zh",
+    "tags": ["记忆", "时间", "结构", "倒叙"],
+    "title": "倒叙与现实线并置",
+    "source": "structure-note",
+    "content": "开头以现实中的小物件触发回忆，再切入倒叙。段尾回到现实，形成时间闭环。这样既有画面感，也能保持主题聚焦。"
+  },
+  {
+    "id": "aca-001",
+    "essayType": "academic",
+    "language": "zh",
+    "tags": ["研究问题", "文献综述", "方法"],
+    "title": "研究问题收敛模板",
+    "source": "research-method-note",
+    "content": "研究问题可按‘对象-变量-范围-方法’收敛。文献综述应先给主题脉络，再指出争议点，最后提出本文的切入空缺。"
+  },
+  {
+    "id": "aca-002",
+    "essayType": "academic",
+    "language": "zh",
+    "tags": ["数据", "可信度", "证据"],
+    "title": "证据可信度分层",
+    "source": "evidence-quality-note",
+    "content": "引用证据时可分三层：原始数据、权威报告、二手解读。写作建议优先使用原始数据并注明来源时间，以避免时效性偏差。"
+  },
+  {
+    "id": "aca-003",
+    "essayType": "academic",
+    "language": "zh",
+    "tags": ["讨论", "局限性", "结论"],
+    "title": "讨论部分写作框架",
+    "source": "paper-discussion-guide",
+    "content": "讨论部分可按‘结果解释-对比既有研究-实践启示-研究局限’展开。结论避免重复结果，应强调贡献与未来研究方向。"
+  },
+  {
+    "id": "gen-001",
+    "essayType": "generic",
+    "language": "zh",
+    "tags": ["结构", "段落", "过渡"],
+    "title": "段落过渡常用策略",
+    "source": "writing-coach-note",
+    "content": "段落之间建议使用‘承接句+方向句’组合：先回收上一段核心，再开启下一段重点。过渡句越具体，全文逻辑越清晰。"
+  }
+]

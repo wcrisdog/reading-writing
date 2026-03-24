@@ -1,5 +1,31 @@
 // Vercel Serverless Function for Qianwen API
 
+import { buildRagSystemPrompt, retrieveRelevantChunks } from './rag/retriever.js';
+
+const RAG_REQUEST_TYPES = new Set([
+    'detailed-materials',
+    'materials',
+    'contextual-inspiration'
+]);
+
+function inferLanguage(messages) {
+    const joined = (Array.isArray(messages) ? messages : [])
+        .map((message) => String(message?.content || ''))
+        .join(' ');
+
+    return /[\u4e00-\u9fff]/.test(joined) ? 'zh' : 'en';
+}
+
+function extractRagQuery(messages) {
+    if (!Array.isArray(messages) || messages.length === 0) {
+        return '';
+    }
+
+    const reversed = [...messages].reverse();
+    const userMessage = reversed.find((message) => message?.role === 'user');
+    return String(userMessage?.content || '').slice(0, 1200);
+}
+
 export default async function handler(req, res) {
     // 设置CORS头
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -53,10 +79,53 @@ export default async function handler(req, res) {
         };
 
         const chosenMaxTokens = maxTokensByType[type] || 900;
+        const language = inferLanguage(messages);
+
+        let modelMessages = messages;
+        let ragMeta = {
+            enabled: false,
+            requestType: type,
+            matchedChunks: 0,
+            sources: []
+        };
+
+        const ragEnabled = String(process.env.RAG_ENABLED || 'true').toLowerCase() !== 'false';
+        if (ragEnabled && RAG_REQUEST_TYPES.has(type)) {
+            try {
+                const topK = Math.max(1, Math.min(6, Number(process.env.RAG_TOP_K || 3)));
+                const query = extractRagQuery(messages);
+
+                if (query) {
+                    const retrieval = await retrieveRelevantChunks({
+                        query,
+                        essayType,
+                        requestType: type,
+                        topK
+                    });
+
+                    if (retrieval.chunks.length > 0) {
+                        const ragPrompt = buildRagSystemPrompt(retrieval.chunks, language);
+                        modelMessages = [
+                            { role: 'system', content: ragPrompt },
+                            ...messages
+                        ];
+
+                        ragMeta = {
+                            enabled: true,
+                            requestType: type,
+                            matchedChunks: retrieval.chunks.length,
+                            sources: retrieval.chunks.map((chunk) => chunk.source)
+                        };
+                    }
+                }
+            } catch (ragError) {
+                console.error('⚠️ RAG 检索失败，已回退到默认生成:', ragError.message);
+            }
+        }
 
         const createRequestBody = (model, maxTokens) => ({
             model,
-            messages,
+            messages: modelMessages,
             max_tokens: maxTokens,
             temperature: 0.7,
             stream: false
@@ -147,7 +216,8 @@ export default async function handler(req, res) {
             message,
             type: type,
             essayType: essayType,
-            usage: data?.usage || null
+            usage: data?.usage || null,
+            rag: ragMeta
         });
 
     } catch (error) {

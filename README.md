@@ -49,6 +49,8 @@ npm run dev
 | 变量名 | 必填 | 说明 |
 | --- | --- | --- |
 | `QIANWEN_API_KEY` | 是 | 阿里云 DashScope（通义千问）API Key |
+| `RAG_ENABLED` | 否 | 是否启用服务端 RAG，默认 `true`，可设置为 `false` 临时关闭 |
+| `RAG_TOP_K` | 否 | 每次检索返回的参考片段数量，默认 `3`，建议范围 `2-6` |
 | `RESEND_API_KEY` | 邮箱验证码必填 | Resend 邮件发送服务 API Key |
 | `RESEND_FROM_EMAIL` | 邮箱验证码必填 | 已在 Resend 验证的发件邮箱，例如 `Write Bot <no-reply@yourdomain.com>` |
 | `VERIFICATION_CODE_SIGNING_SECRET` | 邮箱验证码必填 | 服务端签名邮箱验证码 challenge 的密钥，建议使用随机长字符串 |
@@ -69,9 +71,33 @@ npm run dev
 - 前端通过 `ai-service.js` 调用同源接口：`/api/qianwen/`
 - 认证接口通过前端脚本直接调用：`/api/auth/send-code`、`/api/auth/verify-code`
 - 后端入口：`api/qianwen.js`、`api/auth/send-code.js`、`api/auth/verify-code.js`
+- RAG 检索模块：`api/rag/retriever.js`（当前使用本地语料库）
+- RAG 语料库：`data/rag-materials.json`
 - 验证码工具：`api/auth/_verification-utils.js`
 - 模型策略：优先 `qwen-plus`，失败时回退 `qwen-turbo`
 - 服务端管理密钥，前端不暴露 API Key、邮件验证码或短信服务凭证
+
+## RAG 部署说明（已接入当前项目）
+
+当前项目已经接入轻量 RAG：当请求类型为素材推荐/上下文灵感时，服务端会先从本地语料中检索相关片段，再把检索结果作为额外系统提示发送给大模型，从而让输出更贴近写作场景。
+
+### 1) 立即可用的方式（当前实现）
+
+1. 在 `data/rag-materials.json` 中维护素材知识库（可按 essayType、tags 扩充）
+2. 在 Vercel 设置 `RAG_ENABLED=true`（可省略，默认开启）
+3. 可按需要设置 `RAG_TOP_K=3`
+4. 重新部署后即可生效
+
+### 2) 升级到向量数据库（推荐生产）
+
+当你的素材规模变大（数千条以上），建议升级为 embedding + 向量检索：
+
+1. 选择向量库：`pgvector` / `Pinecone` / `Milvus` / `Qdrant`
+2. 离线建立索引：将素材分块、生成 embedding、写入向量库
+3. 在线检索：在 `api/rag/retriever.js` 中替换本地打分逻辑为向量相似度查询
+4. 保留当前注入机制：继续通过 `api/qianwen.js` 将 top-k 检索结果注入模型上下文
+
+这样可以在保持现有 API 协议不变的情况下平滑演进。
 
 ## 项目结构
 
@@ -84,10 +110,14 @@ reading-writing/
 ├── .env.example          # 环境变量示例
 ├── api/
 │   ├── qianwen.js        # Vercel Serverless AI 代理
+│   ├── rag/
+│   │   └── retriever.js  # RAG 检索逻辑（本地语料/后续可替换向量检索）
 │   └── auth/
 │       ├── send-code.js  # 发送真实短信/邮箱验证码
 │       ├── verify-code.js# 校验真实短信/邮箱验证码
 │       └── _verification-utils.js
+├── data/
+│   └── rag-materials.json# RAG 语料知识库
 ├── vercel.json           # Vercel 函数资源与超时配置
 ├── package.json
 └── README.md
