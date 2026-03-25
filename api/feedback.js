@@ -1,5 +1,7 @@
 // Vercel Serverless Function for AI Content Feedback
 
+import { saveFeedback } from './db-service.js';
+
 export default async function handler(req, res) {
     // 设置CORS头
     res.setHeader('Access-Control-Allow-Credentials', 'true');
@@ -71,13 +73,14 @@ export default async function handler(req, res) {
             }
         };
 
-        // 这里可以根据需要存储反馈数据
-        // 1. 存储到数据库
-        // 2. 写入日志文件
-        // 3. 发送到数据分析服务
-        // 4. 保存到云存储等
-
-        console.log('📊 Received AI Feedback:', JSON.stringify(feedbackRecord, null, 2));
+        // 保存到MongoDB
+        try {
+            const result = await saveFeedback(feedbackRecord);
+            console.log('📊 Feedback saved to MongoDB:', result.feedbackId);
+        } catch (dbError) {
+            console.error('⚠️ MongoDB save failed, but still returning success:', dbError.message);
+            // 即使数据库失败也返回成功，避免前端错误
+        }
 
         // 示例：存储到环境变量指定的外部服务（可选）
         if (process.env.FEEDBACK_WEBHOOK_URL) {

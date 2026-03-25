@@ -11,5 +11,7 @@
   "keywords": ["writing", "ai"],
   "author": "",
   "license": "MIT",
-  "dependencies": {}
+  "dependencies": {
+    "mongodb": "^6.3.0"
+  }
 }
