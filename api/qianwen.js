@@ -85,10 +85,16 @@ export default async function handler(req, res) {
         let data;
         let lastErrorStatus = 0;
 
-        const attempts = [
-            { model: 'qwen-plus', maxTokens: chosenMaxTokens, timeoutMs: 16000 },
-            { model: 'qwen-turbo', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.7)), timeoutMs: 12000 }
-        ];
+        const isMaterialsType = type === 'materials' || type === 'detailed-materials';
+        const attempts = isMaterialsType
+            ? [
+                { model: 'qwen-turbo', maxTokens: Math.max(450, Math.floor(chosenMaxTokens * 0.8)), timeoutMs: 14000 },
+                { model: 'qwen-plus', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.65)), timeoutMs: 12000 }
+            ]
+            : [
+                { model: 'qwen-plus', maxTokens: chosenMaxTokens, timeoutMs: 16000 },
+                { model: 'qwen-turbo', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.7)), timeoutMs: 12000 }
+            ];
 
         for (let i = 0; i < attempts.length; i++) {
             const attempt = attempts[i];

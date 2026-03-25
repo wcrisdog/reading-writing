@@ -209,13 +209,7 @@ async function submitAIFeedback(contentType, sentiment, generatedContent, option
             return;
         }
 
-        showNotification(
-            currentLanguage === 'zh'
-                ? '反馈已在本地记录，稍后将自动重试上报'
-                : 'Feedback saved locally; upload will retry later',
-            'warning',
-            2500
-        );
+        console.warn('反馈上报未成功，已保留本地状态，等待后续上报');
     } catch (error) {
         console.error('反馈提交失败:', error);
         showNotification(
@@ -1319,6 +1313,9 @@ function updateGuestModeSidebar(isGuest) {
     }
     if (guestUpgradeBtn) {
         guestUpgradeBtn.style.display = isGuest ? 'flex' : 'none';
+    }
+    if (logoutBtn) {
+        logoutBtn.style.display = isGuest ? 'none' : 'inline-flex';
     }
 }
 
