@@ -59,6 +59,8 @@
                         <button class="auth-method-btn active" type="button" data-login-method="email">邮箱</button>
                     </div>
 
+                    <button class="auth-guest-btn" id="guestLoginBtn" type="button">先以游客体验 / Continue as Guest</button>
+
                     <form id="loginForm" class="auth-form">
                         <label class="auth-field">
                             <span id="loginIdentifierLabel">邮箱</span>
@@ -192,6 +194,11 @@
                     <strong id="sidebarProfileDisplayName">个人主页</strong>
                     <small id="sidebarProfileMeta">点击完善头像与个人资料</small>
                 </span>
+            </button>
+
+            <button class="guest-upgrade-entry" id="guestUpgradeBtn" type="button" style="display:none;" aria-label="推荐注册登录">
+                <span>✨ 推荐注册登录</span>
+                <small>获取定制化体验与云端记录</small>
             </button>
         </aside>
 
@@ -376,6 +383,19 @@
                 <h2>🤖 AI正在生成写作计划</h2>
                 <p class="loading-text">AI is generating your writing plan...</p>
                 <p class="loading-hint">请稍候......</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Report Generating Modal -->
+    <div id="reportGeneratingModal" class="modal" style="display:none;">
+        <div class="modal-content report-generating-content">
+            <button class="modal-close" id="closeReportGeneratingModal" aria-label="关闭">✕</button>
+            <div class="ai-loading-animation">
+                <div class="loading-spinner"></div>
+                <h2>📊 正在生成写作报告</h2>
+                <p class="loading-text">Writing report is being generated...</p>
+                <p class="loading-hint">你可以关闭此窗口，系统会在后台继续生成</p>
             </div>
         </div>
     </div>

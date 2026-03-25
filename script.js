@@ -43,10 +43,13 @@ let editorViewTabs = null;
 let writeView = null;
 let reportView = null;
 let openProfileHomeBtn = null;
+let guestUpgradeBtn = null;
 let sidebarProfileAvatar = null;
 let sidebarProfileAvatarFallback = null;
 let sidebarProfileDisplayName = null;
 let sidebarProfileMeta = null;
+let isReportGenerating = false;
+let reportGenerationDismissed = false;
 
 // =========== 写作过程追踪数据 ===========
 let writingProcessData = {
@@ -1250,6 +1253,16 @@ function updateCurrentUserBadge() {
     if (!currentUser) {
         currentUserName.textContent = currentLanguage === 'zh' ? '未登录' : 'Signed out';
         currentUserMeta.textContent = currentLanguage === 'zh' ? '登录后显示当前账号' : 'Current account appears here';
+        updateGuestModeSidebar(false);
+        return;
+    }
+
+    if (currentUser.isGuest) {
+        currentUserName.textContent = currentLanguage === 'zh' ? '游客模式' : 'Guest Mode';
+        currentUserMeta.textContent = currentLanguage === 'zh'
+            ? '推荐注册登录以获取定制化体验'
+            : 'Sign up for personalized experience';
+        updateGuestModeSidebar(true);
         return;
     }
 
@@ -1257,6 +1270,48 @@ function updateCurrentUserBadge() {
     currentUserMeta.textContent = currentUser.phone
         ? `手机号 ${maskContact('phone', currentUser.phone)}`
         : `邮箱 ${maskContact('email', currentUser.email)}`;
+    updateGuestModeSidebar(false);
+}
+
+function updateGuestModeSidebar(isGuest) {
+    if (openProfileHomeBtn) {
+        openProfileHomeBtn.style.display = isGuest ? 'none' : 'flex';
+    }
+    if (guestUpgradeBtn) {
+        guestUpgradeBtn.style.display = isGuest ? 'flex' : 'none';
+    }
+}
+
+function enterGuestApp() {
+    const guestUser = {
+        id: 'guest',
+        username: currentLanguage === 'zh' ? '游客' : 'Guest',
+        email: '',
+        phone: '',
+        isGuest: true
+    };
+    enterAuthenticatedApp(guestUser, { notify: false });
+    showNotification(
+        currentLanguage === 'zh'
+            ? '已进入游客模式，可先体验核心功能'
+            : 'Entered guest mode. Try core features first.',
+        'success',
+        2600
+    );
+}
+
+function returnToAuthFromGuest() {
+    currentUser = null;
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    document.body.classList.remove('auth-ready', 'guide-with-sidebar');
+    document.body.classList.add('auth-locked');
+    updateCurrentUserBadge();
+    if (authGate) authGate.style.display = '';
+    if (appShell) appShell.style.display = '';
+    switchAuthMode('login');
+    setAuthStatus(currentLanguage === 'zh'
+        ? '欢迎注册登录，解锁定制化体验与成长档案。'
+        : 'Sign in to unlock personalized experience and growth archive.');
 }
 
 function switchAuthMode(mode) {
@@ -1525,10 +1580,14 @@ function loadWorkspaceForCurrentUser() {
 function enterAuthenticatedApp(user, options = {}) {
     const { notify = true } = options;
     currentUser = user;
-    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
-        userId: user.id,
-        loggedInAt: new Date().toISOString()
-    }));
+    if (user?.isGuest) {
+        localStorage.removeItem(AUTH_SESSION_KEY);
+    } else {
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+            userId: user.id,
+            loggedInAt: new Date().toISOString()
+        }));
+    }
 
     document.body.classList.remove('auth-locked');
     document.body.classList.add('auth-ready');
@@ -1792,6 +1851,48 @@ function closeAILoadingModal() {
     }
 }
 
+function renderReportPendingHint() {
+    if (!reportContent) return;
+    reportContent.innerHTML = `
+        <div class="report-pending-card">
+            <h5>📊 ${currentLanguage === 'zh' ? '写作报告生成中' : 'Writing Report In Progress'}</h5>
+            <p>${currentLanguage === 'zh'
+                ? 'AI 正在分析你的文章与写作过程。你可以继续写作，报告完成后可在“写作报告”中查看。'
+                : 'AI is analyzing your text and process. You can continue writing and open the report when done.'}</p>
+        </div>
+    `;
+}
+
+function showReportGeneratingModal() {
+    const modal = document.getElementById('reportGeneratingModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+}
+
+function hideReportGeneratingModal() {
+    const modal = document.getElementById('reportGeneratingModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
+function dismissReportGeneratingModal() {
+    if (!isReportGenerating) {
+        hideReportGeneratingModal();
+        return;
+    }
+
+    reportGenerationDismissed = true;
+    hideReportGeneratingModal();
+    renderReportPendingHint();
+    showNotification(
+        currentLanguage === 'zh'
+            ? '写作报告正在后台继续生成，完成后会提醒你'
+            : 'Report generation continues in background. You will be notified when done.',
+        'warning',
+        3200
+    );
+}
+
 const AI_OPERATION_CANCELLED_CODE = 'AI_OPERATION_CANCELLED';
 
 function buildAIOperationCancelledError(sceneLabel = '') {
@@ -1976,6 +2077,7 @@ document.addEventListener('DOMContentLoaded', () => {
     writeView = document.getElementById('writeView');
     reportView = document.getElementById('reportView');
     openProfileHomeBtn = document.getElementById('openProfileHomeBtn');
+    guestUpgradeBtn = document.getElementById('guestUpgradeBtn');
     sidebarProfileAvatar = document.getElementById('sidebarProfileAvatar');
     sidebarProfileAvatarFallback = document.getElementById('sidebarProfileAvatarFallback');
     sidebarProfileDisplayName = document.getElementById('sidebarProfileDisplayName');
@@ -2195,6 +2297,7 @@ function setupEventListeners() {
     const closeOptimizationModalBtn = document.getElementById('closeOptimizationModal');
     const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
     const closeRawPromptModalBtn = document.getElementById('closeRawPromptModal');
+    const closeReportGeneratingModalBtn = document.getElementById('closeReportGeneratingModal');
     const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
     const enlargeOutlineBtn = document.getElementById('enlargeOutlineBtn');
     const enlargeOutlineFromPanelBtn = document.getElementById('enlargeOutlineFromPanelBtn');
@@ -2203,9 +2306,18 @@ function setupEventListeners() {
     if (closeOptimizationModalBtn) closeOptimizationModalBtn.addEventListener('click', closeOptimizationModal);
     if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
     if (closeRawPromptModalBtn) closeRawPromptModalBtn.addEventListener('click', closeRawPromptModal);
+    if (closeReportGeneratingModalBtn) closeReportGeneratingModalBtn.addEventListener('click', dismissReportGeneratingModal);
 
     if (openProfileHomeBtn) {
         openProfileHomeBtn.addEventListener('click', openProfileHomePage);
+    }
+    if (guestUpgradeBtn) {
+        guestUpgradeBtn.addEventListener('click', returnToAuthFromGuest);
+    }
+
+    const guestLoginBtn = document.getElementById('guestLoginBtn');
+    if (guestLoginBtn) {
+        guestLoginBtn.addEventListener('click', enterGuestApp);
     }
     
     // 原始题目模态框事件
@@ -2311,6 +2423,7 @@ function setupEventListeners() {
     const outlineResultModal = document.getElementById('outlineResultModal');
     const rawPromptModal = document.getElementById('rawPromptModal');
     const materialsModal = document.getElementById('materialsModal');
+    const reportGeneratingModal = document.getElementById('reportGeneratingModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
@@ -2341,6 +2454,11 @@ function setupEventListeners() {
     if (materialsModal) {
         materialsModal.addEventListener('click', (e) => {
             if (e.target.id === 'materialsModal') closeMaterialsModal();
+        });
+    }
+    if (reportGeneratingModal) {
+        reportGeneratingModal.addEventListener('click', (e) => {
+            if (e.target.id === 'reportGeneratingModal') dismissReportGeneratingModal();
         });
     }
     window.addEventListener('storage', (event) => {
@@ -5061,6 +5179,15 @@ function saveUserProfile() {
 // 写作完成：生成写作报告（调用AI，失败则本地生成）
 async function finishWriting() {
     if (!mainEditor) return;
+    if (isReportGenerating) {
+        showNotification(
+            currentLanguage === 'zh'
+                ? '写作报告正在生成中，请稍候'
+                : 'Writing report is already generating. Please wait.',
+            'warning'
+        );
+        return;
+    }
     if (!writingStartTime) writingStartTime = Date.now();
     const endTime = Date.now();
     const durationSec = Math.round((endTime - writingStartTime) / 1000);
@@ -5080,6 +5207,16 @@ async function finishWriting() {
         );
         return;
     }
+
+    isReportGenerating = true;
+    reportGenerationDismissed = false;
+    renderReportPendingHint();
+    showReportGeneratingModal();
+    showNotification(
+        currentLanguage === 'zh' ? '📊 正在生成写作报告...' : '📊 Generating writing report...',
+        'success',
+        1800
+    );
 
     let evaluation = null;
     let useAIEvaluation = false;
@@ -5201,16 +5338,25 @@ async function finishWriting() {
         // 显示视图切换标签并切换到报告视图
         if (editorViewTabs) {
             editorViewTabs.style.display = 'flex';
-            writeView.style.display = 'none';
-            reportView.style.display = 'flex';
-            if (reportViewTab) reportViewTab.classList.add('active');
-            if (writeViewTab) writeViewTab.classList.remove('active');
+            if (!reportGenerationDismissed) {
+                writeView.style.display = 'none';
+                reportView.style.display = 'flex';
+                if (reportViewTab) reportViewTab.classList.add('active');
+                if (writeViewTab) writeViewTab.classList.remove('active');
+            }
         }
         
         const notificationMsg = useAIEvaluation
             ? (currentLanguage === 'zh' ? '✓ AI智能写作报告已生成' : '✓ AI writing report generated')
             : (currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
         showNotification(notificationMsg);
+        if (reportGenerationDismissed) {
+            showNotification(
+                currentLanguage === 'zh' ? '报告已完成，点击“写作报告”即可查看' : 'Report is ready. Click Writing Report to view.',
+                'success',
+                2800
+            );
+        }
     } catch (error) {
         console.error('写作报告生成异常:', error);
         closeAILoadingModal();
@@ -5234,13 +5380,25 @@ async function finishWriting() {
         // 显示视图切换标签并切换到报告视图
         if (editorViewTabs) {
             editorViewTabs.style.display = 'flex';
-            writeView.style.display = 'none';
-            reportView.style.display = 'flex';
-            if (reportViewTab) reportViewTab.classList.add('active');
-            if (writeViewTab) writeViewTab.classList.remove('active');
+            if (!reportGenerationDismissed) {
+                writeView.style.display = 'none';
+                reportView.style.display = 'flex';
+                if (reportViewTab) reportViewTab.classList.add('active');
+                if (writeViewTab) writeViewTab.classList.remove('active');
+            }
         }
         
         showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成（简化版）' : '✓ Writing report generated (simplified)');
+        if (reportGenerationDismissed) {
+            showNotification(
+                currentLanguage === 'zh' ? '后台报告已完成，点击“写作报告”查看' : 'Background report finished. Click Writing Report.',
+                'success',
+                2800
+            );
+        }
+    } finally {
+        isReportGenerating = false;
+        hideReportGeneratingModal();
     }
     
     // 6. 重置写作过程数据
