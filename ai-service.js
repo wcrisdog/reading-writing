@@ -460,10 +460,10 @@ Output format:
             { role: 'user', content: promptMap[essayType] }
         ];
 
-        // 简化版本也应有合理的超时和重试机制
+        // 简化版本用于快速降级，避免再次叠加长重试链路
         return await this.callAI(messages, 'materials', essayType, {
-            timeoutMs: 18000,
-            retries: 1
+            timeoutMs: 10000,
+            retries: 0
         });
     }
 

@@ -371,6 +371,20 @@ body.auth-ready .auth-gate {
     color: rgba(255, 255, 255, 0.8);
 }
 
+.sidebar-account-copy small.guest-upgrade-meta-cta {
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    color: #fef08a;
+    transition: color 0.2s ease, opacity 0.2s ease;
+}
+
+.sidebar-account-copy small.guest-upgrade-meta-cta:hover,
+.sidebar-account-copy small.guest-upgrade-meta-cta:focus-visible {
+    color: #fff59d;
+    opacity: 1;
+}
+
 .account-logout-btn {
     flex-shrink: 0;
     padding: 8px 12px;

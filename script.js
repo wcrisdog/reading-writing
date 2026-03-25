@@ -1264,12 +1264,33 @@ function getUserByMethod(method, rawValue, users = readAuthUsers()) {
     return users.find(user => normalizeEmail(user.email) === normalized) || null;
 }
 
+function setGuestMetaPromptInteractive(isInteractive) {
+    if (!currentUserMeta) return;
+
+    currentUserMeta.classList.toggle('guest-upgrade-meta-cta', isInteractive);
+    if (isInteractive) {
+        currentUserMeta.setAttribute('role', 'button');
+        currentUserMeta.setAttribute('tabindex', '0');
+        currentUserMeta.setAttribute(
+            'aria-label',
+            currentLanguage === 'zh'
+                ? '点击退出游客模式并前往登录'
+                : 'Click to leave guest mode and go to sign in'
+        );
+    } else {
+        currentUserMeta.removeAttribute('role');
+        currentUserMeta.removeAttribute('tabindex');
+        currentUserMeta.removeAttribute('aria-label');
+    }
+}
+
 function updateCurrentUserBadge() {
     if (!currentUserName || !currentUserMeta) return;
 
     if (!currentUser) {
         currentUserName.textContent = currentLanguage === 'zh' ? '未登录' : 'Signed out';
         currentUserMeta.textContent = currentLanguage === 'zh' ? '登录后显示当前账号' : 'Current account appears here';
+        setGuestMetaPromptInteractive(false);
         updateGuestModeSidebar(false);
         return;
     }
@@ -1279,6 +1300,7 @@ function updateCurrentUserBadge() {
         currentUserMeta.textContent = currentLanguage === 'zh'
             ? '推荐注册登录以获取定制化体验'
             : 'Sign up for personalized experience';
+        setGuestMetaPromptInteractive(true);
         updateGuestModeSidebar(true);
         return;
     }
@@ -1287,6 +1309,7 @@ function updateCurrentUserBadge() {
     currentUserMeta.textContent = currentUser.phone
         ? `手机号 ${maskContact('phone', currentUser.phone)}`
         : `邮箱 ${maskContact('email', currentUser.email)}`;
+    setGuestMetaPromptInteractive(false);
     updateGuestModeSidebar(false);
 }
 
@@ -2379,6 +2402,20 @@ function setupEventListeners() {
     if (guestUpgradeBtn) {
         guestUpgradeBtn.addEventListener('click', returnToAuthFromGuest);
     }
+    if (currentUserMeta) {
+        currentUserMeta.addEventListener('click', () => {
+            if (currentUser?.isGuest) {
+                returnToAuthFromGuest();
+            }
+        });
+        currentUserMeta.addEventListener('keydown', (event) => {
+            if (!currentUser?.isGuest) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                returnToAuthFromGuest();
+            }
+        });
+    }
 
     const guestLoginBtn = document.getElementById('guestLoginBtn');
     if (guestLoginBtn) {
@@ -3128,7 +3165,6 @@ async function showMaterials() {
     
     // 显示素材面板并展示加载状态（步骤2：系统分析）
     materialsPanel.style.display = 'block';
-    let attemptCount = 0;
     const showLoadingMessage = (message) => {
         materialsList.innerHTML = `
             <p class="loading">🔄 ${message}</p>
@@ -3141,7 +3177,7 @@ async function showMaterials() {
             ? `AI正在为"${topic}"分析和筛选相关素材...` 
             : `AI is analyzing and filtering materials for "${topic}"...`);
 
-        // 使用带重试和退避策略的请求（3次重试）
+        // 使用预算控制的重试策略（优先快速返回，避免后台长时间堆叠等待）
         const result = await fetchMaterialsWithRetry({
             type: currentType,
             language: currentLanguage,
@@ -3150,7 +3186,10 @@ async function showMaterials() {
             preferences: userMaterialPreferences,
             guidance: userGuidanceAnswers,
             context: mainEditor.value
-        }, 3);
+        }, {
+            maxRetries: 1,
+            totalTimeoutMs: 26000
+        });
 
         // 步骤3：以卡片形式展示素材
         displayMaterialCards(result.message, topic);
@@ -3255,15 +3294,27 @@ async function showMaterials() {
     }
 }
 
-// Helper: fetch materials with retries + exponential backoff + improved error handling
-async function fetchMaterialsWithRetry(params, maxRetries = 3) {
+// Helper: budgeted retry with fast-fail for non-retriable errors
+async function fetchMaterialsWithRetry(params, options = {}) {
+    const maxRetries = Number.isFinite(options.maxRetries) ? options.maxRetries : 1;
+    const totalTimeoutMs = Number.isFinite(options.totalTimeoutMs) ? options.totalTimeoutMs : 26000;
+    const requestTimeoutBaseMs = Number.isFinite(options.requestTimeoutBaseMs) ? options.requestTimeoutBaseMs : 11000;
+    const requestTimeoutStepMs = Number.isFinite(options.requestTimeoutStepMs) ? options.requestTimeoutStepMs : 2000;
+
     let attempt = 0;
     let lastError = null;
-    
+    const startedAt = Date.now();
+
     while (attempt <= maxRetries) {
         try {
-            // 根据重试次数调整超时时间
-            const adjustedTimeoutMs = 22000 + (attempt * 3000);
+            // 控制单次请求体量：重试时缩短上下文，提升命中率和响应速度
+            const adjustedTimeoutMs = requestTimeoutBaseMs + (attempt * requestTimeoutStepMs);
+            const compactContext = attempt === 0
+                ? (params.context || '')
+                : String(params.context || '').slice(-600);
+            const compactGuidance = attempt === 0
+                ? (params.guidance || [])
+                : (params.guidance || []).slice(-3);
             
             return await aiService.generateDetailedMaterials(
                 params.type,
@@ -3271,16 +3322,33 @@ async function fetchMaterialsWithRetry(params, maxRetries = 3) {
                 params.topic,
                 params.level,
                 params.preferences,
-                params.guidance,
-                params.context,
+                compactGuidance,
+                compactContext,
                 { timeoutMs: adjustedTimeoutMs, retries: 0 } // 在服务层已处理，此处不再重试
             );
         } catch (err) {
             lastError = err;
+            const status = Number(err?.status || 0);
+            const message = String(err?.message || '');
+            const isTimeout = /timeout|AbortError/i.test(message);
+            const isRetriable = isTimeout || status === 429 || status === 502 || status === 503 || status === 504;
+
+            // 非可重试错误直接失败，避免无意义重试
+            if (!isRetriable) {
+                throw err;
+            }
+
             attempt++;
             
             if (attempt <= maxRetries) {
-                const delay = 800 * Math.pow(2, attempt); // 800ms, 1600ms, 3200ms...
+                const delay = 600 * Math.pow(2, attempt); // 1200ms, 2400ms...
+                const elapsed = Date.now() - startedAt;
+
+                // 总预算耗尽则快速退出，走降级逻辑
+                if (elapsed + delay >= totalTimeoutMs) {
+                    break;
+                }
+
                 console.log(`素材推荐重试 ${attempt}/${maxRetries}，待机 ${delay}ms...`);
                 await new Promise(r => setTimeout(r, delay));
             }
@@ -3565,7 +3633,10 @@ async function refreshMaterials(topic) {
             preferences: userMaterialPreferences,
             guidance: [],
             context: mainEditor.value
-        }, 2);  // 2 次重试
+        }, {
+            maxRetries: 1,
+            totalTimeoutMs: 22000
+        });
 
         displayMaterialCards(result.message, topic);
         showNotification(currentLanguage === 'zh' ? '✓ 新素材已加载' : '✓ New materials loaded');
