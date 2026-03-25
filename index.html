@@ -400,6 +400,22 @@
         </div>
     </div>
 
+    <!-- Guest Upgrade Confirm Modal -->
+    <div id="guestUpgradeConfirmModal" class="modal" style="display:none;">
+        <div class="modal-content guest-upgrade-modal-content">
+            <button class="modal-close" id="closeGuestUpgradeConfirmModal" aria-label="关闭">✕</button>
+            <h2>🔐 退出游客模式并前往登录</h2>
+            <div class="guest-upgrade-warning">
+                <p>确认退出游客模式并进入邮箱登录/注册吗？</p>
+                <p>退出后，当前所有写作结果与 AI 生成内容将被清空。</p>
+            </div>
+            <div class="guest-upgrade-actions">
+                <button class="secondary-btn" id="cancelGuestUpgradeBtn" type="button">继续游客体验</button>
+                <button class="primary-btn" id="confirmGuestUpgradeBtn" type="button">退出并去登录</button>
+            </div>
+        </div>
+    </div>
+
     <div class="floating-guide-shell" id="floatingGuideShell">
         <div class="guide-hint-bubble" id="userGuideHint" role="status" aria-live="polite">
             <button class="guide-hint-close" id="dismissUserGuideHint" aria-label="关闭提示">✕</button>

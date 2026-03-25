@@ -411,7 +411,7 @@ body.auth-ready .auth-gate {
 
 .floating-guide-shell {
     position: fixed;
-    right: 16px;
+    right: 352px;
     bottom: 16px;
     z-index: 220;
     display: flex;
@@ -422,7 +422,14 @@ body.auth-ready .auth-gate {
 }
 
 body.guide-with-sidebar .floating-guide-shell {
-    right: 16px;
+    right: 352px;
+}
+
+@media (max-width: 1024px) {
+    .floating-guide-shell,
+    body.guide-with-sidebar .floating-guide-shell {
+        right: 16px;
+    }
 }
 
 .guide-hint-bubble {
@@ -2351,6 +2358,39 @@ body.guide-with-sidebar .floating-guide-shell {
     color: var(--text-light);
     margin: 0;
     font-style: italic;
+}
+
+.guest-upgrade-modal-content {
+    max-width: 520px;
+    padding: 24px 22px 20px;
+}
+
+.guest-upgrade-warning {
+    background: rgba(245, 158, 11, 0.12);
+    border: 1px solid rgba(245, 158, 11, 0.35);
+    border-radius: 12px;
+    padding: 14px;
+    margin: 8px 0 14px;
+}
+
+.guest-upgrade-warning p {
+    margin: 0;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--text-primary);
+}
+
+.guest-upgrade-warning p + p {
+    margin-top: 8px;
+    color: var(--danger-color);
+    font-weight: 600;
+}
+
+.guest-upgrade-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 4px;
 }
 
 /* 编辑器布局 */

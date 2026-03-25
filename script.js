@@ -161,6 +161,15 @@ async function submitAIFeedback(contentType, sentiment, generatedContent, option
     }
 
     const contentId = options.contentId || generateAIContentId(contentType);
+
+    // 先更新前端状态，保证点击后立即有视觉反馈
+    aiContentFeedback[contentId] = {
+        type: contentType,
+        sentiment,
+        timestamp: Date.now()
+    };
+    updateAIFeedbackButtonsUI(options.triggerBtn, sentiment);
+
     const feedbackPayload = {
         userId: currentUser.id,
         username: currentUser.username,
@@ -190,13 +199,6 @@ async function submitAIFeedback(contentType, sentiment, generatedContent, option
     try {
         const result = await aiService.submitFeedback(feedbackPayload);
         if (result.success !== false) {
-            aiContentFeedback[contentId] = {
-                type: contentType,
-                sentiment,
-                timestamp: Date.now()
-            };
-            updateAIFeedbackButtonsUI(options.triggerBtn, sentiment);
-
             showNotification(
                 currentLanguage === 'zh' 
                     ? (sentiment === 'like' ? '✓ 感谢点赞反馈！' : '✓ 反馈已收集，我们会继续改进') 
@@ -204,10 +206,25 @@ async function submitAIFeedback(contentType, sentiment, generatedContent, option
                 'success',
                 2000
             );
+            return;
         }
+
+        showNotification(
+            currentLanguage === 'zh'
+                ? '反馈已在本地记录，稍后将自动重试上报'
+                : 'Feedback saved locally; upload will retry later',
+            'warning',
+            2500
+        );
     } catch (error) {
         console.error('反馈提交失败:', error);
-        // 失败时默认提示，不影响用户体验
+        showNotification(
+            currentLanguage === 'zh'
+                ? '反馈已记录（网络异常，稍后重试）'
+                : 'Feedback saved (network error, retry later)',
+            'warning',
+            2500
+        );
     }
 }
 
@@ -1301,8 +1318,31 @@ function enterGuestApp() {
 }
 
 function returnToAuthFromGuest() {
+    if (currentUser?.isGuest) {
+        showGuestUpgradeConfirmModal();
+        return;
+    }
+
+    performReturnToAuthFromGuest();
+}
+
+function clearGuestScopedStorage() {
+    const prefix = `${AUTH_APP_NAMESPACE}:guest:`;
+    const keysToDelete = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+            keysToDelete.push(key);
+        }
+    }
+    keysToDelete.forEach(key => localStorage.removeItem(key));
+}
+
+function performReturnToAuthFromGuest() {
     currentUser = null;
     localStorage.removeItem(AUTH_SESSION_KEY);
+    clearGuestScopedStorage();
+    resetWorkspaceForUserSwitch();
     document.body.classList.remove('auth-ready', 'guide-with-sidebar');
     document.body.classList.add('auth-locked');
     updateCurrentUserBadge();
@@ -1312,6 +1352,20 @@ function returnToAuthFromGuest() {
     setAuthStatus(currentLanguage === 'zh'
         ? '欢迎注册登录，解锁定制化体验与成长档案。'
         : 'Sign in to unlock personalized experience and growth archive.');
+}
+
+function showGuestUpgradeConfirmModal() {
+    const modal = document.getElementById('guestUpgradeConfirmModal');
+    if (!modal) {
+        performReturnToAuthFromGuest();
+        return;
+    }
+    modal.style.display = 'flex';
+}
+
+function closeGuestUpgradeConfirmModal() {
+    const modal = document.getElementById('guestUpgradeConfirmModal');
+    if (modal) modal.style.display = 'none';
 }
 
 function switchAuthMode(mode) {
@@ -2298,6 +2352,9 @@ function setupEventListeners() {
     const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
     const closeRawPromptModalBtn = document.getElementById('closeRawPromptModal');
     const closeReportGeneratingModalBtn = document.getElementById('closeReportGeneratingModal');
+    const closeGuestUpgradeConfirmModalBtn = document.getElementById('closeGuestUpgradeConfirmModal');
+    const confirmGuestUpgradeBtn = document.getElementById('confirmGuestUpgradeBtn');
+    const cancelGuestUpgradeBtn = document.getElementById('cancelGuestUpgradeBtn');
     const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
     const enlargeOutlineBtn = document.getElementById('enlargeOutlineBtn');
     const enlargeOutlineFromPanelBtn = document.getElementById('enlargeOutlineFromPanelBtn');
@@ -2307,6 +2364,14 @@ function setupEventListeners() {
     if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
     if (closeRawPromptModalBtn) closeRawPromptModalBtn.addEventListener('click', closeRawPromptModal);
     if (closeReportGeneratingModalBtn) closeReportGeneratingModalBtn.addEventListener('click', dismissReportGeneratingModal);
+    if (closeGuestUpgradeConfirmModalBtn) closeGuestUpgradeConfirmModalBtn.addEventListener('click', closeGuestUpgradeConfirmModal);
+    if (cancelGuestUpgradeBtn) cancelGuestUpgradeBtn.addEventListener('click', closeGuestUpgradeConfirmModal);
+    if (confirmGuestUpgradeBtn) {
+        confirmGuestUpgradeBtn.addEventListener('click', () => {
+            closeGuestUpgradeConfirmModal();
+            performReturnToAuthFromGuest();
+        });
+    }
 
     if (openProfileHomeBtn) {
         openProfileHomeBtn.addEventListener('click', openProfileHomePage);
@@ -2424,6 +2489,7 @@ function setupEventListeners() {
     const rawPromptModal = document.getElementById('rawPromptModal');
     const materialsModal = document.getElementById('materialsModal');
     const reportGeneratingModal = document.getElementById('reportGeneratingModal');
+    const guestUpgradeConfirmModal = document.getElementById('guestUpgradeConfirmModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
@@ -2459,6 +2525,11 @@ function setupEventListeners() {
     if (reportGeneratingModal) {
         reportGeneratingModal.addEventListener('click', (e) => {
             if (e.target.id === 'reportGeneratingModal') dismissReportGeneratingModal();
+        });
+    }
+    if (guestUpgradeConfirmModal) {
+        guestUpgradeConfirmModal.addEventListener('click', (e) => {
+            if (e.target.id === 'guestUpgradeConfirmModal') closeGuestUpgradeConfirmModal();
         });
     }
     window.addEventListener('storage', (event) => {
