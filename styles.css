@@ -3822,6 +3822,7 @@ body.guide-with-sidebar .floating-guide-shell {
     align-items: center;
     gap: 6px;
     white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .feedback-btn:hover {
@@ -3854,4 +3855,30 @@ body.guide-with-sidebar .floating-guide-shell {
 .feedback-dislike:hover {
     background: rgba(239, 68, 68, 0.05);
     border-color: var(--danger-color);
+}
+
+.feedback-btn.is-selected {
+    color: #fff;
+}
+
+.feedback-like.is-selected {
+    background: var(--success-color);
+    border-color: var(--success-color);
+}
+
+.feedback-dislike.is-selected {
+    background: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+.materials-modal-body .ai-feedback-buttons,
+#materialsModalBody .ai-feedback-buttons {
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.materials-modal-body .feedback-btn,
+#materialsModalBody .feedback-btn {
+    width: auto;
+    max-width: 100%;
 }
