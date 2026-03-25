@@ -3798,3 +3798,60 @@ body.guide-with-sidebar .floating-guide-shell {
     overflow-y: auto;
     height: 100%;
 }
+
+/* ===== AI反馈按钮样式 ===== */
+.ai-feedback-buttons {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border-color);
+}
+
+.feedback-btn {
+    padding: 8px 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    background: var(--surface-color);
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 500;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+}
+
+.feedback-btn:hover {
+    border-color: var(--primary-color);
+    color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.05);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-sm);
+}
+
+.feedback-btn:active {
+    transform: translateY(0);
+}
+
+.feedback-like {
+    border-color: var(--success-color);
+    color: var(--success-color);
+}
+
+.feedback-like:hover {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: var(--success-color);
+}
+
+.feedback-dislike {
+    border-color: var(--danger-color);
+    color: var(--danger-color);
+}
+
+.feedback-dislike:hover {
+    background: rgba(239, 68, 68, 0.05);
+    border-color: var(--danger-color);
+}

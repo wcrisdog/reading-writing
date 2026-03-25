@@ -786,6 +786,32 @@ Please evaluate this ${essayTypeName} and provide scores and diagnostic suggesti
             retries: 1
         });
     }
+
+    /**
+     * 提交AI生成内容的反馈（点赞/点踩）
+     */
+    async submitFeedback(feedbackData) {
+        try {
+            const response = await fetch(this.apiEndpoint.replace('/qianwen/', '/feedback/'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(feedbackData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `反馈提交失败: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('反馈提交失败:', error);
+            // 不中断主流程，反馈失败只记录
+            return { success: false, error: error.message };
+        }
+    }
 }
 
 // 导出全局实例

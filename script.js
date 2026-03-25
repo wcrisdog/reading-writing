@@ -97,6 +97,68 @@ function createEmptyUserProfile() {
 
 let userProfile = createEmptyUserProfile();
 
+// =========== AI反馈系统 ==========
+let currentAIContentId = null;  // 当前AI生成内容的ID
+const aiContentFeedback = {};   // 存储反馈数据：{ contentId: { type, timestamp, sentiment } }
+
+function generateAIContentId(type, timestamp = Date.now()) {
+    return `${type}_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+async function submitAIFeedback(contentType, sentiment, generatedContent) {
+    // sentiment: 'like' 或 'dislike'
+    if (!currentUser) {
+        showNotification(
+            currentLanguage === 'zh' ? '请先登录才能提交反馈' : 'Please login to submit feedback',
+            'warning'
+        );
+        return;
+    }
+
+    const contentId = generateAIContentId(contentType);
+    const feedbackPayload = {
+        userId: currentUser.id,
+        username: currentUser.username,
+        userEmail: currentUser.email,
+        userPhone: currentUser.phone,
+        userProfile: userProfile,
+        
+        // 文章信息
+        articleTitle: titleInput?.value || '',
+        articleContent: mainEditor?.value || '',
+        articleType: currentType,
+        articleLanguage: currentLanguage,
+        articleLevel: currentLevel,
+        
+        // 用户指导数据
+        guidanceAnswers: userGuidanceAnswers || [],
+        
+        // AI生成内容反馈
+        contentType: contentType,  // 'outline', 'materials', 'inspiration', 'optimization'
+        contentId: contentId,
+        sentiment: sentiment,  // 'like' 或 'dislike'
+        generatedContent: generatedContent,
+        timestamp: new Date().toISOString(),
+        timeSpent: totalWritingTime + (Date.now() - writingStartTime)
+    };
+
+    try {
+        const result = await aiService.submitFeedback(feedbackPayload);
+        if (result.success !== false) {
+            showNotification(
+                currentLanguage === 'zh' 
+                    ? (sentiment === 'like' ? '✓ 感谢点赞反馈！' : '✓ 反馈已收集，我们会继续改进') 
+                    : (sentiment === 'like' ? '✓ Thanks for the feedback!' : '✓ Feedback received'),
+                'success',
+                2000
+            );
+        }
+    } catch (error) {
+        console.error('反馈提交失败:', error);
+        // 失败时默认提示，不影响用户体验
+    }
+}
+
 // =========== 认证与账号隔离 ==========
 const AUTH_USERS_KEY = 'rwAuthUsers';
 const AUTH_SESSION_KEY = 'rwAuthSession';
@@ -972,9 +1034,10 @@ function renderInspirationVersion() {
 
     const item = inspirationHistory[inspirationHistoryIndex];
     const indexLabel = `${inspirationHistoryIndex + 1}/${inspirationHistory.length}`;
+    const inspirationId = generateAIContentId('inspiration');
 
     aiOutput.innerHTML = `
-        <div class="inspiration-tip">
+        <div class="inspiration-tip" data-content-id="${inspirationId}">
             <div class="versioned-inspiration-header">
                 <p class="tip-header" aria-label="Inspiration">💡</p>
                 <button class="primary-btn version-regenerate-btn" onclick="checkInspirationNeeded()">🔄 ${currentLanguage === 'zh' ? '重新生成' : 'Regenerate'}</button>
@@ -987,6 +1050,14 @@ function renderInspirationVersion() {
             </div>
             <div class="version-meta-row">
                 <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
+            </div>
+            <div class="ai-feedback-buttons" style="margin-top: 12px; display: flex; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                <button class="feedback-btn feedback-like" onclick="submitAIFeedback('inspiration', 'like', ${JSON.stringify(item.suggestion).replace(/"/g, '&quot;')})" title="${currentLanguage === 'zh' ? '这个建议对我很有帮助' : 'This suggestion is helpful'}">
+                    👍 ${currentLanguage === 'zh' ? '有用' : 'Helpful'}
+                </button>
+                <button class="feedback-btn feedback-dislike" onclick="submitAIFeedback('inspiration', 'dislike', ${JSON.stringify(item.suggestion).replace(/"/g, '&quot;')})" title="${currentLanguage === 'zh' ? '这个建议需要改进' : 'This suggestion needs improvement'}">
+                    👎 ${currentLanguage === 'zh' ? '需改进' : 'Needs Improvement'}
+                </button>
             </div>
         </div>
     `;
@@ -2632,16 +2703,25 @@ async function generateDetailedOutline(userAnswers) {
         );
         
         const aiOutline = result.message;
+        const outlineId = generateAIContentId('outline');
         
         // 显示AI生成的详细大纲
         const outlineHtml = `
-            <div class="detailed-outline">
+            <div class="detailed-outline" data-content-id="${outlineId}">
                 <h5>📋 ${currentLanguage === 'zh' ? '完整写作大纲' : 'Complete Writing Outline'}</h5>
                 <div class="outline-content">${aiOutline.replace(/\n/g, '<br>')}</div>
                 <div class="outline-hint">
                     <p>💡 ${currentLanguage === 'zh' 
                         ? '提示：大纲中已标注适配素材、建议篇幅和重要论证点，请参考进行写作。' 
                         : 'Tip: The outline includes suggested materials, word count, and key argumentation points. Please follow for writing.'}</p>
+                </div>
+                <div class="ai-feedback-buttons" style="margin-top: 16px; display: flex; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+                    <button class="feedback-btn feedback-like" onclick="submitAIFeedback('outline', 'like', ${JSON.stringify(aiOutline).replace(/"/g, '&quot;')})" title="${currentLanguage === 'zh' ? '这个大纲对我很有帮助' : 'This outline is helpful'}">
+                        👍 ${currentLanguage === 'zh' ? '有用' : 'Helpful'}
+                    </button>
+                    <button class="feedback-btn feedback-dislike" onclick="submitAIFeedback('outline', 'dislike', ${JSON.stringify(aiOutline).replace(/"/g, '&quot;')})" title="${currentLanguage === 'zh' ? '这个大纲需要改进' : 'This outline needs improvement'}">
+                        👎 ${currentLanguage === 'zh' ? '需改进' : 'Needs Improvement'}
+                    </button>
                 </div>
             </div>
         `;
@@ -2985,8 +3065,11 @@ async function fetchMaterialsWithRetry(params, maxRetries = 3) {
 function displayMaterialCards(aiResponse, topic) {
     // 解析AI返回的素材并格式化为卡片
     const materials = parseAIMaterials(aiResponse);
+    const materialsId = generateAIContentId('materials');
     
-    let bodyHtml = '';
+    let bodyHtml = `
+        <div class="materials-container" data-content-id="${materialsId}">
+    `;
     
     materials.forEach((material, idx) => {
         bodyHtml += `
@@ -3017,6 +3100,18 @@ function displayMaterialCards(aiResponse, topic) {
             </div>
         `;
     });
+    
+    bodyHtml += `
+        </div>
+        <div class="ai-feedback-buttons" style="margin-top: 16px; display: flex; gap: 12px; padding-top: 12px; border-top: 1px solid var(--border-color);">
+            <button class="feedback-btn feedback-like" onclick="submitAIFeedback('materials', 'like', ${JSON.stringify(aiResponse).substring(0, 200).replace(/"/g, '&quot;')}...)" title="${currentLanguage === 'zh' ? '这些素材对我很有帮助' : 'These materials are helpful'}">
+                👍 ${currentLanguage === 'zh' ? '有用' : 'Helpful'}
+            </button>
+            <button class="feedback-btn feedback-dislike" onclick="submitAIFeedback('materials', 'dislike', ${JSON.stringify(aiResponse).substring(0, 200).replace(/"/g, '&quot;')}...)" title="${currentLanguage === 'zh' ? '这些素材需要改进' : 'These materials need improvement'}">
+                👎 ${currentLanguage === 'zh' ? '需改进' : 'Needs Improvement'}
+            </button>
+        </div>
+    `;
 
     pushMaterialsVersion(topic, bodyHtml);
 }
@@ -3512,12 +3607,21 @@ function renderOptimizationRecords() {
         return;
     }
 
+    const optimizationId = generateAIContentId('optimization');
     const html = optimizationRecords.map((item, idx) => `
-        <div class="optimization-record-item">
+        <div class="optimization-record-item" data-content-id="${optimizationId}">
             <p class="optimization-record-title">${currentLanguage === 'zh' ? `问题 ${optimizationRecords.length - idx}` : `Question ${optimizationRecords.length - idx}`}</p>
             <p class="optimization-record-question">🔍 ${item.question}</p>
             <p class="optimization-record-answer">💭 ${currentLanguage === 'zh' ? '我的想法：' : 'My thoughts:'} ${item.answer}</p>
             <p class="optimization-record-feedback">💡 ${currentLanguage === 'zh' ? '优化修补建议：' : 'Optimization suggestion:'} ${item.feedback}</p>
+            <div class="ai-feedback-buttons" style="margin-top: 10px; display: flex; gap: 10px;">
+                <button class="feedback-btn feedback-like" onclick="submitAIFeedback('optimization', 'like', ${JSON.stringify(item.feedback).replace(/"/g, '&quot;')})" title="${currentLanguage === 'zh' ? '这个建议很有帮助' : 'This suggestion is helpful'}">
+                    👍 ${currentLanguage === 'zh' ? '有用' : 'Helpful'}
+                </button>
+                <button class="feedback-btn feedback-dislike" onclick="submitAIFeedback('optimization', 'dislike', ${JSON.stringify(item.feedback).replace(/"/g, '&quot;')})" title="${currentLanguage === 'zh' ? '这个建议需要改进' : 'This suggestion needs improvement'}">
+                    👎 ${currentLanguage === 'zh' ? '需改进' : 'Needs Improvement'}
+                </button>
+            </div>
         </div>
     `).join('');
 
