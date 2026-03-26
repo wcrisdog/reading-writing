@@ -2118,6 +2118,91 @@ function fileToDataUrl(file) {
     });
 }
 
+function getFileExt(fileName) {
+    const name = String(fileName || '');
+    const idx = name.lastIndexOf('.');
+    if (idx < 0) return '';
+    return name.slice(idx + 1).toLowerCase();
+}
+
+async function compressImageForOCR(file) {
+    const rawDataUrl = await fileToDataUrl(file);
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const maxLongSide = 1600;
+                const longSide = Math.max(img.width, img.height) || 1;
+                const scale = Math.min(1, maxLongSide / longSide);
+                const targetWidth = Math.max(1, Math.round(img.width * scale));
+                const targetHeight = Math.max(1, Math.round(img.height * scale));
+
+                const canvas = document.createElement('canvas');
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const ctx = canvas.getContext('2d');
+
+                if (!ctx) {
+                    resolve(rawDataUrl);
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+                const compressed = canvas.toDataURL('image/jpeg', 0.78);
+                resolve(compressed.length < rawDataUrl.length ? compressed : rawDataUrl);
+            } catch (error) {
+                console.warn('图片压缩失败，回退原图:', error);
+                resolve(rawDataUrl);
+            }
+        };
+        img.onerror = () => resolve(rawDataUrl);
+        img.src = rawDataUrl;
+    });
+}
+
+let mammothLoaderPromise = null;
+async function ensureMammothLoaded() {
+    if (window.mammoth) return window.mammoth;
+    if (mammothLoaderPromise) return mammothLoaderPromise;
+
+    mammothLoaderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';
+        script.async = true;
+        script.onload = () => {
+            if (window.mammoth) {
+                resolve(window.mammoth);
+                return;
+            }
+            reject(new Error('DOCX 解析器加载失败'));
+        };
+        script.onerror = () => reject(new Error('DOCX 解析器加载失败'));
+        document.head.appendChild(script);
+    });
+
+    return mammothLoaderPromise;
+}
+
+function askRetryAfterRecognitionFailure(error, attempt) {
+    const failMessage = currentLanguage === 'zh'
+        ? `识别失败（第 ${attempt} 次）：${error?.message || '未知错误'}`
+        : `Recognition failed (attempt ${attempt}): ${error?.message || 'Unknown error'}`;
+    showNotification(failMessage, 'error', 4200);
+
+    const retryPrompt = currentLanguage === 'zh'
+        ? '识别失败，是否重试？'
+        : 'Recognition failed. Retry?';
+    return window.confirm(retryPrompt);
+}
+
+async function extractTextFromDocx(file) {
+    const mammoth = await ensureMammothLoaded();
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return String(result?.value || '').trim();
+}
+
 function cleanRecognizedHandwritingText(rawText) {
     let text = String(rawText || '').trim();
     text = text.replace(/^```[\w-]*\n?/, '').replace(/```$/, '').trim();
@@ -2208,29 +2293,65 @@ async function handleHandwritingImageSelected(file, triggerButton) {
     if (!file) return;
 
     const isImage = /^image\//.test(file.type || '');
-    if (!isImage) {
-        showNotification(currentLanguage === 'zh' ? '请上传图片文件' : 'Please upload an image file', 'warning');
+    const ext = getFileExt(file.name);
+    const isTxt = file.type === 'text/plain' || ext === 'txt';
+    const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || ext === 'docx';
+
+    if (!isImage && !isTxt && !isDocx) {
+        showNotification(
+            currentLanguage === 'zh'
+                ? '仅支持图片、.txt、.docx 文件'
+                : 'Only image, .txt, and .docx files are supported',
+            'warning'
+        );
         return;
     }
 
-    const maxSizeBytes = 8 * 1024 * 1024;
+    const maxSizeBytes = 12 * 1024 * 1024;
     if (file.size > maxSizeBytes) {
-        showNotification(currentLanguage === 'zh' ? '图片不能超过 8MB' : 'Image must be smaller than 8MB', 'warning');
+        showNotification(currentLanguage === 'zh' ? '文件不能超过 12MB' : 'File must be smaller than 12MB', 'warning');
         return;
     }
 
     if (triggerButton) {
         triggerButton.disabled = true;
-        triggerButton.textContent = currentLanguage === 'zh' ? '识别中...' : 'Recognizing...';
+        triggerButton.textContent = currentLanguage === 'zh' ? '处理中...' : 'Processing...';
     }
 
     try {
-        const imageDataUrl = await fileToDataUrl(file);
-        const result = await aiService.recognizeHandwritingFromImage(imageDataUrl, currentLanguage, currentType);
-        const recognizedText = cleanRecognizedHandwritingText(result?.message || '');
+        let recognizedText = '';
+
+        if (isTxt) {
+            recognizedText = String(await file.text()).trim();
+        } else if (isDocx) {
+            recognizedText = await extractTextFromDocx(file);
+        } else {
+            const imageDataUrl = await compressImageForOCR(file);
+            let attempt = 1;
+            while (attempt <= 3) {
+                try {
+                    const result = await aiService.recognizeHandwritingFromImage(imageDataUrl, currentLanguage, currentType);
+                    recognizedText = cleanRecognizedHandwritingText(result?.message || '');
+                    if (!recognizedText) {
+                        throw new Error(currentLanguage === 'zh' ? '未识别到有效文字' : 'No valid text recognized');
+                    }
+                    break;
+                } catch (ocrError) {
+                    if (attempt >= 3 || !askRetryAfterRecognitionFailure(ocrError, attempt)) {
+                        throw ocrError;
+                    }
+                    attempt += 1;
+                }
+            }
+        }
 
         if (!recognizedText) {
-            showNotification(currentLanguage === 'zh' ? '未识别到有效文字，请更换更清晰的图片' : 'No valid text recognized, please try a clearer image', 'warning');
+            showNotification(
+                currentLanguage === 'zh'
+                    ? '未读取到有效文字，请检查文件内容后重试'
+                    : 'No valid text found. Please check file content and retry',
+                'warning'
+            );
             return;
         }
 
@@ -2249,13 +2370,18 @@ async function handleHandwritingImageSelected(file, triggerButton) {
         writeRecognizedTextToEditor(recognizedText, insertMode);
         showNotification(
             currentLanguage === 'zh'
-                ? (insertMode === 'overwrite' ? '✓ 手写作文识别成功，已覆盖写入' : '✓ 手写作文识别成功，已追加写入')
-                : (insertMode === 'overwrite' ? '✓ Handwriting recognized and overwritten' : '✓ Handwriting recognized and appended'),
+                ? (insertMode === 'overwrite' ? '✓ 文件内容处理成功，已覆盖写入' : '✓ 文件内容处理成功，已追加写入')
+                : (insertMode === 'overwrite' ? '✓ File processed and overwritten' : '✓ File processed and appended'),
             'success'
         );
     } catch (error) {
-        console.error('手写识别失败:', error);
-        showNotification(currentLanguage === 'zh' ? `识别失败：${error.message || '请稍后重试'}` : `Recognition failed: ${error.message || 'Please try again later'}`, 'error');
+        console.error('文件处理失败:', error);
+        showNotification(
+            currentLanguage === 'zh'
+                ? `处理失败：${error.message || '请稍后重试'}`
+                : `Processing failed: ${error.message || 'Please try again later'}`,
+            'error'
+        );
     } finally {
         if (triggerButton) {
             triggerButton.disabled = false;
@@ -2267,6 +2393,7 @@ async function handleHandwritingImageSelected(file, triggerButton) {
 function saveLatestWritingReport(reportHtml, words, durationSec, useAIEvaluation) {
     const payload = {
         html: String(reportHtml || ''),
+        articleContent: String(mainEditor?.value || ''),
         words: Number(words || 0),
         durationSec: Number(durationSec || 0),
         useAIEvaluation: Boolean(useAIEvaluation),

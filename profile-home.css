@@ -23,6 +23,29 @@ body {
         var(--bg);
 }
 
+.profile-tip-bar {
+    position: fixed;
+    top: 14px;
+    left: 50%;
+    transform: translate(-50%, -10px);
+    z-index: 1400;
+    padding: 10px 14px;
+    border-radius: 999px;
+    background: rgba(15, 23, 42, 0.9);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 600;
+    box-shadow: 0 12px 24px -16px rgba(15, 23, 42, 0.8);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.profile-tip-bar.show {
+    opacity: 1;
+    transform: translate(-50%, 0);
+}
+
 .profile-page {
     max-width: 980px;
     margin: 0 auto;
@@ -205,6 +228,30 @@ h1 {
     border: 1px solid #e2e8f0;
     border-radius: 10px;
     padding: 10px;
+}
+
+.recent-writing-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.recent-writing-entry {
+    cursor: pointer;
+    transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
+}
+
+.recent-writing-entry:hover,
+.recent-writing-entry:focus-visible,
+.recent-writing-link:focus-visible {
+    border-color: rgba(99, 102, 241, 0.45);
+    box-shadow: 0 8px 20px -14px rgba(99, 102, 241, 0.75);
+    transform: translateY(-1px);
+    outline: none;
 }
 
 .ability-radar-wrap {

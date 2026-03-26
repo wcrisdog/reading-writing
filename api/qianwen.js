@@ -90,7 +90,9 @@ export default async function handler(req, res) {
         const isHandwritingOCR = type === 'handwriting-ocr';
         const attempts = isHandwritingOCR
             ? [
-                { model: 'qwen-vl-plus', maxTokens: chosenMaxTokens, timeoutMs: 22000, temperature: 0.1 }
+                { model: 'qwen-vl-plus', maxTokens: chosenMaxTokens, timeoutMs: 28000, temperature: 0.1 },
+                { model: 'qwen-vl-max', maxTokens: Math.max(1200, Math.floor(chosenMaxTokens * 0.9)), timeoutMs: 28000, temperature: 0.1 },
+                { model: 'qwen-vl-plus-latest', maxTokens: Math.max(1000, Math.floor(chosenMaxTokens * 0.85)), timeoutMs: 26000, temperature: 0.1 }
             ]
             : isMaterialsType
             ? [

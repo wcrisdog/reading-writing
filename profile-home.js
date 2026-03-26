@@ -62,6 +62,30 @@ function closeProfileFeedbackModal() {
     if (modal) modal.style.display = 'none';
 }
 
+let profileTipTimer = null;
+function showProfileTipBar(message, duration = 1800) {
+    if (!message) return;
+
+    let tip = document.getElementById('profileTipBar');
+    if (!tip) {
+        tip = document.createElement('div');
+        tip.id = 'profileTipBar';
+        tip.className = 'profile-tip-bar';
+        document.body.appendChild(tip);
+    }
+
+    tip.textContent = message;
+    tip.classList.add('show');
+
+    if (profileTipTimer) {
+        clearTimeout(profileTipTimer);
+    }
+
+    profileTipTimer = window.setTimeout(() => {
+        tip.classList.remove('show');
+    }, duration);
+}
+
 function convertFileToDataUrl(file) {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -285,7 +309,7 @@ function renderGrowthArchive() {
     recentEssays.forEach((essay) => {
         const date = new Date(essay.timestamp).toLocaleDateString('zh-CN');
         essayItemsHtml += `
-            <div class="growth-item">
+            <div class="growth-item recent-writing-entry" role="button" tabindex="0" aria-label="打开最近写作继续编辑">
                 <strong>${essay.title || '未命名'}</strong>
                 <p class="muted">得分 ${essay.totalScore || 0} · ${essay.wordCount || 0} 字 · ${date}</p>
             </div>
@@ -314,10 +338,72 @@ function renderGrowthArchive() {
         ${latestMilestone ? `<div class="growth-item"><strong>最近里程碑</strong><p class="muted">${latestMilestone.description || '-'}</p></div>` : ''}
 
         <div>
-            <strong>最近写作</strong>
+            <strong class="recent-writing-link" role="button" tabindex="0" aria-label="打开最近写作继续编辑">最近写作</strong>
             <div class="section-body">${essayItemsHtml}</div>
         </div>
     `;
+}
+
+function readLastWritingContentForResume() {
+    const currentContentRaw = getScopedStorageValue('currentContent');
+    if (currentContentRaw) {
+        try {
+            const content = JSON.parse(currentContentRaw);
+            if (String(content?.text || '').trim()) {
+                return {
+                    type: content.type || 'argumentative',
+                    level: content.level || 'high-school',
+                    language: content.language || 'zh',
+                    title: content.title || '',
+                    text: content.text || '',
+                    targetWordsConfig: content.targetWordsConfig,
+                    timestamp: content.timestamp || new Date().toISOString()
+                };
+            }
+        } catch {}
+    }
+
+    const latestReportRaw = getScopedStorageValue('latestWritingReport');
+    if (latestReportRaw) {
+        try {
+            const report = JSON.parse(latestReportRaw);
+            const reportText = String(report?.articleContent || '').trim();
+            if (reportText) {
+                return {
+                    type: report.type || 'argumentative',
+                    level: 'high-school',
+                    language: report.language || 'zh',
+                    title: report.title || '',
+                    text: reportText,
+                    timestamp: new Date().toISOString()
+                };
+            }
+        } catch {}
+    }
+
+    return null;
+}
+
+function openMainWritingWithLastContent() {
+    const lastWriting = readLastWritingContentForResume();
+    if (!lastWriting) {
+        showProfileFeedbackModal({
+            title: '暂无可恢复内容',
+            message: '未找到上次写作正文，请先在主写作界面保存内容后再试。',
+            type: 'error'
+        });
+        return;
+    }
+
+    setScopedStorageValue('currentContent', JSON.stringify(lastWriting));
+    showProfileTipBar('已在新窗口打开并恢复上次内容');
+
+    window.setTimeout(() => {
+        const opened = window.open('index.html', '_blank', 'noopener');
+        if (!opened) {
+            window.location.href = 'index.html';
+        }
+    }, 180);
 }
 
 function renderLatestReport() {
@@ -413,6 +499,20 @@ function bindEvents() {
             }
         });
     }
+
+    document.addEventListener('click', (event) => {
+        const trigger = event.target?.closest?.('.recent-writing-entry, .recent-writing-link');
+        if (!trigger) return;
+        openMainWritingWithLastContent();
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key !== 'Enter' && event.key !== ' ') return;
+        const trigger = event.target?.closest?.('.recent-writing-entry, .recent-writing-link');
+        if (!trigger) return;
+        event.preventDefault();
+        openMainWritingWithLastContent();
+    });
 
     window.addEventListener('storage', (event) => {
         if (!event.key) return;
