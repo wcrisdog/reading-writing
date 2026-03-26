@@ -2468,6 +2468,40 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ Initialization complete');
 });
 
+function hasRenderableReportContent() {
+    if (!reportContent) return false;
+    return String(reportContent.textContent || '').trim().length > 0;
+}
+
+function hydrateReportFromLatestCache() {
+    if (!reportContent) return false;
+
+    const saved = getScopedStorageValue('latestWritingReport');
+    if (!saved) return false;
+
+    try {
+        const report = JSON.parse(saved);
+        const html = String(report?.html || '').trim();
+        if (!html) return false;
+        reportContent.innerHTML = html;
+        return true;
+    } catch (error) {
+        console.warn('读取最近写作报告缓存失败:', error);
+        return false;
+    }
+}
+
+function switchToReportView() {
+    if (!writeView || !reportView || !editorViewTabs) return false;
+
+    if (reportViewTab) reportViewTab.classList.add('active');
+    if (writeViewTab) writeViewTab.classList.remove('active');
+    writeView.style.display = 'none';
+    reportView.style.display = 'flex';
+    editorViewTabs.style.display = 'flex';
+    return true;
+}
+
 // =========== 事件监听设置 ===========
 function setupEventListeners() {
     console.log('🔧 setupEventListeners started');
@@ -2859,7 +2893,7 @@ function setupEventListeners() {
     if (writeViewTab) {
         writeViewTab.addEventListener('click', () => {
             writeViewTab.classList.add('active');
-            reportViewTab.classList.remove('active');
+            if (reportViewTab) reportViewTab.classList.remove('active');
             writeView.style.display = 'flex';
             reportView.style.display = 'none';
         });
@@ -2867,27 +2901,27 @@ function setupEventListeners() {
     
     if (reportViewTab) {
         reportViewTab.addEventListener('click', () => {
-            reportViewTab.classList.add('active');
-            writeViewTab.classList.remove('active');
-            writeView.style.display = 'none';
-            reportView.style.display = 'flex';
+            switchToReportView();
         });
     }
     
     // Phase 3: 查看写作报告按钮
     const viewWritingReportBtn = document.getElementById('viewWritingReport');
     if (viewWritingReportBtn) {
-        viewWritingReportBtn.addEventListener('click', () => {
-            // 如果报告还未生成，触发finishWriting
-            if (!reportContent || !reportContent.innerHTML.trim()) {
-                finishWriting();
-            } else {
-                // 否则直接切换到报告视图
-                reportViewTab.classList.add('active');
-                writeViewTab.classList.remove('active');
-                writeView.style.display = 'none';
-                reportView.style.display = 'flex';
-                editorViewTabs.style.display = 'flex';
+        viewWritingReportBtn.addEventListener('click', async () => {
+            if (switchToReportView() && hasRenderableReportContent()) {
+                return;
+            }
+
+            if (hydrateReportFromLatestCache()) {
+                switchToReportView();
+                return;
+            }
+
+            await finishWriting();
+
+            if (hasRenderableReportContent() || hydrateReportFromLatestCache()) {
+                switchToReportView();
             }
         });
     }
@@ -6056,6 +6090,38 @@ function resetWritingProcessData() {
     };
 }
 
+function clearGeneratedWritingOutputs() {
+    if (window.aiService && typeof window.aiService.cancelPendingRequests === 'function') {
+        window.aiService.cancelPendingRequests();
+    }
+
+    isReportGenerating = false;
+    reportGenerationDismissed = false;
+    hideReportGeneratingModal();
+
+    if (reportContent) {
+        reportContent.innerHTML = '';
+    }
+
+    removeScopedStorageValue('latestWritingReport');
+
+    if (editorViewTabs) {
+        editorViewTabs.style.display = 'none';
+    }
+    if (writeView) {
+        writeView.style.display = 'flex';
+    }
+    if (reportView) {
+        reportView.style.display = 'none';
+    }
+    if (writeViewTab) {
+        writeViewTab.classList.add('active');
+    }
+    if (reportViewTab) {
+        reportViewTab.classList.remove('active');
+    }
+}
+
 function generateLocalWritingReport(words, durationSec, saves) {
     const minutes = Math.max(1, Math.round(durationSec / 60));
     const speed = Math.round(words / minutes);
@@ -6157,6 +6223,8 @@ function clearContent() {
             optimizationPanel.style.display = 'none';
         }
 
+        clearGeneratedWritingOutputs();
+
         // 清空运行时状态
         userGuidanceAnswers = [];
         currentAISuggestion = '';
@@ -6207,6 +6275,7 @@ function changeEssayType(newType, newLevel, clickedBtn) {
         clickedBtn.classList.add('active');
         currentType = newType;
         currentLevel = newLevel;
+        clearGeneratedWritingOutputs();
         updateTemplate();
         return;
     }
@@ -6248,6 +6317,8 @@ function changeEssayType(newType, newLevel, clickedBtn) {
             optimizationPanel.innerHTML = '';
             optimizationPanel.style.display = 'none';
         }
+
+        clearGeneratedWritingOutputs();
 
         // 清空运行时状态
         userGuidanceAnswers = [];

@@ -810,10 +810,28 @@ Please evaluate this ${essayTypeName} and provide scores and diagnostic suggesti
             }
         ];
 
-        return await this.callAI(messages, 'handwriting-ocr', essayType, {
-            timeoutMs: 35000,
-            retries: 1
-        });
+        try {
+            return await this.callAI(messages, 'handwriting-ocr', essayType, {
+                timeoutMs: 22000,
+                retries: 2
+            });
+        } catch (error) {
+            const status = Number(error?.status || 0);
+            const msg = String(error?.message || '');
+            const isTimeoutLike = status === 504 || /504|timeout|Upstream Timeout|AI request timeout/i.test(msg);
+
+            if (isTimeoutLike) {
+                const timeoutError = new Error(
+                    language === 'zh'
+                        ? 'OCR识别超时，请重试（建议上传更清晰或更小的图片）'
+                        : 'OCR request timed out. Please retry with a clearer or smaller image.'
+                );
+                timeoutError.status = 504;
+                throw timeoutError;
+            }
+
+            throw error;
+        }
     }
 
     /**
