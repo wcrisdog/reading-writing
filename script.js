@@ -290,6 +290,16 @@ function enableAuthBypassMode() {
         logoutBtn.style.display = 'none';
         logoutBtn.disabled = true;
     }
+
+    if (currentUserName) {
+        currentUserName.textContent = currentLanguage === 'zh' ? '开发模式' : 'Dev Mode';
+    }
+
+    if (currentUserMeta) {
+        currentUserMeta.textContent = currentLanguage === 'zh'
+            ? '已跳过登录界面（开发者开关）'
+            : 'Login gate bypassed by developer toggle';
+    }
 }
 
 function getScopedStorageKey(baseKey) {
@@ -1863,59 +1873,6 @@ function initializeAuth() {
 let mainEditor, titleInput, charCount, wordCount, paraCount;
 let templateInfo, aiOutput, outlinePanel, optimizationPanel, materialsList, materialsPanel;
 let targetWordsSelect, targetSelectorWrap, targetSelectorLabel;
-let asyncOperationLocks = new Set();
-let asyncOperationCount = 0;
-let aiLoadingModalWatchdog = null;
-
-function setPrimaryActionButtonsDisabled(disabled) {
-    const selectors = [
-        '.feature-btn',
-        '#finishWritingBtn'
-    ];
-
-    selectors.forEach((selector) => {
-        document.querySelectorAll(selector).forEach((button) => {
-            if (button) button.disabled = disabled;
-        });
-    });
-}
-
-function syncAsyncBusyUIState() {
-    const isBusy = asyncOperationCount > 0;
-    document.body.classList.toggle('ai-busy', isBusy);
-    setPrimaryActionButtonsDisabled(isBusy);
-}
-
-function lockAsyncOperation(operationKey) {
-    if (asyncOperationLocks.has(operationKey)) {
-        showNotification(
-            currentLanguage === 'zh'
-                ? '正在处理中，请稍候…'
-                : 'Processing in progress, please wait...',
-            'warning'
-        );
-        return false;
-    }
-
-    asyncOperationLocks.add(operationKey);
-    asyncOperationCount += 1;
-    syncAsyncBusyUIState();
-    return true;
-}
-
-function unlockAsyncOperation(operationKey) {
-    if (!asyncOperationLocks.has(operationKey)) return;
-
-    asyncOperationLocks.delete(operationKey);
-    asyncOperationCount = Math.max(0, asyncOperationCount - 1);
-    syncAsyncBusyUIState();
-}
-
-function forceReleaseAllAsyncOperations() {
-    asyncOperationLocks.clear();
-    asyncOperationCount = 0;
-    syncAsyncBusyUIState();
-}
 
 function showOutlineResultModal(contentHtml) {
     const modal = document.getElementById('outlineResultModal');
@@ -1954,64 +1911,16 @@ function closeMaterialsModal() {
     if (modal) modal.style.display = 'none';
 }
 
-function showAILoadingModal(options = {}) {
+function showAILoadingModal() {
     const modal = document.getElementById('aiLoadingModal');
-    if (!modal) return;
-
-    const heading = modal.querySelector('h2');
-    const loadingText = modal.querySelector('.loading-text');
-    const loadingHint = modal.querySelector('.loading-hint');
-
-    if (heading && !heading.dataset.defaultText) {
-        heading.dataset.defaultText = heading.textContent || '';
+    if (modal) {
+        modal.style.display = 'flex';
     }
-    if (loadingText && !loadingText.dataset.defaultText) {
-        loadingText.dataset.defaultText = loadingText.textContent || '';
-    }
-    if (loadingHint && !loadingHint.dataset.defaultText) {
-        loadingHint.dataset.defaultText = loadingHint.textContent || '';
-    }
-
-    const headingText = currentLanguage === 'zh'
-        ? (options.headingZh || heading?.dataset.defaultText || '')
-        : (options.headingEn || heading?.dataset.defaultText || '');
-    const detailText = currentLanguage === 'zh'
-        ? (options.detailZh || loadingText?.dataset.defaultText || '')
-        : (options.detailEn || loadingText?.dataset.defaultText || '');
-
-    if (heading && headingText) heading.textContent = headingText;
-    if (loadingText && detailText) loadingText.textContent = detailText;
-
-    modal.style.display = 'flex';
-
-    clearTimeout(aiLoadingModalWatchdog);
-    const timeoutMs = Number.isFinite(options.timeoutMs) ? options.timeoutMs : 65000;
-    aiLoadingModalWatchdog = setTimeout(() => {
-        closeAILoadingModal();
-        forceReleaseAllAsyncOperations();
-        showNotification(
-            currentLanguage === 'zh'
-                ? '处理超时，已自动恢复界面。请重试一次。'
-                : 'The request timed out. UI has been restored. Please retry.',
-            'warning',
-            4200
-        );
-    }, timeoutMs);
 }
 
 function closeAILoadingModal() {
     const modal = document.getElementById('aiLoadingModal');
-    clearTimeout(aiLoadingModalWatchdog);
-    aiLoadingModalWatchdog = null;
-
     if (modal) {
-        const heading = modal.querySelector('h2');
-        const loadingText = modal.querySelector('.loading-text');
-        const loadingHint = modal.querySelector('.loading-hint');
-
-        if (heading?.dataset.defaultText) heading.textContent = heading.dataset.defaultText;
-        if (loadingText?.dataset.defaultText) loadingText.textContent = loadingText.dataset.defaultText;
-        if (loadingHint?.dataset.defaultText) loadingHint.textContent = loadingHint.dataset.defaultText;
         modal.style.display = 'none';
     }
 }
@@ -2498,6 +2407,8 @@ function saveLatestWritingReport(reportHtml, words, durationSec, useAIEvaluation
 
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('🚀 DOMContentLoaded event triggered');
+    
     // 获取 DOM 元素
     mainEditor = document.getElementById('mainEditor');
     titleInput = document.getElementById('titleInput');
@@ -3127,26 +3038,19 @@ function startGuidance() {
 async function showGuidanceQuestion(container, modal) {
     const questions = guidanceQuestions[currentType][currentLanguage];
     if (guidanceStep >= questions.length) {
-        if (!lockAsyncOperation('guidance-outline')) {
-            return;
-        }
-
         // 收集完所有答案，先关闭引导窗口
         closeGuidanceModal();
         
         // 显示AI正在生成的加载窗口
-        showAILoadingModal({
-            headingZh: '🤖 AI正在生成写作计划',
-            headingEn: '🤖 AI is generating your writing plan',
-            detailZh: '请稍候，生成完成后将自动显示结果…',
-            detailEn: 'Please wait. The result will appear automatically...',
-            timeoutMs: 70000
-        });
+        showAILoadingModal();
         
         try {
             // 生成完整大纲
             outlinePanel.style.display = 'block';
             const outlineHtml = await generateDetailedOutline(userGuidanceAnswers);
+            
+            // 关闭加载窗口
+            closeAILoadingModal();
             
             // 切换到写作计划面板
             switchRightPanel('outline');
@@ -3172,9 +3076,6 @@ async function showGuidanceQuestion(container, modal) {
                     : '⚠️ Outline generation failed, please try again',
                 'error'
             );
-        } finally {
-            closeAILoadingModal();
-            unlockAsyncOperation('guidance-outline');
         }
         
         return;
@@ -5753,6 +5654,7 @@ async function finishWriting() {
 
     // 检查是否有足够内容
     if (words < 50) {
+        closeAILoadingModal();
         showNotification(
             currentLanguage === 'zh' 
                 ? '请至少写入50字后再完成写作' 
@@ -5869,6 +5771,8 @@ async function finishWriting() {
     
     // 5. 生成综合报告
     try {
+        closeAILoadingModal();
+        
         const reportHtml = generateComprehensiveReport(
             words, 
             durationSec, 
@@ -5910,6 +5814,7 @@ async function finishWriting() {
         }
     } catch (error) {
         console.error('写作报告生成异常:', error);
+        closeAILoadingModal();
         const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
         
         const fallbackHtml = `
@@ -5953,10 +5858,6 @@ async function finishWriting() {
     
     // 6. 重置写作过程数据
     resetWritingProcessData();
-    } finally {
-        closeAILoadingModal();
-        unlockAsyncOperation('writing-report');
-    }
 }
 
 // 生成综合写作报告
