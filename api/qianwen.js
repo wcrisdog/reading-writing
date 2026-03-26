@@ -49,16 +49,17 @@ export default async function handler(req, res) {
             'contextual-inspiration': 450,
             'inspiration': 300,
             'materials': 800,
-            'logic-feedback': 800
+            'logic-feedback': 800,
+            'handwriting-ocr': 1200
         };
 
         const chosenMaxTokens = maxTokensByType[type] || 900;
 
-        const createRequestBody = (model, maxTokens) => ({
+        const createRequestBody = (model, maxTokens, extras = {}) => ({
             model,
             messages,
             max_tokens: maxTokens,
-            temperature: 0.7,
+            temperature: extras.temperature ?? 0.7,
             stream: false
         });
 
@@ -85,16 +86,28 @@ export default async function handler(req, res) {
         let data;
         let lastErrorStatus = 0;
 
-        const attempts = [
-            { model: 'qwen-plus', maxTokens: chosenMaxTokens, timeoutMs: 16000 },
-            { model: 'qwen-turbo', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.7)), timeoutMs: 12000 }
-        ];
+        const isMaterialsType = type === 'materials' || type === 'detailed-materials';
+        const isHandwritingOCR = type === 'handwriting-ocr';
+        const attempts = isHandwritingOCR
+            ? [
+                { model: 'qwen-vl-plus', maxTokens: chosenMaxTokens, timeoutMs: 16000, temperature: 0.1 },
+                { model: 'qwen-vl-max', maxTokens: Math.max(900, Math.floor(chosenMaxTokens * 0.9)), timeoutMs: 14000, temperature: 0.1 }
+            ]
+            : isMaterialsType
+            ? [
+                { model: 'qwen-turbo', maxTokens: Math.max(450, Math.floor(chosenMaxTokens * 0.8)), timeoutMs: 14000 },
+                { model: 'qwen-plus', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.65)), timeoutMs: 12000 }
+            ]
+            : [
+                { model: 'qwen-plus', maxTokens: chosenMaxTokens, timeoutMs: 16000 },
+                { model: 'qwen-turbo', maxTokens: Math.max(400, Math.floor(chosenMaxTokens * 0.7)), timeoutMs: 12000 }
+            ];
 
         for (let i = 0; i < attempts.length; i++) {
             const attempt = attempts[i];
             try {
                 response = await callQianwen(
-                    createRequestBody(attempt.model, attempt.maxTokens),
+                    createRequestBody(attempt.model, attempt.maxTokens, { temperature: attempt.temperature }),
                     attempt.timeoutMs
                 );
 

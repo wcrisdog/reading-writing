@@ -21,7 +21,7 @@
             <div class="auth-brand-panel">
                 <span class="auth-kicker">AI Writing Workspace</span>
                 <h1>智引文思</h1>
-                <p>先完成注册或登录，再进入当前写作工作台。支持用户名密码、手机号验证码、邮箱验证码三种路径。</p>
+                <p>先完成注册或登录，再进入当前写作工作台。当前仅支持邮箱验证码登录与注册。</p>
                 <div class="auth-feature-list">
                     <div class="auth-feature-item">
                         <strong>账号体系</strong>
@@ -29,7 +29,7 @@
                     </div>
                     <div class="auth-feature-item">
                         <strong>验证码登录</strong>
-                        <span>手机号或邮箱可直接获取 6 位验证码快速进入</span>
+                        <span>目前使用邮箱获取 6 位验证码快速进入</span>
                     </div>
                     <div class="auth-feature-item">
                         <strong>写作工作台</strong>
@@ -37,6 +37,8 @@
                     </div>
                 </div>
             </div>
+
+            <div class="auth-sms-coming-soon" aria-live="polite">📱 未来将支持手机短信登录</div>
 
             <div class="auth-card">
                 <div class="auth-card-header">
@@ -54,24 +56,24 @@
 
                 <div class="auth-panel active" id="loginPanel">
                     <div class="auth-method-switch" role="tablist" aria-label="登录方式">
-                        <button class="auth-method-btn active" type="button" data-login-method="username">用户名</button>
-                        <button class="auth-method-btn" type="button" data-login-method="phone">手机号</button>
-                        <button class="auth-method-btn" type="button" data-login-method="email">邮箱</button>
+                        <button class="auth-method-btn active" type="button" data-login-method="email">邮箱</button>
                     </div>
+
+                    <button class="auth-guest-btn" id="guestLoginBtn" type="button">先以游客体验 / Continue as Guest</button>
 
                     <form id="loginForm" class="auth-form">
                         <label class="auth-field">
-                            <span id="loginIdentifierLabel">用户名</span>
-                            <input id="loginIdentifier" class="auth-input" type="text" autocomplete="username" placeholder="请输入用户名">
+                            <span id="loginIdentifierLabel">邮箱</span>
+                            <input id="loginIdentifier" class="auth-input" type="email" autocomplete="email" placeholder="请输入邮箱">
                         </label>
 
-                        <label class="auth-field" id="loginPasswordGroup">
+                        <label class="auth-field hidden" id="loginPasswordGroup">
                             <span>密码</span>
                             <input id="loginPassword" class="auth-input" type="password" autocomplete="current-password" placeholder="请输入密码">
                         </label>
 
-                        <div class="auth-field auth-code-field hidden" id="loginCodeGroup">
-                            <span id="loginCodeLabel">短信验证码</span>
+                        <div class="auth-field auth-code-field" id="loginCodeGroup">
+                            <span id="loginCodeLabel">邮箱验证码</span>
                             <div class="auth-code-row">
                                 <input id="loginCode" class="auth-input" type="text" inputmode="numeric" maxlength="6" placeholder="请输入 6 位验证码">
                                 <button id="sendLoginCodeBtn" class="auth-code-btn" type="button">发送验证码</button>
@@ -102,19 +104,19 @@
 
                         <label class="auth-field">
                             <span>注册方式</span>
-                            <select id="registerContactType" class="auth-input auth-select">
-                                <option value="phone">手机号注册</option>
-                                <option value="email">邮箱注册</option>
+                            <select id="registerContactType" class="auth-input auth-select" disabled>
+                                <option value="email" selected>邮箱注册</option>
+                                <option value="phone">手机号注册（即将支持）</option>
                             </select>
                         </label>
 
                         <label class="auth-field">
-                            <span id="registerContactLabel">手机号</span>
-                            <input id="registerContact" class="auth-input" type="text" autocomplete="tel" placeholder="请输入手机号">
+                            <span id="registerContactLabel">邮箱</span>
+                            <input id="registerContact" class="auth-input" type="email" autocomplete="email" placeholder="请输入邮箱">
                         </label>
 
                         <div class="auth-field">
-                            <span id="registerCodeLabel">短信验证码</span>
+                            <span id="registerCodeLabel">邮箱验证码</span>
                             <div class="auth-code-row">
                                 <input id="registerCode" class="auth-input" type="text" inputmode="numeric" maxlength="6" placeholder="请输入 6 位验证码">
                                 <button id="sendRegisterCodeBtn" class="auth-code-btn" type="button">发送验证码</button>
@@ -175,12 +177,21 @@
                 </div>
             </div>
 
-            <div class="user-growth" id="sidebarGrowthPanel">
-                <h3>📈 成长档案</h3>
-                <div id="sidebarGrowthContent" class="sidebar-growth-content">
-                    <p class="placeholder">完成一篇文章后，成长档案会显示您的能力进步！</p>
-                </div>
-            </div>
+            <button class="user-home-entry" id="openProfileHomeBtn" type="button" aria-label="打开个人主页">
+                <span class="user-home-avatar-frame">
+                    <img id="sidebarProfileAvatar" alt="个人头像">
+                    <span id="sidebarProfileAvatarFallback">🐿️</span>
+                </span>
+                <span class="user-home-copy">
+                    <strong id="sidebarProfileDisplayName">个人主页</strong>
+                    <small id="sidebarProfileMeta">点击完善头像与个人资料</small>
+                </span>
+            </button>
+
+            <button class="guest-upgrade-entry" id="guestUpgradeBtn" type="button" style="display:none;" aria-label="推荐注册登录">
+                <span>✨ 推荐注册登录</span>
+                <small>获取定制化体验与云端记录</small>
+            </button>
         </aside>
 
         <section class="middle-panel">
@@ -235,10 +246,8 @@
             <div class="editor-header">
                 <input type="text" id="titleInput" class="title-input" placeholder="标题 / Title...">
                 <div class="editor-tools">
-                    <button class="tool-btn" id="saveBtn" title="保存 Save">💾</button>
-                    <button class="tool-btn" id="clearBtn" title="清空 Clear">🗑️</button>
-                    <button class="tool-btn" id="exportBtn" title="导出 Export">📥</button>
-                    <button class="tool-btn" id="finishWritingBtn" title="完成并生成报告 Finish & Report">📊</button>
+                    <button class="tool-btn upload-handwriting-btn" id="uploadHandwritingBtn" title="上传手写图片或 txt/docx 并识别/导入 Upload image or txt/docx">📷 上传手写作文</button>
+                    <input type="file" id="handwritingImageInput" accept="image/*,.txt,.docx" style="display: none;" aria-hidden="true">
                 </div>
             </div>
 
@@ -368,6 +377,35 @@
         </div>
     </div>
 
+    <!-- Report Generating Modal -->
+    <div id="reportGeneratingModal" class="modal" style="display:none;">
+        <div class="modal-content report-generating-content">
+            <button class="modal-close" id="closeReportGeneratingModal" aria-label="关闭">✕</button>
+            <div class="ai-loading-animation">
+                <div class="loading-spinner"></div>
+                <h2>📊 正在生成写作报告</h2>
+                <p class="loading-text">Writing report is being generated...</p>
+                <p class="loading-hint">你可以关闭此窗口，系统会在后台继续生成</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Guest Upgrade Confirm Modal -->
+    <div id="guestUpgradeConfirmModal" class="modal" style="display:none;">
+        <div class="modal-content guest-upgrade-modal-content">
+            <button class="modal-close" id="closeGuestUpgradeConfirmModal" aria-label="关闭">✕</button>
+            <h2>🔐 退出游客模式并前往登录</h2>
+            <div class="guest-upgrade-warning">
+                <p>确认退出游客模式并进入邮箱登录/注册吗？</p>
+                <p>退出后，当前所有写作结果与 AI 生成内容将被清空。</p>
+            </div>
+            <div class="guest-upgrade-actions">
+                <button class="secondary-btn" id="cancelGuestUpgradeBtn" type="button">继续游客体验</button>
+                <button class="primary-btn" id="confirmGuestUpgradeBtn" type="button">退出并去登录</button>
+            </div>
+        </div>
+    </div>
+
     <div class="floating-guide-shell" id="floatingGuideShell">
         <div class="guide-hint-bubble" id="userGuideHint" role="status" aria-live="polite">
             <button class="guide-hint-close" id="dismissUserGuideHint" aria-label="关闭提示">✕</button>
@@ -419,7 +457,7 @@
     <script>
         // 开发者开关：设为 false 可直接跳过登录/注册界面
         window.__APP_CONFIG__ = window.__APP_CONFIG__ || {};
-        window.__APP_CONFIG__.authGateEnabled = false;
+        window.__APP_CONFIG__.authGateEnabled = true;
     </script>
     <script src="ai-service.js"></script>
     <script src="script.js"></script>

@@ -9,8 +9,18 @@ class AIService {
         this.apiEndpoint = customBaseUrl
             ? `${customBaseUrl}/api/qianwen/`
             : '/api/qianwen/';
+        this.activeControllers = new Set();
         
         console.log('✨ AI服务已初始化，API密钥由后端管理');
+    }
+
+    cancelPendingRequests() {
+        this.activeControllers.forEach((controller) => {
+            try {
+                controller.abort('User cancelled');
+            } catch (e) {}
+        });
+        this.activeControllers.clear();
     }
 
     /**
@@ -28,6 +38,7 @@ class AIService {
 
         while (attempt <= maxRetries) {
             const controller = new AbortController();
+            this.activeControllers.add(controller);
             const timer = setTimeout(() => controller.abort('Request timeout'), timeoutMs);
 
             try {
@@ -59,6 +70,14 @@ class AIService {
                     usage: data.usage
                 };
             } catch (error) {
+                const abortReason = String(controller.signal?.reason || '');
+                const isUserCancelled = abortReason === 'User cancelled' || String(error?.message || '').includes('User cancelled');
+                if (isUserCancelled) {
+                    const cancelledError = new Error('AI request cancelled by user');
+                    cancelledError.code = 'AI_CANCELLED';
+                    throw cancelledError;
+                }
+
                 const isTimeout = error?.name === 'AbortError' || String(error?.message || '').includes('timeout');
                 const status = Number(error?.status || 0);
                 const isRetriable = isTimeout || status === 504 || status === 502 || status === 503;
@@ -76,6 +95,7 @@ class AIService {
                 attempt += 1;
             } finally {
                 clearTimeout(timer);
+                this.activeControllers.delete(controller);
             }
         }
 
@@ -440,10 +460,10 @@ Output format:
             { role: 'user', content: promptMap[essayType] }
         ];
 
-        // 简化版本也应有合理的超时和重试机制
+        // 简化版本用于快速降级，避免再次叠加长重试链路
         return await this.callAI(messages, 'materials', essayType, {
-            timeoutMs: 18000,
-            retries: 1
+            timeoutMs: 10000,
+            retries: 0
         });
     }
 
@@ -765,6 +785,79 @@ Please evaluate this ${essayTypeName} and provide scores and diagnostic suggesti
             timeoutMs: 30000,  // 评估可能需要更长时间
             retries: 1
         });
+    }
+
+    /**
+     * 识别手写作文图片并提取文本
+     */
+    async recognizeHandwritingFromImage(imageDataUrl, language = 'zh', essayType = 'argumentative') {
+        const systemPrompt = language === 'zh'
+            ? '你是OCR文本识别助手。请从图片中提取手写作文的原文内容，保持原段落结构，只输出识别后的正文文本，不要额外解释。'
+            : 'You are an OCR assistant. Extract the handwritten essay text from the image, preserve paragraph structure, and output only the recognized text without extra explanation.';
+
+        const userText = language === 'zh'
+            ? '请识别这张手写作文图片中的文字，并返回纯文本。'
+            : 'Please recognize all text in this handwritten essay image and return plain text only.';
+
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: userText },
+                    { type: 'image_url', image_url: { url: imageDataUrl } }
+                ]
+            }
+        ];
+
+        try {
+            return await this.callAI(messages, 'handwriting-ocr', essayType, {
+                timeoutMs: 22000,
+                retries: 2
+            });
+        } catch (error) {
+            const status = Number(error?.status || 0);
+            const msg = String(error?.message || '');
+            const isTimeoutLike = status === 504 || /504|timeout|Upstream Timeout|AI request timeout/i.test(msg);
+
+            if (isTimeoutLike) {
+                const timeoutError = new Error(
+                    language === 'zh'
+                        ? 'OCR识别超时，请重试（建议上传更清晰或更小的图片）'
+                        : 'OCR request timed out. Please retry with a clearer or smaller image.'
+                );
+                timeoutError.status = 504;
+                throw timeoutError;
+            }
+
+            throw error;
+        }
+    }
+
+    /**
+     * 提交AI生成内容的反馈（点赞/点踩）
+     */
+    async submitFeedback(feedbackData) {
+        try {
+            const response = await fetch(this.apiEndpoint.replace('/qianwen/', '/feedback/'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(feedbackData)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `反馈提交失败: ${response.status}`);
+            }
+
+            return await response.json();
+        } catch (error) {
+            console.error('反馈提交失败:', error);
+            // 不中断主流程，反馈失败只记录
+            return { success: false, error: error.message };
+        }
     }
 }
 

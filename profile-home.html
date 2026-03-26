@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人主页 - 智引文思</title>
+    <link rel="stylesheet" href="profile-home.css">
+</head>
+<body>
+    <main class="profile-page">
+        <header class="profile-topbar">
+            <div>
+                <p class="kicker">Profile Center</p>
+                <h1>个人主页</h1>
+                <p class="subtitle">管理资料、查看成长档案与最近写作报告</p>
+            </div>
+            <button id="closePageBtn" class="ghost-btn" type="button">关闭页面</button>
+        </header>
+
+        <section class="card profile-card">
+            <h2>基础资料</h2>
+            <div class="profile-editor">
+                <div class="avatar-block">
+                    <span class="avatar-frame">
+                        <img id="profileAvatar" alt="头像预览">
+                        <span id="profileAvatarFallback">🐿️</span>
+                    </span>
+                    <div class="avatar-actions">
+                        <label class="primary-btn" for="profileAvatarInput">上传头像</label>
+                        <input id="profileAvatarInput" type="file" accept="image/*" hidden>
+                        <button id="resetAvatarBtn" class="subtle-btn" type="button">恢复默认头像</button>
+                    </div>
+                </div>
+
+                <div class="form-grid">
+                    <label>
+                        <span>昵称</span>
+                        <input id="nicknameInput" type="text" maxlength="20" placeholder="请输入昵称">
+                    </label>
+                    <label>
+                        <span>真实姓名</span>
+                        <input id="realNameInput" type="text" maxlength="20" placeholder="请输入真实姓名">
+                    </label>
+                    <label>
+                        <span>性别</span>
+                        <select id="genderInput">
+                            <option value="">请选择</option>
+                            <option value="男">男</option>
+                            <option value="女">女</option>
+                            <option value="不便透露">不便透露</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>年级</span>
+                        <select id="gradeInput">
+                            <option value="">请选择</option>
+                            <option value="七年级">七年级</option>
+                            <option value="八年级">八年级</option>
+                            <option value="九年级">九年级</option>
+                            <option value="高一">高一</option>
+                            <option value="高二">高二</option>
+                            <option value="高三">高三</option>
+                            <option value="大学">大学</option>
+                        </select>
+                    </label>
+                    <label class="span-all">
+                        <span>最常写的文体</span>
+                        <select id="styleInput">
+                            <option value="">请选择</option>
+                            <option value="议论文">议论文</option>
+                            <option value="记叙文">记叙文</option>
+                            <option value="说明文">说明文</option>
+                            <!-- <option value="散文">散文</option> -->
+                            <option value="学术论文">学术论文</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+            <div class="actions-row">
+                <button id="saveProfileBtn" class="primary-btn" type="button">保存资料</button>
+            </div>
+        </section>
+
+        <section class="card">
+            <h2>成长档案</h2>
+            <div id="growthArchiveContent" class="section-body"></div>
+        </section>
+
+        <section class="card">
+            <h2>最近写作报告</h2>
+            <div id="latestReportContent" class="section-body"></div>
+        </section>
+    </main>
+
+    <div id="profileFeedbackModal" class="profile-feedback-modal" style="display:none;">
+        <div class="profile-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="profileFeedbackTitle">
+            <button id="closeProfileFeedbackBtn" class="profile-feedback-close" type="button" aria-label="关闭">✕</button>
+            <h3 id="profileFeedbackTitle">提示</h3>
+            <p id="profileFeedbackMessage"></p>
+            <div class="profile-feedback-actions">
+                <button id="confirmProfileFeedbackBtn" class="primary-btn" type="button">我知道了</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="profile-home.js"></script>
+</body>
+</html>

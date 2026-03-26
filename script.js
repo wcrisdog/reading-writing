@@ -23,6 +23,11 @@ let targetWordsConfig = { ...defaultTargetWordsConfig };
 let currentRightPanelView = 'outline';
 let optimizationRecords = [];
 let rawPromptInput = ''; // 保存原始题目输入
+let inspirationHistory = [];
+let inspirationHistoryIndex = -1;
+let materialsHistory = [];
+let materialsHistoryIndex = -1;
+let materialsHistoryTopic = '';
 
 // =========== 草稿与会话恢复相关变量 ===========
 let lastGuidanceType = '';         // 上次启动引导时的文章类型（用于草稿匹配）
@@ -37,8 +42,14 @@ let reportViewTab = null;
 let editorViewTabs = null;
 let writeView = null;
 let reportView = null;
-let sidebarGrowthPanel = null;
-let sidebarGrowthContent = null;
+let openProfileHomeBtn = null;
+let guestUpgradeBtn = null;
+let sidebarProfileAvatar = null;
+let sidebarProfileAvatarFallback = null;
+let sidebarProfileDisplayName = null;
+let sidebarProfileMeta = null;
+let isReportGenerating = false;
+let reportGenerationDismissed = false;
 
 // =========== 写作过程追踪数据 ===========
 let writingProcessData = {
@@ -76,15 +87,157 @@ function createEmptyGrowthProfile() {
 
 let growthProfile = createEmptyGrowthProfile();
 
+function createEmptyUserProfile() {
+    return {
+        avatar: '',
+        nickname: '',
+        realName: '',
+        gender: '',
+        grade: '',
+        writingStyle: ''
+    };
+}
+
+let userProfile = createEmptyUserProfile();
+
+// =========== AI反馈系统 ==========
+let currentAIContentId = null;  // 当前AI生成内容的ID
+const aiContentFeedback = {};   // 存储反馈数据：{ contentId: { type, timestamp, sentiment } }
+
+function generateAIContentId(type, timestamp = Date.now()) {
+    return `${type}_${timestamp}_${Math.random().toString(36).substr(2, 9)}`;
+}
+
+function encodeFeedbackContent(content) {
+    return encodeURIComponent(String(content || '').slice(0, 4000));
+}
+
+function renderAIFeedbackButtons(contentType, contentId, content, extraClass = '') {
+    const encodedContent = encodeFeedbackContent(content);
+    const feedbackState = aiContentFeedback[contentId]?.sentiment || '';
+    const likeSelected = feedbackState === 'like' ? 'is-selected' : '';
+    const dislikeSelected = feedbackState === 'dislike' ? 'is-selected' : '';
+
+    return `
+        <div class="ai-feedback-buttons ${extraClass}" data-content-id="${contentId}">
+            <button class="feedback-btn feedback-like ${likeSelected}" onclick="handleAIFeedbackClick('${contentType}', 'like', '${contentId}', '${encodedContent}', this)" title="${currentLanguage === 'zh' ? '这个结果对我有帮助' : 'This result is helpful'}">
+                👍 ${currentLanguage === 'zh' ? '有用' : 'Helpful'}
+            </button>
+            <button class="feedback-btn feedback-dislike ${dislikeSelected}" onclick="handleAIFeedbackClick('${contentType}', 'dislike', '${contentId}', '${encodedContent}', this)" title="${currentLanguage === 'zh' ? '这个结果需要改进' : 'This result needs improvement'}">
+                👎 ${currentLanguage === 'zh' ? '需改进' : 'Needs Improvement'}
+            </button>
+        </div>
+    `;
+}
+
+function updateAIFeedbackButtonsUI(triggerBtn, sentiment) {
+    if (!triggerBtn) return;
+    const container = triggerBtn.closest('.ai-feedback-buttons');
+    if (!container) return;
+
+    const likeBtn = container.querySelector('.feedback-like');
+    const dislikeBtn = container.querySelector('.feedback-dislike');
+
+    if (likeBtn) likeBtn.classList.toggle('is-selected', sentiment === 'like');
+    if (dislikeBtn) dislikeBtn.classList.toggle('is-selected', sentiment === 'dislike');
+}
+
+async function handleAIFeedbackClick(contentType, sentiment, contentId, encodedContent, triggerBtn) {
+    const generatedContent = decodeURIComponent(String(encodedContent || ''));
+    await submitAIFeedback(contentType, sentiment, generatedContent, {
+        contentId,
+        triggerBtn
+    });
+}
+
+async function submitAIFeedback(contentType, sentiment, generatedContent, options = {}) {
+    // sentiment: 'like' 或 'dislike'
+    if (!currentUser) {
+        showNotification(
+            currentLanguage === 'zh' ? '请先登录才能提交反馈' : 'Please login to submit feedback',
+            'warning'
+        );
+        return;
+    }
+
+    const contentId = options.contentId || generateAIContentId(contentType);
+
+    // 先更新前端状态，保证点击后立即有视觉反馈
+    aiContentFeedback[contentId] = {
+        type: contentType,
+        sentiment,
+        timestamp: Date.now()
+    };
+    updateAIFeedbackButtonsUI(options.triggerBtn, sentiment);
+
+    const feedbackPayload = {
+        userId: currentUser.id,
+        username: currentUser.username,
+        userEmail: currentUser.email,
+        userPhone: currentUser.phone,
+        userProfile: userProfile,
+        
+        // 文章信息
+        articleTitle: titleInput?.value || '',
+        articleContent: mainEditor?.value || '',
+        articleType: currentType,
+        articleLanguage: currentLanguage,
+        articleLevel: currentLevel,
+        
+        // 用户指导数据
+        guidanceAnswers: userGuidanceAnswers || [],
+        
+        // AI生成内容反馈
+        contentType: contentType,  // 'outline', 'materials', 'inspiration', 'optimization'
+        contentId: contentId,
+        sentiment: sentiment,  // 'like' 或 'dislike'
+        generatedContent: generatedContent,
+        timestamp: new Date().toISOString(),
+        timeSpent: totalWritingTime + (Date.now() - writingStartTime)
+    };
+
+    try {
+        const result = await aiService.submitFeedback(feedbackPayload);
+        if (result.success !== false) {
+            showNotification(
+                currentLanguage === 'zh' 
+                    ? (sentiment === 'like' ? '✓ 感谢点赞反馈！' : '✓ 反馈已收集，我们会继续改进') 
+                    : (sentiment === 'like' ? '✓ Thanks for the feedback!' : '✓ Feedback received'),
+                'success',
+                2000
+            );
+            return;
+        }
+
+        console.warn('反馈上报未成功，已保留本地状态，等待后续上报');
+    } catch (error) {
+        console.error('反馈提交失败:', error);
+        showNotification(
+            currentLanguage === 'zh'
+                ? '反馈已记录（网络异常，稍后重试）'
+                : 'Feedback saved (network error, retry later)',
+            'warning',
+            2500
+        );
+    }
+}
+
 // =========== 认证与账号隔离 ==========
 const AUTH_USERS_KEY = 'rwAuthUsers';
 const AUTH_SESSION_KEY = 'rwAuthSession';
 const AUTH_CODES_KEY = 'rwAuthCodes';
 const AUTH_APP_NAMESPACE = 'readingWriting';
 
+// 认证能力开关：后续接入短信时，只需把 smsCode 改为 true。
+const AUTH_LOGIN_FEATURES = {
+    emailCode: true,
+    smsCode: false,
+    usernamePassword: false
+};
+
 let currentUser = null;
 let currentAuthMode = 'login';
-let currentLoginMethod = 'username';
+let currentLoginMethod = AUTH_LOGIN_FEATURES.emailCode ? 'email' : 'username';
 let authCountdownTimers = {};
 
 let authGate = null;
@@ -885,22 +1038,17 @@ async function checkInspirationNeeded() {
         
         const aiTip = result.message;
         const progress = hasTarget ? (wordCount / targetWords * 100).toFixed(0) : null;
-        
-        aiOutput.innerHTML = `
-            <div class="inspiration-tip">
-                <p class="tip-header">💡 ${currentLanguage === 'zh' ? 'AI灵感建议' : 'AI Inspiration'}</p>
-                <p class="suggestion">${aiTip}</p>
-                <p class="progress-info">📊 ${
-                    hasTarget
-                        ? (currentLanguage === 'zh'
-                            ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
-                            : `Progress: ${wordCount}/${targetWords} words (${progress}%)`)
-                        : (currentLanguage === 'zh'
-                            ? `当前字数: ${wordCount} 字`
-                            : `Current words: ${wordCount}`)
-                }</p>
-            </div>
-        `;
+        const progressText = hasTarget
+            ? (currentLanguage === 'zh'
+                ? `当前进度: ${wordCount}/${targetWords} 字 (${progress}%)`
+                : `Progress: ${wordCount}/${targetWords} words (${progress}%)`)
+            : (currentLanguage === 'zh' ? `当前字数: ${wordCount} 字` : `Current words: ${wordCount}`);
+
+        pushInspirationVersion({
+            title: currentLanguage === 'zh' ? 'AI灵感建议' : 'AI Inspiration',
+            suggestion: aiTip,
+            progressText
+        });
         
         showNotification(
             currentLanguage === 'zh'
@@ -917,12 +1065,63 @@ async function checkInspirationNeeded() {
             ? tips.stallTips[Math.floor(Math.random() * tips.stallTips.length)]
             : tips.progressTips[Math.floor(Math.random() * tips.progressTips.length)];
         
-        aiOutput.innerHTML = `
-            <div class="inspiration-tip">
-                <p class="suggestion">${tip}</p>
-            </div>
-        `;
+        pushInspirationVersion({
+            title: currentLanguage === 'zh' ? '本地灵感提示' : 'Local Inspiration',
+            suggestion: tip,
+            progressText: ''
+        });
     }
+}
+
+function pushInspirationVersion(entry) {
+    if (inspirationHistoryIndex < inspirationHistory.length - 1) {
+        inspirationHistory = inspirationHistory.slice(0, inspirationHistoryIndex + 1);
+    }
+    inspirationHistory.push({
+        ...entry,
+        contentId: entry.contentId || generateAIContentId('inspiration')
+    });
+    inspirationHistoryIndex = inspirationHistory.length - 1;
+    renderInspirationVersion();
+}
+
+function renderInspirationVersion() {
+    if (!aiOutput || inspirationHistory.length === 0 || inspirationHistoryIndex < 0) return;
+
+    const item = inspirationHistory[inspirationHistoryIndex];
+    const indexLabel = `${inspirationHistoryIndex + 1}/${inspirationHistory.length}`;
+    const inspirationId = item.contentId || generateAIContentId('inspiration');
+
+    aiOutput.innerHTML = `
+        <div class="inspiration-tip" data-content-id="${inspirationId}">
+            <div class="versioned-inspiration-header">
+                <p class="tip-header" aria-label="Inspiration">💡</p>
+                <button class="primary-btn version-regenerate-btn" onclick="checkInspirationNeeded()">🔄 ${currentLanguage === 'zh' ? '重新生成' : 'Regenerate'}</button>
+            </div>
+            <p class="suggestion">${String(item.suggestion || '').replace(/\n/g, '<br>')}</p>
+            ${item.progressText ? `<p class="progress-info">📊 ${item.progressText}</p>` : ''}
+            <div class="version-nav-row compact-nav-row">
+                <button class="secondary-btn version-nav-btn" onclick="prevInspirationVersion()" ${inspirationHistoryIndex <= 0 ? 'disabled' : ''}>← ${currentLanguage === 'zh' ? '上一个' : 'Prev'}</button>
+                <button class="secondary-btn version-nav-btn" onclick="nextInspirationVersion()" ${inspirationHistoryIndex >= inspirationHistory.length - 1 ? 'disabled' : ''}>${currentLanguage === 'zh' ? '下一个' : 'Next'} →</button>
+            </div>
+            <div class="version-meta-row">
+                <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
+            </div>
+            ${renderAIFeedbackButtons('inspiration', inspirationId, item.suggestion)}
+        </div>
+    `;
+}
+
+function prevInspirationVersion() {
+    if (inspirationHistoryIndex <= 0) return;
+    inspirationHistoryIndex--;
+    renderInspirationVersion();
+}
+
+function nextInspirationVersion() {
+    if (inspirationHistoryIndex >= inspirationHistory.length - 1) return;
+    inspirationHistoryIndex++;
+    renderInspirationVersion();
 }
 
 function playNotificationSound() {
@@ -1049,12 +1248,44 @@ function getUserByMethod(method, rawValue, users = readAuthUsers()) {
     return users.find(user => normalizeEmail(user.email) === normalized) || null;
 }
 
+function setGuestMetaPromptInteractive(isInteractive) {
+    if (!currentUserMeta) return;
+
+    currentUserMeta.classList.toggle('guest-upgrade-meta-cta', isInteractive);
+    if (isInteractive) {
+        currentUserMeta.setAttribute('role', 'button');
+        currentUserMeta.setAttribute('tabindex', '0');
+        currentUserMeta.setAttribute(
+            'aria-label',
+            currentLanguage === 'zh'
+                ? '点击退出游客模式并前往登录'
+                : 'Click to leave guest mode and go to sign in'
+        );
+    } else {
+        currentUserMeta.removeAttribute('role');
+        currentUserMeta.removeAttribute('tabindex');
+        currentUserMeta.removeAttribute('aria-label');
+    }
+}
+
 function updateCurrentUserBadge() {
     if (!currentUserName || !currentUserMeta) return;
 
     if (!currentUser) {
         currentUserName.textContent = currentLanguage === 'zh' ? '未登录' : 'Signed out';
         currentUserMeta.textContent = currentLanguage === 'zh' ? '登录后显示当前账号' : 'Current account appears here';
+        setGuestMetaPromptInteractive(false);
+        updateGuestModeSidebar(false);
+        return;
+    }
+
+    if (currentUser.isGuest) {
+        currentUserName.textContent = currentLanguage === 'zh' ? '游客模式' : 'Guest Mode';
+        currentUserMeta.textContent = currentLanguage === 'zh'
+            ? '推荐注册登录以获取定制化体验'
+            : 'Sign up for personalized experience';
+        setGuestMetaPromptInteractive(true);
+        updateGuestModeSidebar(true);
         return;
     }
 
@@ -1062,6 +1293,89 @@ function updateCurrentUserBadge() {
     currentUserMeta.textContent = currentUser.phone
         ? `手机号 ${maskContact('phone', currentUser.phone)}`
         : `邮箱 ${maskContact('email', currentUser.email)}`;
+    setGuestMetaPromptInteractive(false);
+    updateGuestModeSidebar(false);
+}
+
+function updateGuestModeSidebar(isGuest) {
+    if (openProfileHomeBtn) {
+        openProfileHomeBtn.style.display = isGuest ? 'none' : 'flex';
+    }
+    if (guestUpgradeBtn) {
+        guestUpgradeBtn.style.display = isGuest ? 'flex' : 'none';
+    }
+    if (logoutBtn) {
+        logoutBtn.style.display = isGuest ? 'none' : 'inline-flex';
+    }
+}
+
+function enterGuestApp() {
+    const guestUser = {
+        id: 'guest',
+        username: currentLanguage === 'zh' ? '游客' : 'Guest',
+        email: '',
+        phone: '',
+        isGuest: true
+    };
+    enterAuthenticatedApp(guestUser, { notify: false });
+    showNotification(
+        currentLanguage === 'zh'
+            ? '已进入游客模式，可先体验核心功能'
+            : 'Entered guest mode. Try core features first.',
+        'success',
+        2600
+    );
+}
+
+function returnToAuthFromGuest() {
+    if (currentUser?.isGuest) {
+        showGuestUpgradeConfirmModal();
+        return;
+    }
+
+    performReturnToAuthFromGuest();
+}
+
+function clearGuestScopedStorage() {
+    const prefix = `${AUTH_APP_NAMESPACE}:guest:`;
+    const keysToDelete = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith(prefix)) {
+            keysToDelete.push(key);
+        }
+    }
+    keysToDelete.forEach(key => localStorage.removeItem(key));
+}
+
+function performReturnToAuthFromGuest() {
+    currentUser = null;
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    clearGuestScopedStorage();
+    resetWorkspaceForUserSwitch();
+    document.body.classList.remove('auth-ready', 'guide-with-sidebar');
+    document.body.classList.add('auth-locked');
+    updateCurrentUserBadge();
+    if (authGate) authGate.style.display = '';
+    if (appShell) appShell.style.display = '';
+    switchAuthMode('login');
+    setAuthStatus(currentLanguage === 'zh'
+        ? '欢迎注册登录，解锁定制化体验与成长档案。'
+        : 'Sign in to unlock personalized experience and growth archive.');
+}
+
+function showGuestUpgradeConfirmModal() {
+    const modal = document.getElementById('guestUpgradeConfirmModal');
+    if (!modal) {
+        performReturnToAuthFromGuest();
+        return;
+    }
+    modal.style.display = 'flex';
+}
+
+function closeGuestUpgradeConfirmModal() {
+    const modal = document.getElementById('guestUpgradeConfirmModal');
+    if (modal) modal.style.display = 'none';
 }
 
 function switchAuthMode(mode) {
@@ -1075,13 +1389,50 @@ function switchAuthMode(mode) {
     if (registerPanel) registerPanel.classList.toggle('active', mode === 'register');
 
     if (mode === 'login') {
-        setAuthStatus('请选择登录方式并完成认证。');
+        setAuthStatus('请使用邮箱完成登录认证。');
     } else {
-        setAuthStatus('注册后会自动进入主界面，并绑定手机号或邮箱。');
+        setAuthStatus('注册后会自动进入主界面，并绑定邮箱。');
+    }
+}
+
+function isLoginMethodEnabled(method) {
+    if (method === 'email') return AUTH_LOGIN_FEATURES.emailCode;
+    if (method === 'phone') return AUTH_LOGIN_FEATURES.smsCode;
+    if (method === 'username') return AUTH_LOGIN_FEATURES.usernamePassword;
+    return false;
+}
+
+function getPreferredLoginMethod() {
+    if (isLoginMethodEnabled('email')) return 'email';
+    if (isLoginMethodEnabled('phone')) return 'phone';
+    if (isLoginMethodEnabled('username')) return 'username';
+    return 'email';
+}
+
+function applyAuthFeatureAvailability() {
+    document.querySelectorAll('[data-login-method]').forEach(button => {
+        const method = button.dataset.loginMethod;
+        const enabled = isLoginMethodEnabled(method);
+        button.disabled = !enabled;
+        button.style.display = enabled ? '' : 'none';
+    });
+
+    if (registerContactType) {
+        registerContactType.value = 'email';
+        registerContactType.disabled = !AUTH_LOGIN_FEATURES.smsCode;
+    }
+
+    if (authDeliveryHint) {
+        authDeliveryHint.textContent = AUTH_LOGIN_FEATURES.smsCode
+            ? '邮箱和短信验证码均可使用。'
+            : '当前仅支持邮箱验证码，短信登录即将上线。';
     }
 }
 
 function updateLoginMethodUI(method) {
+    if (!isLoginMethodEnabled(method)) {
+        method = getPreferredLoginMethod();
+    }
     currentLoginMethod = method;
 
     document.querySelectorAll('[data-login-method]').forEach(button => {
@@ -1146,6 +1497,13 @@ function startAuthCountdown(button, cacheKey) {
 }
 
 async function sendVerificationCode(purpose, type, target, button) {
+    if (type === 'phone' && !AUTH_LOGIN_FEATURES.smsCode) {
+        const msg = '当前暂不支持短信验证码，请使用邮箱登录。';
+        setAuthStatus(msg, 'error');
+        showNotification(msg, 'warning');
+        return false;
+    }
+
     const normalizedTarget = type === 'phone' ? normalizePhone(target) : normalizeEmail(target);
     const verificationTarget = normalizeVerificationTarget(type, target);
     const isValid = type === 'phone' ? validatePhone(normalizedTarget) : validateEmail(normalizedTarget);
@@ -1286,10 +1644,14 @@ function loadWorkspaceForCurrentUser() {
 function enterAuthenticatedApp(user, options = {}) {
     const { notify = true } = options;
     currentUser = user;
-    localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
-        userId: user.id,
-        loggedInAt: new Date().toISOString()
-    }));
+    if (user?.isGuest) {
+        localStorage.removeItem(AUTH_SESSION_KEY);
+    } else {
+        localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify({
+            userId: user.id,
+            loggedInAt: new Date().toISOString()
+        }));
+    }
 
     document.body.classList.remove('auth-locked');
     document.body.classList.add('auth-ready');
@@ -1348,7 +1710,7 @@ async function handleLoginSubmit(event) {
         return;
     }
 
-    if (currentLoginMethod === 'username') {
+    if (currentLoginMethod === 'username' && AUTH_LOGIN_FEATURES.usernamePassword) {
         const passwordValue = loginPassword?.value || '';
         const user = getUserByMethod('username', identifierValue, users);
         if (!user || user.password !== passwordValue) {
@@ -1361,7 +1723,7 @@ async function handleLoginSubmit(event) {
         return;
     }
 
-    const contactType = currentLoginMethod;
+    const contactType = isLoginMethodEnabled(currentLoginMethod) ? currentLoginMethod : getPreferredLoginMethod();
     const inputCode = loginCode?.value?.trim() || '';
     const user = getUserByMethod(contactType, identifierValue, users);
     if (!user) {
@@ -1387,7 +1749,7 @@ async function handleRegisterSubmit(event) {
     const usernameValue = registerUsername?.value?.trim() || '';
     const passwordValue = registerPassword?.value || '';
     const confirmValue = registerPasswordConfirm?.value || '';
-    const contactType = registerContactType?.value || 'phone';
+    const contactType = AUTH_LOGIN_FEATURES.smsCode ? (registerContactType?.value || 'email') : 'email';
     const contactValue = registerContact?.value?.trim() || '';
     const codeValue = registerCode?.value?.trim() || '';
     const users = readAuthUsers();
@@ -1451,6 +1813,7 @@ async function handleRegisterSubmit(event) {
 function initializeAuth() {
     cacheAuthElements();
     updateCurrentUserBadge();
+    applyAuthFeatureAvailability();
 
     document.querySelectorAll('[data-auth-mode]').forEach(button => {
         button.addEventListener('click', () => switchAuthMode(button.dataset.authMode));
@@ -1490,8 +1853,9 @@ function initializeAuth() {
     }
 
     switchAuthMode(currentAuthMode);
+    currentLoginMethod = getPreferredLoginMethod();
     updateLoginMethodUI(currentLoginMethod);
-    updateRegisterContactUI(registerContactType?.value || 'phone');
+    updateRegisterContactUI(AUTH_LOGIN_FEATURES.smsCode ? (registerContactType?.value || 'email') : 'email');
     restoreAuthSession();
 }
 
@@ -1652,6 +2016,486 @@ function closeAILoadingModal() {
     }
 }
 
+function renderReportPendingHint() {
+    if (!reportContent) return;
+    reportContent.innerHTML = `
+        <div class="report-pending-card">
+            <h5>📊 ${currentLanguage === 'zh' ? '写作报告生成中' : 'Writing Report In Progress'}</h5>
+            <p>${currentLanguage === 'zh'
+                ? 'AI 正在分析你的文章与写作过程。你可以继续写作，报告完成后可在“写作报告”中查看。'
+                : 'AI is analyzing your text and process. You can continue writing and open the report when done.'}</p>
+        </div>
+    `;
+}
+
+function showReportGeneratingModal() {
+    const modal = document.getElementById('reportGeneratingModal');
+    if (!modal) return;
+    modal.style.display = 'flex';
+}
+
+function hideReportGeneratingModal() {
+    const modal = document.getElementById('reportGeneratingModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+}
+
+function dismissReportGeneratingModal() {
+    if (!isReportGenerating) {
+        hideReportGeneratingModal();
+        return;
+    }
+
+    reportGenerationDismissed = true;
+    hideReportGeneratingModal();
+    renderReportPendingHint();
+    showNotification(
+        currentLanguage === 'zh'
+            ? '写作报告正在后台继续生成，完成后会提醒你'
+            : 'Report generation continues in background. You will be notified when done.',
+        'warning',
+        3200
+    );
+}
+
+const AI_OPERATION_CANCELLED_CODE = 'AI_OPERATION_CANCELLED';
+
+function buildAIOperationCancelledError(sceneLabel = '') {
+    const error = new Error(sceneLabel || 'AI operation cancelled by user');
+    error.code = AI_OPERATION_CANCELLED_CODE;
+    return error;
+}
+
+function isAIOperationCancelled(error) {
+    return error?.code === AI_OPERATION_CANCELLED_CODE;
+}
+
+function cancelCurrentAIOperation(sceneLabel, onRollback) {
+    try {
+        if (window.aiService && typeof window.aiService.cancelPendingRequests === 'function') {
+            window.aiService.cancelPendingRequests();
+        }
+    } catch (cancelError) {
+        console.warn('取消 AI 请求失败:', cancelError);
+    }
+
+    closeAILoadingModal();
+
+    const retryModal = document.getElementById('aiRetryModal');
+    if (retryModal) retryModal.remove();
+
+    if (typeof onRollback === 'function') {
+        try {
+            onRollback();
+        } catch (rollbackError) {
+            console.warn('回退到上一步失败:', rollbackError);
+        }
+    }
+
+    showNotification(
+        currentLanguage === 'zh'
+            ? `已取消${sceneLabel ? `：${sceneLabel}` : ''}，并回退到上一步`
+            : `Cancelled${sceneLabel ? `: ${sceneLabel}` : ''} and returned to previous step`,
+        'warning',
+        2600
+    );
+}
+
+function showAIGenerationRetryModal(scene, shortDetail) {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('aiRetryModal');
+        if (existing) existing.remove();
+
+        const modal = document.createElement('div');
+        modal.id = 'aiRetryModal';
+        modal.className = 'modal ai-retry-modal';
+        modal.innerHTML = `
+            <div class="modal-content ai-retry-modal-content" role="dialog" aria-modal="true" aria-labelledby="aiRetryTitle">
+                <button class="modal-close" type="button" data-action="cancel">✕</button>
+                <h2 id="aiRetryTitle">${currentLanguage === 'zh' ? 'AI 生成失败' : 'AI Generation Failed'}</h2>
+                <div class="guidance-step">
+                    <p class="question-text">${currentLanguage === 'zh' ? `${scene} 生成失败。` : `${scene} generation failed.`}</p>
+                    <p class="ai-retry-detail">${currentLanguage === 'zh' ? '原因' : 'Reason'}: ${shortDetail}</p>
+                    <div class="ai-retry-actions">
+                        <button class="guidance-back-btn" type="button" data-action="cancel">${currentLanguage === 'zh' ? '取消' : 'Cancel'}</button>
+                        <button class="guidance-next-btn" type="button" data-action="retry">${currentLanguage === 'zh' ? '重新生成' : 'Retry'}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const cleanupAndResolve = (shouldRetry) => {
+            modal.remove();
+            resolve(shouldRetry);
+        };
+
+        modal.addEventListener('click', (event) => {
+            const target = event.target;
+            const action = target?.dataset?.action;
+
+            if (event.target === modal || action === 'cancel') {
+                cleanupAndResolve(false);
+                return;
+            }
+
+            if (action === 'retry') {
+                cleanupAndResolve(true);
+            }
+        });
+
+        document.body.appendChild(modal);
+    });
+}
+
+async function askRetryForAIGeneration(sceneLabel, error, options = {}) {
+    const { onCancel } = options;
+    const defaultDetail = currentLanguage === 'zh' ? '未知错误' : 'Unknown error';
+    const shortDetail = String(error?.message || error || defaultDetail).slice(0, 180);
+    const scene = sceneLabel || (currentLanguage === 'zh' ? '当前步骤' : 'Current step');
+
+    const notifyText = currentLanguage === 'zh'
+        ? `⚠️ ${scene}AI生成失败：${shortDetail}`
+        : `⚠️ AI generation failed at ${scene}: ${shortDetail}`;
+    showNotification(notifyText, 'error', 5000);
+
+    const shouldRetry = await showAIGenerationRetryModal(scene, shortDetail);
+    if (shouldRetry) return true;
+
+    cancelCurrentAIOperation(scene, onCancel);
+    throw buildAIOperationCancelledError(scene);
+}
+
+function updateAvatarDisplay(imgEl, fallbackEl, avatarUrl) {
+    if (!imgEl || !fallbackEl) return;
+
+    if (avatarUrl) {
+        imgEl.src = avatarUrl;
+        imgEl.style.display = 'block';
+        fallbackEl.style.display = 'none';
+    } else {
+        imgEl.removeAttribute('src');
+        imgEl.style.display = 'none';
+        fallbackEl.style.display = 'inline';
+    }
+}
+
+function openProfileHomePage() {
+    const pageUrl = 'profile-home.html';
+    const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+    if (isMobile) {
+        window.open(pageUrl, '_blank', 'noopener');
+        return;
+    }
+
+    const width = Math.min(980, Math.max(840, window.innerWidth - 80));
+    const height = Math.min(860, Math.max(680, window.innerHeight - 80));
+    const left = Math.max(20, Math.round((window.screen.width - width) / 2));
+    const top = Math.max(20, Math.round((window.screen.height - height) / 2));
+    const features = `popup=yes,width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=yes`;
+
+    const popup = window.open(pageUrl, 'ProfileHomeWindow', features);
+    if (!popup) {
+        window.location.href = pageUrl;
+    }
+}
+
+function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('读取图片失败'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function getFileExt(fileName) {
+    const name = String(fileName || '');
+    const idx = name.lastIndexOf('.');
+    if (idx < 0) return '';
+    return name.slice(idx + 1).toLowerCase();
+}
+
+async function compressImageForOCR(file) {
+    const rawDataUrl = await fileToDataUrl(file);
+
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            try {
+                const maxLongSide = 1600;
+                const longSide = Math.max(img.width, img.height) || 1;
+                const scale = Math.min(1, maxLongSide / longSide);
+                const targetWidth = Math.max(1, Math.round(img.width * scale));
+                const targetHeight = Math.max(1, Math.round(img.height * scale));
+
+                const canvas = document.createElement('canvas');
+                canvas.width = targetWidth;
+                canvas.height = targetHeight;
+                const ctx = canvas.getContext('2d');
+
+                if (!ctx) {
+                    resolve(rawDataUrl);
+                    return;
+                }
+
+                ctx.drawImage(img, 0, 0, targetWidth, targetHeight);
+                const compressed = canvas.toDataURL('image/jpeg', 0.78);
+                resolve(compressed.length < rawDataUrl.length ? compressed : rawDataUrl);
+            } catch (error) {
+                console.warn('图片压缩失败，回退原图:', error);
+                resolve(rawDataUrl);
+            }
+        };
+        img.onerror = () => resolve(rawDataUrl);
+        img.src = rawDataUrl;
+    });
+}
+
+let mammothLoaderPromise = null;
+async function ensureMammothLoaded() {
+    if (window.mammoth) return window.mammoth;
+    if (mammothLoaderPromise) return mammothLoaderPromise;
+
+    mammothLoaderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/mammoth@1.8.0/mammoth.browser.min.js';
+        script.async = true;
+        script.onload = () => {
+            if (window.mammoth) {
+                resolve(window.mammoth);
+                return;
+            }
+            reject(new Error('DOCX 解析器加载失败'));
+        };
+        script.onerror = () => reject(new Error('DOCX 解析器加载失败'));
+        document.head.appendChild(script);
+    });
+
+    return mammothLoaderPromise;
+}
+
+function askRetryAfterRecognitionFailure(error, attempt) {
+    const failMessage = currentLanguage === 'zh'
+        ? `识别失败（第 ${attempt} 次）：${error?.message || '未知错误'}`
+        : `Recognition failed (attempt ${attempt}): ${error?.message || 'Unknown error'}`;
+    showNotification(failMessage, 'error', 4200);
+
+    const retryPrompt = currentLanguage === 'zh'
+        ? '识别失败，是否重试？'
+        : 'Recognition failed. Retry?';
+    return window.confirm(retryPrompt);
+}
+
+async function extractTextFromDocx(file) {
+    const mammoth = await ensureMammothLoaded();
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.extractRawText({ arrayBuffer });
+    return String(result?.value || '').trim();
+}
+
+function cleanRecognizedHandwritingText(rawText) {
+    let text = String(rawText || '').trim();
+    text = text.replace(/^```[\w-]*\n?/, '').replace(/```$/, '').trim();
+    text = text.replace(/^(识别结果|OCR结果|Recognized text)\s*[:：]\s*/i, '').trim();
+    return text;
+}
+
+function writeRecognizedTextToEditor(recognizedText, mode = 'append') {
+    if (!mainEditor || !recognizedText) return;
+
+    if (mode === 'overwrite') {
+        mainEditor.value = recognizedText;
+    } else {
+        const hasExistingText = String(mainEditor.value || '').trim().length > 0;
+        const separator = hasExistingText ? '\n\n' : '';
+        mainEditor.value = `${mainEditor.value}${separator}${recognizedText}`;
+    }
+
+    mainEditor.dispatchEvent(new Event('input', { bubbles: true }));
+    mainEditor.focus();
+    mainEditor.setSelectionRange(mainEditor.value.length, mainEditor.value.length);
+}
+
+function showHandwritingInsertModeModal() {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('handwritingInsertModeModal');
+        if (existing) existing.remove();
+
+        const title = currentLanguage === 'zh' ? '选择写入方式' : 'Choose Insert Mode';
+        const desc = currentLanguage === 'zh'
+            ? '写作框中已有内容。请选择识别文字的写入方式：'
+            : 'The editor already has content. Choose how to insert recognized text:';
+        const overwriteLabel = currentLanguage === 'zh' ? '覆盖写入' : 'Overwrite';
+        const appendLabel = currentLanguage === 'zh' ? '追加写入' : 'Append';
+        const cancelLabel = currentLanguage === 'zh' ? '取消' : 'Cancel';
+
+        const modal = document.createElement('div');
+        modal.id = 'handwritingInsertModeModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="handwritingInsertModeTitle">
+                <button class="modal-close" type="button" data-action="cancel">✕</button>
+                <h2 id="handwritingInsertModeTitle">${title}</h2>
+                <div class="guidance-step">
+                    <p class="question-text">${desc}</p>
+                    <div class="optimization-buttons">
+                        <button class="guidance-back-btn" type="button" data-action="overwrite">${overwriteLabel}</button>
+                        <button class="guidance-next-btn" type="button" data-action="append">${appendLabel}</button>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                        <button class="secondary-btn" type="button" data-action="cancel">${cancelLabel}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const cleanup = () => {
+            document.removeEventListener('keydown', onEsc);
+            modal.remove();
+        };
+
+        const onEsc = (event) => {
+            if (event.key === 'Escape') {
+                cleanup();
+                resolve(null);
+            }
+        };
+
+        modal.addEventListener('click', (event) => {
+            const action = event.target?.dataset?.action;
+            if (event.target === modal || action === 'cancel') {
+                cleanup();
+                resolve(null);
+                return;
+            }
+            if (action === 'overwrite' || action === 'append') {
+                cleanup();
+                resolve(action);
+            }
+        });
+
+        document.addEventListener('keydown', onEsc);
+        document.body.appendChild(modal);
+    });
+}
+
+async function handleHandwritingImageSelected(file, triggerButton) {
+    if (!file) return;
+
+    const isImage = /^image\//.test(file.type || '');
+    const ext = getFileExt(file.name);
+    const isTxt = file.type === 'text/plain' || ext === 'txt';
+    const isDocx = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || ext === 'docx';
+
+    if (!isImage && !isTxt && !isDocx) {
+        showNotification(
+            currentLanguage === 'zh'
+                ? '仅支持图片、.txt、.docx 文件'
+                : 'Only image, .txt, and .docx files are supported',
+            'warning'
+        );
+        return;
+    }
+
+    const maxSizeBytes = 12 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+        showNotification(currentLanguage === 'zh' ? '文件不能超过 12MB' : 'File must be smaller than 12MB', 'warning');
+        return;
+    }
+
+    if (triggerButton) {
+        triggerButton.disabled = true;
+        triggerButton.textContent = currentLanguage === 'zh' ? '处理中...' : 'Processing...';
+    }
+
+    try {
+        let recognizedText = '';
+
+        if (isTxt) {
+            recognizedText = String(await file.text()).trim();
+        } else if (isDocx) {
+            recognizedText = await extractTextFromDocx(file);
+        } else {
+            const imageDataUrl = await compressImageForOCR(file);
+            let attempt = 1;
+            while (attempt <= 3) {
+                try {
+                    const result = await aiService.recognizeHandwritingFromImage(imageDataUrl, currentLanguage, currentType);
+                    recognizedText = cleanRecognizedHandwritingText(result?.message || '');
+                    if (!recognizedText) {
+                        throw new Error(currentLanguage === 'zh' ? '未识别到有效文字' : 'No valid text recognized');
+                    }
+                    break;
+                } catch (ocrError) {
+                    if (attempt >= 3 || !askRetryAfterRecognitionFailure(ocrError, attempt)) {
+                        throw ocrError;
+                    }
+                    attempt += 1;
+                }
+            }
+        }
+
+        if (!recognizedText) {
+            showNotification(
+                currentLanguage === 'zh'
+                    ? '未读取到有效文字，请检查文件内容后重试'
+                    : 'No valid text found. Please check file content and retry',
+                'warning'
+            );
+            return;
+        }
+
+        const hasExistingText = String(mainEditor?.value || '').trim().length > 0;
+        let insertMode = 'append';
+
+        if (hasExistingText) {
+            const selectedMode = await showHandwritingInsertModeModal();
+            if (!selectedMode) {
+                showNotification(currentLanguage === 'zh' ? '已取消写入' : 'Insert cancelled', 'warning');
+                return;
+            }
+            insertMode = selectedMode;
+        }
+
+        writeRecognizedTextToEditor(recognizedText, insertMode);
+        showNotification(
+            currentLanguage === 'zh'
+                ? (insertMode === 'overwrite' ? '✓ 文件内容处理成功，已覆盖写入' : '✓ 文件内容处理成功，已追加写入')
+                : (insertMode === 'overwrite' ? '✓ File processed and overwritten' : '✓ File processed and appended'),
+            'success'
+        );
+    } catch (error) {
+        console.error('文件处理失败:', error);
+        showNotification(
+            currentLanguage === 'zh'
+                ? `处理失败：${error.message || '请稍后重试'}`
+                : `Processing failed: ${error.message || 'Please try again later'}`,
+            'error'
+        );
+    } finally {
+        if (triggerButton) {
+            triggerButton.disabled = false;
+            triggerButton.textContent = currentLanguage === 'zh' ? '📷 上传手写作文' : '📷 Upload Handwriting';
+        }
+    }
+}
+
+function saveLatestWritingReport(reportHtml, words, durationSec, useAIEvaluation) {
+    const payload = {
+        html: String(reportHtml || ''),
+        articleContent: String(mainEditor?.value || ''),
+        words: Number(words || 0),
+        durationSec: Number(durationSec || 0),
+        useAIEvaluation: Boolean(useAIEvaluation),
+        language: currentLanguage,
+        type: currentType,
+        title: String(titleInput?.value || '').trim(),
+        updatedAt: Date.now()
+    };
+    setScopedStorageValue('latestWritingReport', JSON.stringify(payload));
+}
+
 // =========== 初始化 ===========
 document.addEventListener('DOMContentLoaded', () => {
     // 获取 DOM 元素
@@ -1670,15 +2514,19 @@ document.addEventListener('DOMContentLoaded', () => {
     targetSelectorWrap = document.getElementById('targetSelectorWrap');
     targetSelectorLabel = document.getElementById('targetSelectorLabel');
     
-    // 新增：报告和成长档案相关元素
+    // 新增：报告和个人主页相关元素
     reportContent = document.getElementById('reportContent');
     writeViewTab = document.getElementById('writeViewTab');
     reportViewTab = document.getElementById('reportViewTab');
     editorViewTabs = document.getElementById('editorViewTabs');
     writeView = document.getElementById('writeView');
     reportView = document.getElementById('reportView');
-    sidebarGrowthPanel = document.getElementById('sidebarGrowthPanel');
-    sidebarGrowthContent = document.getElementById('sidebarGrowthContent');
+    openProfileHomeBtn = document.getElementById('openProfileHomeBtn');
+    guestUpgradeBtn = document.getElementById('guestUpgradeBtn');
+    sidebarProfileAvatar = document.getElementById('sidebarProfileAvatar');
+    sidebarProfileAvatarFallback = document.getElementById('sidebarProfileAvatarFallback');
+    sidebarProfileDisplayName = document.getElementById('sidebarProfileDisplayName');
+    sidebarProfileMeta = document.getElementById('sidebarProfileMeta');
     
     console.log('✅ DOM elements fetched:', {
         mainEditor: !!mainEditor,
@@ -1709,6 +2557,40 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('✅ Initialization complete');
 });
 
+function hasRenderableReportContent() {
+    if (!reportContent) return false;
+    return String(reportContent.textContent || '').trim().length > 0;
+}
+
+function hydrateReportFromLatestCache() {
+    if (!reportContent) return false;
+
+    const saved = getScopedStorageValue('latestWritingReport');
+    if (!saved) return false;
+
+    try {
+        const report = JSON.parse(saved);
+        const html = String(report?.html || '').trim();
+        if (!html) return false;
+        reportContent.innerHTML = html;
+        return true;
+    } catch (error) {
+        console.warn('读取最近写作报告缓存失败:', error);
+        return false;
+    }
+}
+
+function switchToReportView() {
+    if (!writeView || !reportView || !editorViewTabs) return false;
+
+    if (reportViewTab) reportViewTab.classList.add('active');
+    if (writeViewTab) writeViewTab.classList.remove('active');
+    writeView.style.display = 'none';
+    reportView.style.display = 'flex';
+    editorViewTabs.style.display = 'flex';
+    return true;
+}
+
 // =========== 事件监听设置 ===========
 function setupEventListeners() {
     console.log('🔧 setupEventListeners started');
@@ -1730,6 +2612,7 @@ function setupEventListeners() {
             currentLanguage = e.target.value;
             updateTemplate();
             renderOptimizationRecords();
+            renderSidebarGrowthArchive();
         });
     });
 
@@ -1879,12 +2762,18 @@ function setupEventListeners() {
         }, 9000);
     }
     
-    // 写作完成按钮
-    const finishWritingBtn = document.getElementById('finishWritingBtn');
-    
-    if (finishWritingBtn) {
-        finishWritingBtn.addEventListener('click', () => {
-            finishWriting();
+    const uploadHandwritingBtn = document.getElementById('uploadHandwritingBtn');
+    const handwritingImageInput = document.getElementById('handwritingImageInput');
+
+    if (uploadHandwritingBtn && handwritingImageInput) {
+        uploadHandwritingBtn.addEventListener('click', () => {
+            handwritingImageInput.click();
+        });
+
+        handwritingImageInput.addEventListener('change', async (event) => {
+            const file = event.target?.files?.[0];
+            await handleHandwritingImageSelected(file, uploadHandwritingBtn);
+            handwritingImageInput.value = '';
         });
     }
 
@@ -1893,6 +2782,10 @@ function setupEventListeners() {
     const closeOptimizationModalBtn = document.getElementById('closeOptimizationModal');
     const closeOutlineResultModalBtn = document.getElementById('closeOutlineResultModal');
     const closeRawPromptModalBtn = document.getElementById('closeRawPromptModal');
+    const closeReportGeneratingModalBtn = document.getElementById('closeReportGeneratingModal');
+    const closeGuestUpgradeConfirmModalBtn = document.getElementById('closeGuestUpgradeConfirmModal');
+    const confirmGuestUpgradeBtn = document.getElementById('confirmGuestUpgradeBtn');
+    const cancelGuestUpgradeBtn = document.getElementById('cancelGuestUpgradeBtn');
     const startWritingFromOutlineBtn = document.getElementById('startWritingFromOutline');
     const enlargeOutlineBtn = document.getElementById('enlargeOutlineBtn');
     const enlargeOutlineFromPanelBtn = document.getElementById('enlargeOutlineFromPanelBtn');
@@ -1901,6 +2794,41 @@ function setupEventListeners() {
     if (closeOptimizationModalBtn) closeOptimizationModalBtn.addEventListener('click', closeOptimizationModal);
     if (closeOutlineResultModalBtn) closeOutlineResultModalBtn.addEventListener('click', closeOutlineResultModal);
     if (closeRawPromptModalBtn) closeRawPromptModalBtn.addEventListener('click', closeRawPromptModal);
+    if (closeReportGeneratingModalBtn) closeReportGeneratingModalBtn.addEventListener('click', dismissReportGeneratingModal);
+    if (closeGuestUpgradeConfirmModalBtn) closeGuestUpgradeConfirmModalBtn.addEventListener('click', closeGuestUpgradeConfirmModal);
+    if (cancelGuestUpgradeBtn) cancelGuestUpgradeBtn.addEventListener('click', closeGuestUpgradeConfirmModal);
+    if (confirmGuestUpgradeBtn) {
+        confirmGuestUpgradeBtn.addEventListener('click', () => {
+            closeGuestUpgradeConfirmModal();
+            performReturnToAuthFromGuest();
+        });
+    }
+
+    if (openProfileHomeBtn) {
+        openProfileHomeBtn.addEventListener('click', openProfileHomePage);
+    }
+    if (guestUpgradeBtn) {
+        guestUpgradeBtn.addEventListener('click', returnToAuthFromGuest);
+    }
+    if (currentUserMeta) {
+        currentUserMeta.addEventListener('click', () => {
+            if (currentUser?.isGuest) {
+                returnToAuthFromGuest();
+            }
+        });
+        currentUserMeta.addEventListener('keydown', (event) => {
+            if (!currentUser?.isGuest) return;
+            if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                returnToAuthFromGuest();
+            }
+        });
+    }
+
+    const guestLoginBtn = document.getElementById('guestLoginBtn');
+    if (guestLoginBtn) {
+        guestLoginBtn.addEventListener('click', enterGuestApp);
+    }
     
     // 原始题目模态框事件
     const submitRawPromptBtn = document.getElementById('submitRawPromptBtn');
@@ -1983,14 +2911,8 @@ function setupEventListeners() {
     }
 
     // 工具按钮
-    const saveBtn = document.getElementById('saveBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const exportBtn = document.getElementById('exportBtn');
     const autoSaveToggle = document.getElementById('autoSaveToggle');
-    
-    if (saveBtn) saveBtn.addEventListener('click', saveContent);
-    if (clearBtn) clearBtn.addEventListener('click', clearContent);
-    if (exportBtn) exportBtn.addEventListener('click', exportContent);
+
     if (autoSaveToggle) autoSaveToggle.addEventListener('click', toggleAutoSave);
 
     // 素材放大按钮
@@ -2005,6 +2927,8 @@ function setupEventListeners() {
     const outlineResultModal = document.getElementById('outlineResultModal');
     const rawPromptModal = document.getElementById('rawPromptModal');
     const materialsModal = document.getElementById('materialsModal');
+    const reportGeneratingModal = document.getElementById('reportGeneratingModal');
+    const guestUpgradeConfirmModal = document.getElementById('guestUpgradeConfirmModal');
     
     console.log('📋 Modals:', {
         guidanceModal: !!guidanceModal,
@@ -2037,12 +2961,28 @@ function setupEventListeners() {
             if (e.target.id === 'materialsModal') closeMaterialsModal();
         });
     }
+    if (reportGeneratingModal) {
+        reportGeneratingModal.addEventListener('click', (e) => {
+            if (e.target.id === 'reportGeneratingModal') dismissReportGeneratingModal();
+        });
+    }
+    if (guestUpgradeConfirmModal) {
+        guestUpgradeConfirmModal.addEventListener('click', (e) => {
+            if (e.target.id === 'guestUpgradeConfirmModal') closeGuestUpgradeConfirmModal();
+        });
+    }
+    window.addEventListener('storage', (event) => {
+        if (!event.key) return;
+        if (event.key.endsWith(':userProfile')) {
+            renderSidebarGrowthArchive();
+        }
+    });
     
     // Phase 3: 编辑器内视图切换事件监听器
     if (writeViewTab) {
         writeViewTab.addEventListener('click', () => {
             writeViewTab.classList.add('active');
-            reportViewTab.classList.remove('active');
+            if (reportViewTab) reportViewTab.classList.remove('active');
             writeView.style.display = 'flex';
             reportView.style.display = 'none';
         });
@@ -2050,27 +2990,27 @@ function setupEventListeners() {
     
     if (reportViewTab) {
         reportViewTab.addEventListener('click', () => {
-            reportViewTab.classList.add('active');
-            writeViewTab.classList.remove('active');
-            writeView.style.display = 'none';
-            reportView.style.display = 'flex';
+            switchToReportView();
         });
     }
     
     // Phase 3: 查看写作报告按钮
     const viewWritingReportBtn = document.getElementById('viewWritingReport');
     if (viewWritingReportBtn) {
-        viewWritingReportBtn.addEventListener('click', () => {
-            // 如果报告还未生成，触发finishWriting
-            if (!reportContent || !reportContent.innerHTML.trim()) {
-                finishWriting();
-            } else {
-                // 否则直接切换到报告视图
-                reportViewTab.classList.add('active');
-                writeViewTab.classList.remove('active');
-                writeView.style.display = 'none';
-                reportView.style.display = 'flex';
-                editorViewTabs.style.display = 'flex';
+        viewWritingReportBtn.addEventListener('click', async () => {
+            if (switchToReportView() && hasRenderableReportContent()) {
+                return;
+            }
+
+            if (hydrateReportFromLatestCache()) {
+                switchToReportView();
+                return;
+            }
+
+            await finishWriting();
+
+            if (hasRenderableReportContent() || hydrateReportFromLatestCache()) {
+                switchToReportView();
             }
         });
     }
@@ -2220,7 +3160,12 @@ async function showGuidanceQuestion(container, modal) {
                 5000
             );
         } catch (error) {
+            if (isAIOperationCancelled(error)) {
+                closeAILoadingModal();
+                return;
+            }
             console.error('生成大纲失败:', error);
+            closeAILoadingModal();
             showNotification(
                 currentLanguage === 'zh' 
                     ? '⚠️ 大纲生成失败，请重试' 
@@ -2441,10 +3386,11 @@ async function generateDetailedOutline(userAnswers) {
         );
         
         const aiOutline = result.message;
+        const outlineId = generateAIContentId('outline');
         
         // 显示AI生成的详细大纲
         const outlineHtml = `
-            <div class="detailed-outline">
+            <div class="detailed-outline" data-content-id="${outlineId}">
                 <h5>📋 ${currentLanguage === 'zh' ? '完整写作大纲' : 'Complete Writing Outline'}</h5>
                 <div class="outline-content">${aiOutline.replace(/\n/g, '<br>')}</div>
                 <div class="outline-hint">
@@ -2452,6 +3398,7 @@ async function generateDetailedOutline(userAnswers) {
                         ? '提示：大纲中已标注适配素材、建议篇幅和重要论证点，请参考进行写作。' 
                         : 'Tip: The outline includes suggested materials, word count, and key argumentation points. Please follow for writing.'}</p>
                 </div>
+                ${renderAIFeedbackButtons('outline', outlineId, aiOutline)}
             </div>
         `;
         outlinePanel.innerHTML = outlineHtml;
@@ -2466,9 +3413,25 @@ async function generateDetailedOutline(userAnswers) {
         
     } catch (error) {
         console.error('详细大纲生成失败:', error);
-        
-        // 降级到基础大纲
-        return await generateOutlineFromAnswers(userAnswers);
+
+        const finalStepQuestions = guidanceQuestions[currentType]?.[currentLanguage] || [];
+        await askRetryForAIGeneration(
+            currentLanguage === 'zh' ? '启动引导最后一步' : 'final guidance step',
+            error,
+            {
+                onCancel: () => {
+                    guidanceStep = Math.max(0, finalStepQuestions.length - 1);
+                    const modal = document.getElementById('guidanceModal');
+                    const content = document.getElementById('guidanceContent');
+                    if (modal && content) {
+                        modal.style.display = 'flex';
+                        showGuidanceQuestion(content, modal);
+                    }
+                }
+            }
+        );
+
+        return await generateDetailedOutline(userAnswers);
     }
 }
 
@@ -2605,10 +3568,15 @@ async function showMaterials() {
         );
         return;
     }
+
+    if (materialsHistoryTopic !== topic) {
+        materialsHistoryTopic = topic;
+        materialsHistory = [];
+        materialsHistoryIndex = -1;
+    }
     
     // 显示素材面板并展示加载状态（步骤2：系统分析）
     materialsPanel.style.display = 'block';
-    let attemptCount = 0;
     const showLoadingMessage = (message) => {
         materialsList.innerHTML = `
             <p class="loading">🔄 ${message}</p>
@@ -2621,7 +3589,7 @@ async function showMaterials() {
             ? `AI正在为"${topic}"分析和筛选相关素材...` 
             : `AI is analyzing and filtering materials for "${topic}"...`);
 
-        // 使用带重试和退避策略的请求（3次重试）
+        // 使用预算控制的重试策略（优先快速返回，避免后台长时间堆叠等待）
         const result = await fetchMaterialsWithRetry({
             type: currentType,
             language: currentLanguage,
@@ -2630,7 +3598,10 @@ async function showMaterials() {
             preferences: userMaterialPreferences,
             guidance: userGuidanceAnswers,
             context: mainEditor.value
-        }, 3);
+        }, {
+            maxRetries: 1,
+            totalTimeoutMs: 26000
+        });
 
         // 步骤3：以卡片形式展示素材
         displayMaterialCards(result.message, topic);
@@ -2735,15 +3706,27 @@ async function showMaterials() {
     }
 }
 
-// Helper: fetch materials with retries + exponential backoff + improved error handling
-async function fetchMaterialsWithRetry(params, maxRetries = 3) {
+// Helper: budgeted retry with fast-fail for non-retriable errors
+async function fetchMaterialsWithRetry(params, options = {}) {
+    const maxRetries = Number.isFinite(options.maxRetries) ? options.maxRetries : 1;
+    const totalTimeoutMs = Number.isFinite(options.totalTimeoutMs) ? options.totalTimeoutMs : 26000;
+    const requestTimeoutBaseMs = Number.isFinite(options.requestTimeoutBaseMs) ? options.requestTimeoutBaseMs : 11000;
+    const requestTimeoutStepMs = Number.isFinite(options.requestTimeoutStepMs) ? options.requestTimeoutStepMs : 2000;
+
     let attempt = 0;
     let lastError = null;
-    
+    const startedAt = Date.now();
+
     while (attempt <= maxRetries) {
         try {
-            // 根据重试次数调整超时时间
-            const adjustedTimeoutMs = 22000 + (attempt * 3000);
+            // 控制单次请求体量：重试时缩短上下文，提升命中率和响应速度
+            const adjustedTimeoutMs = requestTimeoutBaseMs + (attempt * requestTimeoutStepMs);
+            const compactContext = attempt === 0
+                ? (params.context || '')
+                : String(params.context || '').slice(-600);
+            const compactGuidance = attempt === 0
+                ? (params.guidance || [])
+                : (params.guidance || []).slice(-3);
             
             return await aiService.generateDetailedMaterials(
                 params.type,
@@ -2751,16 +3734,33 @@ async function fetchMaterialsWithRetry(params, maxRetries = 3) {
                 params.topic,
                 params.level,
                 params.preferences,
-                params.guidance,
-                params.context,
+                compactGuidance,
+                compactContext,
                 { timeoutMs: adjustedTimeoutMs, retries: 0 } // 在服务层已处理，此处不再重试
             );
         } catch (err) {
             lastError = err;
+            const status = Number(err?.status || 0);
+            const message = String(err?.message || '');
+            const isTimeout = /timeout|AbortError/i.test(message);
+            const isRetriable = isTimeout || status === 429 || status === 502 || status === 503 || status === 504;
+
+            // 非可重试错误直接失败，避免无意义重试
+            if (!isRetriable) {
+                throw err;
+            }
+
             attempt++;
             
             if (attempt <= maxRetries) {
-                const delay = 800 * Math.pow(2, attempt); // 800ms, 1600ms, 3200ms...
+                const delay = 600 * Math.pow(2, attempt); // 1200ms, 2400ms...
+                const elapsed = Date.now() - startedAt;
+
+                // 总预算耗尽则快速退出，走降级逻辑
+                if (elapsed + delay >= totalTimeoutMs) {
+                    break;
+                }
+
                 console.log(`素材推荐重试 ${attempt}/${maxRetries}，待机 ${delay}ms...`);
                 await new Promise(r => setTimeout(r, delay));
             }
@@ -2772,18 +3772,14 @@ async function fetchMaterialsWithRetry(params, maxRetries = 3) {
 function displayMaterialCards(aiResponse, topic) {
     // 解析AI返回的素材并格式化为卡片
     const materials = parseAIMaterials(aiResponse);
+    const materialsId = generateAIContentId('materials');
     
-    let html = `
-        <div class="materials-header">
-            <h5>📚 ${currentLanguage === 'zh' ? '推荐素材' : 'Recommended Materials'}</h5>
-            <button class="refresh-materials-btn" onclick="refreshMaterials('${topic}')">
-                🔄 ${currentLanguage === 'zh' ? '换一批' : 'Refresh'}
-            </button>
-        </div>
+    let bodyHtml = `
+        <div class="materials-container" data-content-id="${materialsId}">
     `;
     
     materials.forEach((material, idx) => {
-        html += `
+        bodyHtml += `
             <div class="material-card" data-material-id="${idx}">
                 <div class="material-category">${material.category || (currentLanguage === 'zh' ? '素材' : 'Material')}</div>
                 <div class="material-content">
@@ -2812,7 +3808,12 @@ function displayMaterialCards(aiResponse, topic) {
         `;
     });
     
-    materialsList.innerHTML = html;
+    bodyHtml += `
+        </div>
+        ${renderAIFeedbackButtons('materials', materialsId, aiResponse)}
+    `;
+
+    pushMaterialsVersion(topic, bodyHtml);
 }
 
 function parseAIMaterials(aiResponse) {
@@ -2886,18 +3887,15 @@ function parseAIMaterials(aiResponse) {
 
 function displayFallbackMaterials(topic) {
     const materials = materialLibrary[currentType][currentLanguage].materials;
-    let html = `
+    let bodyHtml = `
         <p class="fallback-notice">⚠️ ${currentLanguage === 'zh' 
             ? '使用本地素材库（AI暂时不可用）' 
             : 'Using local materials (AI unavailable)'}</p>
-        <div class="materials-header">
-            <h5>📚 ${currentLanguage === 'zh' ? '推荐素材' : 'Recommended Materials'}</h5>
-        </div>
     `;
 
     materials.forEach((group, gidx) => {
         group.examples.forEach((example, eidx) => {
-            html += `
+            bodyHtml += `
                 <div class="material-card">
                     <div class="material-category">${group.category}</div>
                     <div class="material-content">"${example}"</div>
@@ -2911,7 +3909,58 @@ function displayFallbackMaterials(topic) {
         });
     });
 
-    materialsList.innerHTML = html;
+    pushMaterialsVersion(topic, bodyHtml);
+}
+
+function pushMaterialsVersion(topic, bodyHtml) {
+    if (materialsHistoryIndex < materialsHistory.length - 1) {
+        materialsHistory = materialsHistory.slice(0, materialsHistoryIndex + 1);
+    }
+
+    materialsHistory.push({
+        topic,
+        bodyHtml
+    });
+    materialsHistoryIndex = materialsHistory.length - 1;
+    renderMaterialsVersion();
+}
+
+function renderMaterialsVersion() {
+    if (!materialsList || materialsHistory.length === 0 || materialsHistoryIndex < 0) return;
+
+    const item = materialsHistory[materialsHistoryIndex];
+    const indexLabel = `${materialsHistoryIndex + 1}/${materialsHistory.length}`;
+    const prevLabel = currentLanguage === 'zh' ? '上一个' : 'Prev';
+    const nextLabel = currentLanguage === 'zh' ? '下一个' : 'Next';
+
+    materialsList.innerHTML = `
+        <div class="materials-header versioned-materials-header">
+            <div class="materials-header-top">
+                <h5>📚 ${currentLanguage === 'zh' ? '推荐素材' : 'Recommended Materials'}</h5>
+                <button class="refresh-materials-btn" onclick="refreshMaterials('${String(item.topic || '').replace(/'/g, "\\'")}')">🔄 ${currentLanguage === 'zh' ? '换一批' : 'Refresh'}</button>
+            </div>
+            <div class="materials-header-actions compact-nav-row">
+                <button class="secondary-btn version-nav-btn" onclick="prevMaterialsVersion()" ${materialsHistoryIndex <= 0 ? 'disabled' : ''}>← ${prevLabel}</button>
+                <button class="secondary-btn version-nav-btn" onclick="nextMaterialsVersion()" ${materialsHistoryIndex >= materialsHistory.length - 1 ? 'disabled' : ''}>${nextLabel} →</button>
+            </div>
+            <div class="version-meta-row">
+                <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${indexLabel}</span>
+            </div>
+        </div>
+        ${item.bodyHtml}
+    `;
+}
+
+function prevMaterialsVersion() {
+    if (materialsHistoryIndex <= 0) return;
+    materialsHistoryIndex--;
+    renderMaterialsVersion();
+}
+
+function nextMaterialsVersion() {
+    if (materialsHistoryIndex >= materialsHistory.length - 1) return;
+    materialsHistoryIndex++;
+    renderMaterialsVersion();
 }
 
 // 步骤4：用户操作素材
@@ -2996,7 +4045,10 @@ async function refreshMaterials(topic) {
             preferences: userMaterialPreferences,
             guidance: [],
             context: mainEditor.value
-        }, 2);  // 2 次重试
+        }, {
+            maxRetries: 1,
+            totalTimeoutMs: 22000
+        });
 
         displayMaterialCards(result.message, topic);
         showNotification(currentLanguage === 'zh' ? '✓ 新素材已加载' : '✓ New materials loaded');
@@ -3217,88 +4269,30 @@ function renderGrowthPanel() {
 
 // Phase 3: 左侧sidebar成长档案显示函数
 function renderSidebarGrowthArchive() {
-    if (!sidebarGrowthContent) return;
-    
-    loadGrowthProfile();
-    
-    let html = '';
-    
-    if (growthProfile.essays.length === 0) {
-        html = `<div class="sidebar-empty-state">
-            <p style="font-size: 12px; color: #999;">
-                ${currentLanguage === 'zh' ? '完成写作后，成长档案将在这里显示' : 'Growth archive will appear here'}
-            </p>
-        </div>`;
-    } else {
-        // 六维能力简化显示
-        html += '<div class="sidebar-abilities-compact">';
-        const abilityNames = {
-            structure: '结构',
-            argumentation: '论证',
-            language: '语言',
-            materials: '素材',
-            logic: '逻辑',
-            reflection: '立意'
-        };
-        
-        for (const [key, score] of Object.entries(growthProfile.abilities)) {
-            const abilityLabel = currentLanguage === 'zh' ? abilityNames[key] : key;
-            // 用颜色编码显示分数级别
-            let scoreColor = '#d32f2f';
-            if (score >= 80) scoreColor = '#388e3c';
-            else if (score >= 60) scoreColor = '#f57c00';
-            
-            html += `<div class="ability-compact">
-                <span class="ability-label">${abilityLabel}</span>
-                <div class="ability-bar-mini">
-                    <div class="bar-fill-mini" style="width: ${Math.min(score, 100)}%; background-color: ${scoreColor};"></div>
-                </div>
-                <span class="ability-score-mini">${score}</span>
-            </div>`;
-        }
-        html += '</div>';
-        
-        // 最近成绩快速查看
-        if (growthProfile.essays.length > 0) {
-            const lastEssay = growthProfile.essays[growthProfile.essays.length - 1];
-            const date = new Date(lastEssay.timestamp).toLocaleDateString(
-                currentLanguage === 'zh' ? 'zh-CN' : 'en-US',
-                { month: 'short', day: 'numeric' }
-            );
-            const typeName = essayTypes[lastEssay.type]?.[currentLanguage]?.name || lastEssay.type;
-            
-            html += `<div class="sidebar-recent-essay">
-                <div style="font-size: 11px; color: #666; margin-bottom: 6px;">
-                    ${currentLanguage === 'zh' ? '最近' : 'Latest'}
-                </div>
-                <div class="essay-mini">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
-                        <span style="font-size: 12px; font-weight: 500; max-width: 120px; overflow: hidden; text-overflow: ellipsis;">${lastEssay.title}</span>
-                        <span style="font-size: 14px; font-weight: bold; color: ${lastEssay.totalScore >= 80 ? '#388e3c' : lastEssay.totalScore >= 70 ? '#f57c00' : '#d32f2f'};">${lastEssay.totalScore}</span>
-                    </div>
-                    <div style="font-size: 10px; color: #999; display: flex; gap: 8px;">
-                        <span>${typeName}</span>
-                        <span>${date}</span>
-                    </div>
-                </div>
-            </div>`;
-        }
-        
-        // 进步里程碑简化
-        if (growthProfile.milestones.length > 0) {
-            html += '<div class="sidebar-milestones">';
-            html += `<div style="font-size: 11px; color: #666; margin-bottom: 6px; margin-top: 10px;">🏆 ${currentLanguage === 'zh' ? '进步' : 'Progress'}</div>`;
-            const latestMilestone = growthProfile.milestones[growthProfile.milestones.length - 1];
-            html += `<div style="font-size: 11px; line-height: 1.4; color: #333;">${latestMilestone.description}</div>`;
-            html += '</div>';
-        }
-    }
-    
-    sidebarGrowthContent.innerHTML = html;
+    if (!sidebarProfileDisplayName || !sidebarProfileMeta) return;
+
+    loadUserProfile();
+
+    const displayName = userProfile.nickname || currentUser?.username || (currentLanguage === 'zh' ? '个人主页' : 'Profile');
+
+    const metaSegments = [
+        userProfile.grade,
+        userProfile.gender,
+        userProfile.writingStyle
+    ].filter(Boolean);
+
+    const fallbackMeta = currentLanguage === 'zh'
+        ? '点击完善头像与个人资料'
+        : 'Click to complete profile details';
+
+    sidebarProfileDisplayName.textContent = displayName;
+    sidebarProfileMeta.textContent = metaSegments.length > 0 ? metaSegments.join(' · ') : fallbackMeta;
+    updateAvatarDisplay(sidebarProfileAvatar, sidebarProfileAvatarFallback, userProfile.avatar || '');
 }
 
 function appendOptimizationRecord(question, answer, feedback) {
     optimizationRecords.unshift({
+        contentId: generateAIContentId('optimization'),
         type: currentType,
         language: currentLanguage,
         question,
@@ -3318,11 +4312,12 @@ function renderOptimizationRecords() {
     }
 
     const html = optimizationRecords.map((item, idx) => `
-        <div class="optimization-record-item">
+        <div class="optimization-record-item" data-content-id="${item.contentId}">
             <p class="optimization-record-title">${currentLanguage === 'zh' ? `问题 ${optimizationRecords.length - idx}` : `Question ${optimizationRecords.length - idx}`}</p>
             <p class="optimization-record-question">🔍 ${item.question}</p>
             <p class="optimization-record-answer">💭 ${currentLanguage === 'zh' ? '我的想法：' : 'My thoughts:'} ${item.answer}</p>
             <p class="optimization-record-feedback">💡 ${currentLanguage === 'zh' ? '优化修补建议：' : 'Optimization suggestion:'} ${item.feedback}</p>
+            ${renderAIFeedbackButtons('optimization', item.contentId, item.feedback, 'is-compact')}
         </div>
     `).join('');
 
@@ -3549,6 +4544,51 @@ async function startOptimization() {
         // 逐条展示反馈建议
         let feedbackItems = [];
         let currentFeedbackIdx = 0;
+        let feedbackVersions = [];
+        let feedbackVersionIdx = 0;
+
+        function applyFeedbackVersion(versionIdx, resetItemIdx = true) {
+            if (feedbackVersions.length === 0) return;
+            const safeIdx = Math.max(0, Math.min(versionIdx, feedbackVersions.length - 1));
+            feedbackVersionIdx = safeIdx;
+            feedbackItems = parseFeedbackItems(feedbackVersions[feedbackVersionIdx] || '');
+            if (resetItemIdx) {
+                currentFeedbackIdx = 0;
+            } else {
+                currentFeedbackIdx = Math.max(0, Math.min(currentFeedbackIdx, feedbackItems.length - 1));
+            }
+        }
+
+        async function regenerateCurrentFeedbackVersion(question, answer) {
+            content.innerHTML = '<p class="loading">🔄 ' +
+                (currentLanguage === 'zh' ? 'AI正在重新生成这组优化建议...' : 'AI is regenerating this suggestion set...') +
+                '</p>';
+
+            try {
+                const regenerated = await aiService.generateLogicFeedback(
+                    currentType,
+                    currentLanguage,
+                    question,
+                    answer,
+                    mainEditor.value.substring(0, 500)
+                );
+
+                if (feedbackVersionIdx < feedbackVersions.length - 1) {
+                    feedbackVersions = feedbackVersions.slice(0, feedbackVersionIdx + 1);
+                }
+                feedbackVersions.push(regenerated.message || '');
+                applyFeedbackVersion(feedbackVersions.length - 1, true);
+                showSingleFeedbackItem();
+            } catch (error) {
+                console.error('重新生成优化建议失败:', error);
+                showNotification(
+                    currentLanguage === 'zh' ? '⚠️ 重新生成失败，请稍后重试' : '⚠️ Regeneration failed, please retry later',
+                    'warning'
+                );
+                applyFeedbackVersion(feedbackVersionIdx, false);
+                showSingleFeedbackItem();
+            }
+        }
         
         function showSingleFeedbackItem() {
             if (currentFeedbackIdx >= feedbackItems.length) {
@@ -3580,6 +4620,10 @@ async function startOptimization() {
                     <p class="feedback-hint">${currentLanguage === 'zh' 
                         ? '💡 提示：请认真思考这条建议，并判断是否需要根据它改进文章。' 
                         : '💡 Tip: Consider this suggestion carefully and decide if you need to improve your article accordingly.'}</p>
+                    <div class="version-nav-row">
+                        <span class="version-index">${currentLanguage === 'zh' ? '版本' : 'Version'} ${feedbackVersionIdx + 1}/${feedbackVersions.length}</span>
+                        <button class="primary-btn version-regenerate-btn" id="regenerateFeedbackVersion">🔄 ${currentLanguage === 'zh' ? '重新生成建议' : 'Regenerate'}</button>
+                    </div>
                     <div class="optimization-buttons">
                         ${currentFeedbackIdx > 0 ? `
                             <button class="secondary-btn" id="prevFeedback">
@@ -3626,6 +4670,12 @@ async function startOptimization() {
             document.getElementById('nextFeedback')?.addEventListener('click', () => {
                 currentFeedbackIdx++;
                 showSingleFeedbackItem();
+            });
+
+            document.getElementById('regenerateFeedbackVersion')?.addEventListener('click', async () => {
+                const currentQuestion = userOptimizationAnswers[questionIdx]?.question || '';
+                const currentAnswer = userOptimizationAnswers[questionIdx]?.answer || '';
+                await regenerateCurrentFeedbackVersion(currentQuestion, currentAnswer);
             });
         }
         
@@ -3704,9 +4754,9 @@ async function startOptimization() {
                 appendOptimizationRecord(question, answer, feedback);
                 switchRightPanel('optimization');
                 
-                // 解析反馈为多条建议
-                feedbackItems = parseFeedbackItems(feedback);
-                currentFeedbackIdx = 0;
+                // 初始化该问题的反馈版本（第1版）
+                feedbackVersions = [feedback];
+                applyFeedbackVersion(0, true);
                 
                 console.log(`✅ 反馈已解析为 ${feedbackItems.length} 条建议`);
                 
@@ -3715,6 +4765,26 @@ async function startOptimization() {
                 
             } catch (error) {
                 console.error('反馈生成失败:', error);
+
+                try {
+                    await askRetryForAIGeneration(
+                        currentLanguage === 'zh' ? '优化修补建议生成' : 'optimization feedback generation',
+                        error,
+                        {
+                            onCancel: () => {
+                                showOptimizationQuestion();
+                            }
+                        }
+                    );
+
+                    await showAnswerFeedback(question, answer, currentIdx, total);
+                    return;
+                } catch (retryError) {
+                    if (isAIOperationCancelled(retryError)) {
+                        return;
+                    }
+                }
+
                 const fallbackFeedback = currentLanguage === 'zh'
                     ? '1. 回到原文，检查该问题对应段落是否有明确论据。\n2. 检查段落之间的过渡是否清晰自然。\n3. 验证相关表达是否准确可验证。'
                     : '1. Revisit the related paragraph and verify clear evidence.\n2. Check if transitions between paragraphs are clear and natural.\n3. Verify that relevant expressions are accurate and verifiable.';
@@ -3722,9 +4792,9 @@ async function startOptimization() {
                 appendOptimizationRecord(question, answer, fallbackFeedback);
                 switchRightPanel('optimization');
                 
-                // 解析回退反馈为多条建议
-                feedbackItems = parseFeedbackItems(fallbackFeedback);
-                currentFeedbackIdx = 0;
+                // 初始化回退反馈版本（第1版）
+                feedbackVersions = [fallbackFeedback];
+                applyFeedbackVersion(0, true);
                 
                 // 开始逐条展示
                 showSingleFeedbackItem();
@@ -3757,6 +4827,24 @@ async function startOptimization() {
         
     } catch (error) {
         console.error('优化修补失败:', error);
+
+        try {
+            await askRetryForAIGeneration(
+                currentLanguage === 'zh' ? '优化修补问题生成' : 'optimization question generation',
+                error,
+                {
+                    onCancel: () => {
+                        closeOptimizationModal();
+                    }
+                }
+            );
+            await startOptimization();
+            return;
+        } catch (retryError) {
+            if (isAIOperationCancelled(retryError)) {
+                return;
+            }
+        }
         
         // 降级到本地问题库（强制限制3-5个）
         const allQuestions = optimizationQuestions[currentType][currentLanguage];
@@ -4620,23 +5708,40 @@ function saveGrowthProfile() {
     setScopedStorageValue('growthProfile', JSON.stringify(growthProfile));
 }
 
+function loadUserProfile() {
+    userProfile = createEmptyUserProfile();
+    const saved = getScopedStorageValue('userProfile');
+    if (!saved) return;
+
+    try {
+        const loaded = JSON.parse(saved);
+        userProfile.avatar = String(loaded.avatar || '');
+        userProfile.nickname = String(loaded.nickname || '');
+        userProfile.realName = String(loaded.realName || '');
+        userProfile.gender = String(loaded.gender || '');
+        userProfile.grade = String(loaded.grade || '');
+        userProfile.writingStyle = String(loaded.writingStyle || '');
+    } catch (error) {
+        console.warn('加载个人主页信息失败:', error);
+    }
+}
+
+function saveUserProfile() {
+    setScopedStorageValue('userProfile', JSON.stringify(userProfile));
+}
+
 // 写作完成：生成写作报告（调用AI，失败则本地生成）
 async function finishWriting() {
     if (!mainEditor) return;
-
-    if (!lockAsyncOperation('writing-report')) {
+    if (isReportGenerating) {
+        showNotification(
+            currentLanguage === 'zh'
+                ? '写作报告正在生成中，请稍候'
+                : 'Writing report is already generating. Please wait.',
+            'warning'
+        );
         return;
     }
-
-    showAILoadingModal({
-        headingZh: '🤖 AI正在生成写作报告',
-        headingEn: '🤖 AI is generating your writing report',
-        detailZh: '请稍候，完成后会自动切换到报告页面…',
-        detailEn: 'Please wait. It will switch to the report view automatically...',
-        timeoutMs: 90000
-    });
-
-    try {
     if (!writingStartTime) writingStartTime = Date.now();
     const endTime = Date.now();
     const durationSec = Math.round((endTime - writingStartTime) / 1000);
@@ -4655,6 +5760,16 @@ async function finishWriting() {
         );
         return;
     }
+
+    isReportGenerating = true;
+    reportGenerationDismissed = false;
+    renderReportPendingHint();
+    showReportGeneratingModal();
+    showNotification(
+        currentLanguage === 'zh' ? '📊 正在生成写作报告...' : '📊 Generating writing report...',
+        'success',
+        1800
+    );
 
     let evaluation = null;
     let useAIEvaluation = false;
@@ -4769,20 +5884,30 @@ async function finishWriting() {
         } else {
             aiOutput.innerHTML = reportHtml; // 备用输出
         }
+        saveLatestWritingReport(reportHtml, words, durationSec, useAIEvaluation);
         
         // 显示视图切换标签并切换到报告视图
         if (editorViewTabs) {
             editorViewTabs.style.display = 'flex';
-            writeView.style.display = 'none';
-            reportView.style.display = 'flex';
-            if (reportViewTab) reportViewTab.classList.add('active');
-            if (writeViewTab) writeViewTab.classList.remove('active');
+            if (!reportGenerationDismissed) {
+                writeView.style.display = 'none';
+                reportView.style.display = 'flex';
+                if (reportViewTab) reportViewTab.classList.add('active');
+                if (writeViewTab) writeViewTab.classList.remove('active');
+            }
         }
         
         const notificationMsg = useAIEvaluation
             ? (currentLanguage === 'zh' ? '✓ AI智能写作报告已生成' : '✓ AI writing report generated')
             : (currentLanguage === 'zh' ? '✓ 写作报告已生成' : '✓ Writing report generated');
         showNotification(notificationMsg);
+        if (reportGenerationDismissed) {
+            showNotification(
+                currentLanguage === 'zh' ? '报告已完成，点击“写作报告”即可查看' : 'Report is ready. Click Writing Report to view.',
+                'success',
+                2800
+            );
+        }
     } catch (error) {
         console.error('写作报告生成异常:', error);
         const local = generateLocalWritingReport(words, durationSec, contentHistory.length);
@@ -4800,17 +5925,30 @@ async function finishWriting() {
         } else {
             aiOutput.innerHTML = fallbackHtml;
         }
+        saveLatestWritingReport(fallbackHtml, words, durationSec, false);
         
         // 显示视图切换标签并切换到报告视图
         if (editorViewTabs) {
             editorViewTabs.style.display = 'flex';
-            writeView.style.display = 'none';
-            reportView.style.display = 'flex';
-            if (reportViewTab) reportViewTab.classList.add('active');
-            if (writeViewTab) writeViewTab.classList.remove('active');
+            if (!reportGenerationDismissed) {
+                writeView.style.display = 'none';
+                reportView.style.display = 'flex';
+                if (reportViewTab) reportViewTab.classList.add('active');
+                if (writeViewTab) writeViewTab.classList.remove('active');
+            }
         }
         
         showNotification(currentLanguage === 'zh' ? '✓ 写作报告已生成（简化版）' : '✓ Writing report generated (simplified)');
+        if (reportGenerationDismissed) {
+            showNotification(
+                currentLanguage === 'zh' ? '后台报告已完成，点击“写作报告”查看' : 'Background report finished. Click Writing Report.',
+                'success',
+                2800
+            );
+        }
+    } finally {
+        isReportGenerating = false;
+        hideReportGeneratingModal();
     }
     
     // 6. 重置写作过程数据
@@ -5051,6 +6189,38 @@ function resetWritingProcessData() {
     };
 }
 
+function clearGeneratedWritingOutputs() {
+    if (window.aiService && typeof window.aiService.cancelPendingRequests === 'function') {
+        window.aiService.cancelPendingRequests();
+    }
+
+    isReportGenerating = false;
+    reportGenerationDismissed = false;
+    hideReportGeneratingModal();
+
+    if (reportContent) {
+        reportContent.innerHTML = '';
+    }
+
+    removeScopedStorageValue('latestWritingReport');
+
+    if (editorViewTabs) {
+        editorViewTabs.style.display = 'none';
+    }
+    if (writeView) {
+        writeView.style.display = 'flex';
+    }
+    if (reportView) {
+        reportView.style.display = 'none';
+    }
+    if (writeViewTab) {
+        writeViewTab.classList.add('active');
+    }
+    if (reportViewTab) {
+        reportViewTab.classList.remove('active');
+    }
+}
+
 function generateLocalWritingReport(words, durationSec, saves) {
     const minutes = Math.max(1, Math.round(durationSec / 60));
     const speed = Math.round(words / minutes);
@@ -5152,6 +6322,8 @@ function clearContent() {
             optimizationPanel.style.display = 'none';
         }
 
+        clearGeneratedWritingOutputs();
+
         // 清空运行时状态
         userGuidanceAnswers = [];
         currentAISuggestion = '';
@@ -5202,6 +6374,7 @@ function changeEssayType(newType, newLevel, clickedBtn) {
         clickedBtn.classList.add('active');
         currentType = newType;
         currentLevel = newLevel;
+        clearGeneratedWritingOutputs();
         updateTemplate();
         return;
     }
@@ -5243,6 +6416,8 @@ function changeEssayType(newType, newLevel, clickedBtn) {
             optimizationPanel.innerHTML = '';
             optimizationPanel.style.display = 'none';
         }
+
+        clearGeneratedWritingOutputs();
 
         // 清空运行时状态
         userGuidanceAnswers = [];
@@ -5493,9 +6668,7 @@ function runDiagnostics() {
         '素材推荐': 'getMaterials',
         '灵感提示': 'getInspiration',
         '优化修补': 'optimization',
-        '保存': 'saveBtn',
-        '清空': 'clearBtn',
-        '导出': 'exportBtn',
+        '上传手写作文': 'uploadHandwritingBtn',
         '自动保存': 'autoSaveToggle'
     };
     

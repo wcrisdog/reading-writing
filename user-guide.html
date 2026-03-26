@@ -541,6 +541,7 @@
                         <li><strong>启动引导</strong> - 分步问答并快速生成写作计划大纲</li>
                         <li><strong>素材推荐 + 灵感提示</strong> - 支持手动触发，也支持卡顿后自动触发灵感建议</li>
                         <li><strong>优化修补</strong> - 对照结构、论证与表达给出可执行的修订建议</li>
+                        <li><strong>手写识别与文本导入</strong> - 支持图片 OCR，也支持 <code>.txt</code> / <code>.docx</code> 导入正文</li>
                         <li><strong>写作报告 + 成长档案</strong> - 一键生成报告并累计你的能力变化轨迹</li>
                     </ul>
 
@@ -584,8 +585,8 @@
                         <div class="step">
                             <div class="step-number">6</div>
                             <div class="step-content">
-                                <h4>完成并生成报告</h4>
-                                <p>点击编辑器工具栏中的"完成并生成报告"，查看综合评分、过程复盘与成长建议</p>
+                                <h4>生成并查看报告</h4>
+                                <p>点击主界面中部的"写作报告"按钮，系统会自动生成并切换到报告视图</p>
                             </div>
                         </div>
                     </div>
@@ -648,12 +649,21 @@
                     </ul>
 
                     <h3>📈 写作报告与成长档案</h3>
-                    <p>你可以通过两种方式查看报告：点击侧栏"写作报告"，或点击编辑器上的"完成并生成报告"按钮。</p>
+                    <p>你可以点击主界面中部的"写作报告"按钮生成并查看报告。</p>
                     <ul class="feature-list">
                         <li>报告包含六维评分、综合评价、工具使用记录和卡顿分析</li>
                         <li>AI评分失败时会自动降级为本地评分，保证报告可用</li>
                         <li>成长档案会在侧边栏持续积累并展示你的能力变化</li>
                     </ul>
+
+                    <h3>🖼️ 手写识别与文件导入</h3>
+                    <p>编辑区右上角提供"上传手写作文"入口，支持以下格式：</p>
+                    <ul class="feature-list">
+                        <li>图片文件（手写 OCR 识别）</li>
+                        <li><code>.txt</code>（直接读取文本）</li>
+                        <li><code>.docx</code>（提取正文文本后写入）</li>
+                    </ul>
+                    <p>当写作框已有内容时，会弹出"覆盖写入 / 追加写入"二选一对话框。</p>
 
                     <div class="info">
                         不同文体有不同的目标字数，但你可以自定义目标字数以适应具体需求。
@@ -727,7 +737,7 @@
 
                     <h3>如何文体切换</h3>
                     <div class="warning">
-                        修改文体时，你的所有当前内容（标题、正文、AI生成内容等）都会被清除。系统会提示你确认修改。
+                        修改文体时，你的所有当前内容（标题、正文、AI生成内容、报告内容与报告缓存等）都会被清除。系统会提示你确认修改。
                     </div>
                     <p>切换步骤：</p>
                     <ol style="margin: 15px 0; padding-left: 20px;">
@@ -776,6 +786,14 @@
                     <div class="info">
                         这个功能特别适合高考或考试准备，可以确保你的大纲完全符合题目要求。
                     </div>
+
+                    <h3>上传手写作文（OCR）</h3>
+                    <p>在编辑区右上角点击"上传手写作文"后，可选择图片、<code>.txt</code>、<code>.docx</code>。</p>
+                    <ol style="margin: 15px 0; padding-left: 20px;">
+                        <li>选择文件并等待识别/解析完成</li>
+                        <li>若当前写作框已有内容，选择"覆盖写入"或"追加写入"</li>
+                        <li>识别失败时，系统会提示原因并询问是否重试</li>
+                    </ol>
 
                     <h3>优化修补的详细流程</h3>
                     <p>点击"优化修补"后，系统会逐一提出以下问题：</p>
@@ -873,7 +891,7 @@
                     <p>不要期望一口气写完全文。建议：</p>
                     <ol style="margin: 15px 0; padding-left: 20px;">
                         <li>每天完成一个主要段落</li>
-                        <li>每次写完后点击"保存"确保内容被保存</li>
+                        <li>保持"自动保存"开启，确保内容持续写入本地</li>
                         <li>偶尔点击"获取灵感"检查进度和方向</li>
                     </ol>
 
@@ -895,12 +913,12 @@
                         <li>实时显示当前进度百分比</li>
                     </ol>
 
-                    <h4>保存多个版本</h4>
-                    <p>如果你想保存文章的不同版本（比如修改前和修改后），可以：</p>
+                    <h4>保留多个版本</h4>
+                    <p>如果你想保留不同阶段的版本（如修改前/修改后），建议：</p>
                     <ol style="margin: 15px 0; padding-left: 20px;">
-                        <li>完成一个版本后，点击"导出"下载为txt文件</li>
-                        <li>点击"清空"重新开始新的写作</li>
-                        <li>之后可以根据需要导入不同的版本进行比较</li>
+                        <li>将阶段稿复制到本地文档保存</li>
+                        <li>使用"上传手写作文"导入 <code>.txt</code> / <code>.docx</code> 回填版本</li>
+                        <li>必要时使用"覆盖写入"快速切换版本进行比较</li>
                     </ol>
 
                     <h4>充分利用多语言特性</h4>
@@ -920,12 +938,12 @@
                     <div class="faq-item">
                         <div class="faq-question" onclick="toggleFAQ(this)">我的文章内容会被保存吗？</div>
                         <div class="faq-answer">
-                            <p>是的！智引文思有两种保存方式：</p>
+                            <p>是的！智引文思支持本地自动保存：</p>
                             <ul style="margin: 10px 0; padding-left: 20px;">
-                                <li><strong>本地自动保存</strong>：如果你启用了"自动保存"开关，所有内容会自动保存到你的浏览器本地存储。</li>
-                                <li><strong>手动保存</strong>：点击"保存"按钮可以保存当前内容。</li>
+                                <li><strong>本地自动保存</strong>：启用"自动保存"后，内容会持续写入浏览器本地存储。</li>
+                                <li><strong>最近写作恢复</strong>：可在个人主页点击"最近写作"新开主界面并恢复上次内容。</li>
                             </ul>
-                            <p style="margin-top: 10px;"><em>注意：本地保存的内容只在这个浏览器上可用。如果你切换浏览器或清除了浏览器缓存，内容会丢失。建议重要的文章使用"导出"功能保存为文件。</em></p>
+                            <p style="margin-top: 10px;"><em>注意：本地保存内容只在当前浏览器可用。切换浏览器或清理缓存会导致内容丢失，建议重要稿件自行备份。</em></p>
                         </div>
                     </div>
 
@@ -954,9 +972,10 @@
                             <ul style="margin: 10px 0; padding-left: 20px;">
                                 <li>标题和正文内容</li>
                                 <li>AI生成的大纲</li>
+                                <li>已生成的写作报告与报告缓存</li>
                                 <li>所有运行时状态</li>
                             </ul>
-                            <p style="margin-top: 10px;">在修改文体前，系统会提示确认。如果你想保留之前的内容，请先使用"导出"功能将文章保存为文件。</p>
+                            <p style="margin-top: 10px;">在修改文体前系统会提示确认。若需保留内容，请先自行复制备份。</p>
                         </div>
                     </div>
 
@@ -1005,10 +1024,10 @@
                         <div class="faq-answer">
                             <p>如果你想完全重新开始：</p>
                             <ol style="margin: 10px 0; padding-left: 20px;">
-                                <li>点击"清空"按钮可以清除当前的所有内容</li>
+                                <li>点击"清空"按钮可以清除当前内容与已生成结果</li>
                                 <li>点击"清除浏览器缓存"可以完全清除所有本地保存的数据</li>
                             </ol>
-                            <p style="margin-top: 10px;"><strong>警告</strong>：这些操作不可撤销，所以请确保你已经保存了重要的文件（使用"导出"功能）。</p>
+                            <p style="margin-top: 10px;"><strong>警告</strong>：这些操作不可撤销，请确保你已备份重要稿件。</p>
                         </div>
                     </div>
 
@@ -1025,7 +1044,20 @@
                             <ul style="margin: 10px 0; padding-left: 20px;">
                                 <li>刷新页面</li>
                                 <li>稍后再试</li>
+                                <li>OCR 场景下更换更清晰、更小的图片，或改用 <code>.txt</code>/<code>.docx</code> 上传</li>
                                 <li>检查浏览器控制台是否有错误信息</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question" onclick="toggleFAQ(this)">手写识别失败怎么办？</div>
+                        <div class="faq-answer">
+                            <p>当 OCR 失败时，系统会提示失败原因并询问是否重试。你也可以主动优化输入：</p>
+                            <ul style="margin: 10px 0; padding-left: 20px;">
+                                <li>保证图片清晰、字迹居中、光线充足</li>
+                                <li>尽量减少阴影和背景杂色</li>
+                                <li>优先上传 <code>.txt</code> 或 <code>.docx</code> 以避免识别误差</li>
                             </ul>
                         </div>
                     </div>
@@ -1082,7 +1114,7 @@
             // Ctrl/Cmd + S to save (prevent browser's default)
             if ((e.ctrlKey || e.metaKey) && e.key === 's') {
                 e.preventDefault();
-                alert('提示：请在主应用中点击"保存"按钮来保存你的文章。');
+                alert('提示：主应用默认支持自动保存，请保持自动保存开启并定期备份。');
             }
         });
     </script>
