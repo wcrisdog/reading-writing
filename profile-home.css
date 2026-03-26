@@ -39,6 +39,10 @@ body {
     opacity: 0;
     pointer-events: none;
     transition: opacity 0.2s ease, transform 0.2s ease;
+    max-width: calc(100vw - 20px);
+    text-align: center;
+    line-height: 1.4;
+    white-space: normal;
 }
 
 .profile-tip-bar.show {
@@ -509,6 +513,12 @@ h1 {
 }
 
 @media (max-width: 640px) {
+    .profile-tip-bar {
+        top: calc(10px + env(safe-area-inset-top, 0px));
+        font-size: 12px;
+        padding: 9px 12px;
+    }
+
     .profile-page {
         padding: 16px 10px 24px;
     }

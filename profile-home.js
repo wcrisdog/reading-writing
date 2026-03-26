@@ -398,12 +398,14 @@ function openMainWritingWithLastContent() {
     setScopedStorageValue('currentContent', JSON.stringify(lastWriting));
     showProfileTipBar('已在新窗口打开并恢复上次内容');
 
-    window.setTimeout(() => {
-        const opened = window.open('index.html', '_blank', 'noopener');
-        if (!opened) {
-            window.location.href = 'index.html';
-        }
-    }, 180);
+    // Keep window.open in direct user gesture call stack, otherwise mobile browsers may block popups.
+    const opened = window.open('about:blank', '_blank', 'noopener');
+    if (opened) {
+        opened.location.href = 'index.html';
+        return;
+    }
+
+    window.location.href = 'index.html';
 }
 
 function renderLatestReport() {
