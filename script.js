@@ -2109,6 +2109,161 @@ function openProfileHomePage() {
     }
 }
 
+function fileToDataUrl(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => reject(new Error('读取图片失败'));
+        reader.readAsDataURL(file);
+    });
+}
+
+function cleanRecognizedHandwritingText(rawText) {
+    let text = String(rawText || '').trim();
+    text = text.replace(/^```[\w-]*\n?/, '').replace(/```$/, '').trim();
+    text = text.replace(/^(识别结果|OCR结果|Recognized text)\s*[:：]\s*/i, '').trim();
+    return text;
+}
+
+function writeRecognizedTextToEditor(recognizedText, mode = 'append') {
+    if (!mainEditor || !recognizedText) return;
+
+    if (mode === 'overwrite') {
+        mainEditor.value = recognizedText;
+    } else {
+        const hasExistingText = String(mainEditor.value || '').trim().length > 0;
+        const separator = hasExistingText ? '\n\n' : '';
+        mainEditor.value = `${mainEditor.value}${separator}${recognizedText}`;
+    }
+
+    mainEditor.dispatchEvent(new Event('input', { bubbles: true }));
+    mainEditor.focus();
+    mainEditor.setSelectionRange(mainEditor.value.length, mainEditor.value.length);
+}
+
+function showHandwritingInsertModeModal() {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('handwritingInsertModeModal');
+        if (existing) existing.remove();
+
+        const title = currentLanguage === 'zh' ? '选择写入方式' : 'Choose Insert Mode';
+        const desc = currentLanguage === 'zh'
+            ? '写作框中已有内容。请选择识别文字的写入方式：'
+            : 'The editor already has content. Choose how to insert recognized text:';
+        const overwriteLabel = currentLanguage === 'zh' ? '覆盖写入' : 'Overwrite';
+        const appendLabel = currentLanguage === 'zh' ? '追加写入' : 'Append';
+        const cancelLabel = currentLanguage === 'zh' ? '取消' : 'Cancel';
+
+        const modal = document.createElement('div');
+        modal.id = 'handwritingInsertModeModal';
+        modal.className = 'modal';
+        modal.innerHTML = `
+            <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="handwritingInsertModeTitle">
+                <button class="modal-close" type="button" data-action="cancel">✕</button>
+                <h2 id="handwritingInsertModeTitle">${title}</h2>
+                <div class="guidance-step">
+                    <p class="question-text">${desc}</p>
+                    <div class="optimization-buttons">
+                        <button class="guidance-back-btn" type="button" data-action="overwrite">${overwriteLabel}</button>
+                        <button class="guidance-next-btn" type="button" data-action="append">${appendLabel}</button>
+                    </div>
+                    <div style="margin-top: 10px; display: flex; justify-content: flex-end;">
+                        <button class="secondary-btn" type="button" data-action="cancel">${cancelLabel}</button>
+                    </div>
+                </div>
+            </div>
+        `;
+
+        const cleanup = () => {
+            document.removeEventListener('keydown', onEsc);
+            modal.remove();
+        };
+
+        const onEsc = (event) => {
+            if (event.key === 'Escape') {
+                cleanup();
+                resolve(null);
+            }
+        };
+
+        modal.addEventListener('click', (event) => {
+            const action = event.target?.dataset?.action;
+            if (event.target === modal || action === 'cancel') {
+                cleanup();
+                resolve(null);
+                return;
+            }
+            if (action === 'overwrite' || action === 'append') {
+                cleanup();
+                resolve(action);
+            }
+        });
+
+        document.addEventListener('keydown', onEsc);
+        document.body.appendChild(modal);
+    });
+}
+
+async function handleHandwritingImageSelected(file, triggerButton) {
+    if (!file) return;
+
+    const isImage = /^image\//.test(file.type || '');
+    if (!isImage) {
+        showNotification(currentLanguage === 'zh' ? '请上传图片文件' : 'Please upload an image file', 'warning');
+        return;
+    }
+
+    const maxSizeBytes = 8 * 1024 * 1024;
+    if (file.size > maxSizeBytes) {
+        showNotification(currentLanguage === 'zh' ? '图片不能超过 8MB' : 'Image must be smaller than 8MB', 'warning');
+        return;
+    }
+
+    if (triggerButton) {
+        triggerButton.disabled = true;
+        triggerButton.textContent = currentLanguage === 'zh' ? '识别中...' : 'Recognizing...';
+    }
+
+    try {
+        const imageDataUrl = await fileToDataUrl(file);
+        const result = await aiService.recognizeHandwritingFromImage(imageDataUrl, currentLanguage, currentType);
+        const recognizedText = cleanRecognizedHandwritingText(result?.message || '');
+
+        if (!recognizedText) {
+            showNotification(currentLanguage === 'zh' ? '未识别到有效文字，请更换更清晰的图片' : 'No valid text recognized, please try a clearer image', 'warning');
+            return;
+        }
+
+        const hasExistingText = String(mainEditor?.value || '').trim().length > 0;
+        let insertMode = 'append';
+
+        if (hasExistingText) {
+            const selectedMode = await showHandwritingInsertModeModal();
+            if (!selectedMode) {
+                showNotification(currentLanguage === 'zh' ? '已取消写入' : 'Insert cancelled', 'warning');
+                return;
+            }
+            insertMode = selectedMode;
+        }
+
+        writeRecognizedTextToEditor(recognizedText, insertMode);
+        showNotification(
+            currentLanguage === 'zh'
+                ? (insertMode === 'overwrite' ? '✓ 手写作文识别成功，已覆盖写入' : '✓ 手写作文识别成功，已追加写入')
+                : (insertMode === 'overwrite' ? '✓ Handwriting recognized and overwritten' : '✓ Handwriting recognized and appended'),
+            'success'
+        );
+    } catch (error) {
+        console.error('手写识别失败:', error);
+        showNotification(currentLanguage === 'zh' ? `识别失败：${error.message || '请稍后重试'}` : `Recognition failed: ${error.message || 'Please try again later'}`, 'error');
+    } finally {
+        if (triggerButton) {
+            triggerButton.disabled = false;
+            triggerButton.textContent = currentLanguage === 'zh' ? '📷 上传手写作文' : '📷 Upload Handwriting';
+        }
+    }
+}
+
 function saveLatestWritingReport(reportHtml, words, durationSec, useAIEvaluation) {
     const payload = {
         html: String(reportHtml || ''),
@@ -2357,12 +2512,18 @@ function setupEventListeners() {
         }, 9000);
     }
     
-    // 写作完成按钮
-    const finishWritingBtn = document.getElementById('finishWritingBtn');
-    
-    if (finishWritingBtn) {
-        finishWritingBtn.addEventListener('click', () => {
-            finishWriting();
+    const uploadHandwritingBtn = document.getElementById('uploadHandwritingBtn');
+    const handwritingImageInput = document.getElementById('handwritingImageInput');
+
+    if (uploadHandwritingBtn && handwritingImageInput) {
+        uploadHandwritingBtn.addEventListener('click', () => {
+            handwritingImageInput.click();
+        });
+
+        handwritingImageInput.addEventListener('change', async (event) => {
+            const file = event.target?.files?.[0];
+            await handleHandwritingImageSelected(file, uploadHandwritingBtn);
+            handwritingImageInput.value = '';
         });
     }
 
@@ -2500,14 +2661,8 @@ function setupEventListeners() {
     }
 
     // 工具按钮
-    const saveBtn = document.getElementById('saveBtn');
-    const clearBtn = document.getElementById('clearBtn');
-    const exportBtn = document.getElementById('exportBtn');
     const autoSaveToggle = document.getElementById('autoSaveToggle');
-    
-    if (saveBtn) saveBtn.addEventListener('click', saveContent);
-    if (clearBtn) clearBtn.addEventListener('click', clearContent);
-    if (exportBtn) exportBtn.addEventListener('click', exportContent);
+
     if (autoSaveToggle) autoSaveToggle.addEventListener('click', toggleAutoSave);
 
     // 素材放大按钮
@@ -6216,9 +6371,7 @@ function runDiagnostics() {
         '素材推荐': 'getMaterials',
         '灵感提示': 'getInspiration',
         '优化修补': 'optimization',
-        '保存': 'saveBtn',
-        '清空': 'clearBtn',
-        '导出': 'exportBtn',
+        '上传手写作文': 'uploadHandwritingBtn',
         '自动保存': 'autoSaveToggle'
     };
     

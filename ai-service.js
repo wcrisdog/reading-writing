@@ -788,6 +788,35 @@ Please evaluate this ${essayTypeName} and provide scores and diagnostic suggesti
     }
 
     /**
+     * 识别手写作文图片并提取文本
+     */
+    async recognizeHandwritingFromImage(imageDataUrl, language = 'zh', essayType = 'argumentative') {
+        const systemPrompt = language === 'zh'
+            ? '你是OCR文本识别助手。请从图片中提取手写作文的原文内容，保持原段落结构，只输出识别后的正文文本，不要额外解释。'
+            : 'You are an OCR assistant. Extract the handwritten essay text from the image, preserve paragraph structure, and output only the recognized text without extra explanation.';
+
+        const userText = language === 'zh'
+            ? '请识别这张手写作文图片中的文字，并返回纯文本。'
+            : 'Please recognize all text in this handwritten essay image and return plain text only.';
+
+        const messages = [
+            { role: 'system', content: systemPrompt },
+            {
+                role: 'user',
+                content: [
+                    { type: 'text', text: userText },
+                    { type: 'image_url', image_url: { url: imageDataUrl } }
+                ]
+            }
+        ];
+
+        return await this.callAI(messages, 'handwriting-ocr', essayType, {
+            timeoutMs: 35000,
+            retries: 1
+        });
+    }
+
+    /**
      * 提交AI生成内容的反馈（点赞/点踩）
      */
     async submitFeedback(feedbackData) {

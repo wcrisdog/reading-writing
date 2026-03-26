@@ -1162,6 +1162,14 @@ body.guide-with-sidebar .floating-guide-shell {
     transform: scale(1.05);
 }
 
+.upload-handwriting-btn {
+    flex: 0 1 auto;
+    min-width: 180px;
+    padding: 10px 16px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
 .main-editor {
     flex: 1;
     width: 100%;
@@ -2690,6 +2698,11 @@ body.guide-with-sidebar .floating-guide-shell {
         flex: 1 1 calc(25% - 8px);
         min-width: 52px;
         padding: 10px 8px;
+    }
+
+    .upload-handwriting-btn {
+        flex: 1 1 100%;
+        min-width: 0;
     }
 
     .title-input {
