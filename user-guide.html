@@ -659,10 +659,13 @@
                     <h3>🖼️ 手写识别与文件导入</h3>
                     <p>编辑区右上角提供"上传手写作文"入口，支持以下格式：</p>
                     <ul class="feature-list">
-                        <li>图片文件（手写 OCR 识别）</li>
+                        <li>图片文件（JPG、PNG、GIF、WEBP、HEIC 等 — 手写 OCR 识别）</li>
                         <li><code>.txt</code>（直接读取文本）</li>
                         <li><code>.docx</code>（提取正文文本后写入）</li>
                     </ul>
+                    <p>
+                        <strong>特别说明：</strong>苹果手机拍照的 HEIC 格式会自动转换为 JPEG，然后进行 OCR 识别，无需手动转换。
+                    </p>
                     <p>当写作框已有内容时，会弹出"覆盖写入 / 追加写入"二选一对话框。</p>
 
                     <div class="info">
@@ -1057,6 +1060,7 @@
                             <ul style="margin: 10px 0; padding-left: 20px;">
                                 <li>保证图片清晰、字迹居中、光线充足</li>
                                 <li>尽量减少阴影和背景杂色</li>
+                                <li><strong>苹果用户注意：</strong>HEIC 格式会自动转换为 JPEG，如果仍然识别失败，可尝试换用 <code>.txt</code>/<code>.docx</code> 上传</li>
                                 <li>优先上传 <code>.txt</code> 或 <code>.docx</code> 以避免识别误差</li>
                             </ul>
                         </div>

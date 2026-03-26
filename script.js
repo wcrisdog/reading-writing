@@ -2125,6 +2125,79 @@ function getFileExt(fileName) {
     return name.slice(idx + 1).toLowerCase();
 }
 
+// 加载 heic2any 库
+let heic2anyLoader = null;
+async function ensureHeic2anyLoaded() {
+    if (window.heic2any) return window.heic2any;
+    if (heic2anyLoader) return heic2anyLoader;
+
+    heic2anyLoader = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+        script.async = true;
+        script.onload = () => {
+            if (window.heic2any) {
+                resolve(window.heic2any);
+                return;
+            }
+            reject(new Error('HEIC 转换库加载失败'));
+        };
+        script.onerror = () => reject(new Error('HEIC 转换库加载失败'));
+        document.head.appendChild(script);
+    });
+
+    return heic2anyLoader;
+}
+
+// 检测并转换 HEIC 文件
+async function convertHeicIfNeeded(file) {
+    const ext = getFileExt(file.name);
+    const mimeType = file.type || '';
+    
+    // 检查是否是 HEIC 格式
+    const isHeic = ext === 'heic' || ext === 'heif' || mimeType === 'image/heic' || mimeType === 'image/heic-sequence' || mimeType === 'image/heif' || mimeType === 'image/heif-sequence';
+    
+    if (!isHeic) {
+        return file;
+    }
+
+    try {
+        console.log('检测到 HEIC 格式，正在转换为 JPEG...');
+        showNotification(
+            currentLanguage === 'zh'
+                ? '检测到 HEIC 格式，正在转换...'
+                : 'Detected HEIC format, converting...',
+            'info'
+        );
+
+        const heic2any = await ensureHeic2anyLoaded();
+        const convertedBlob = await heic2any({
+            blob: file,
+            toType: 'image/jpeg',
+            quality: 0.85
+        });
+
+        // 创建新的 File 对象
+        const convertedFile = new File(
+            [convertedBlob],
+            file.name.replace(/\.heic$/i, '.jpg').replace(/\.heif$/i, '.jpg'),
+            { type: 'image/jpeg' }
+        );
+        
+        console.log('HEIC 转换成功');
+        return convertedFile;
+    } catch (error) {
+        console.error('HEIC 转换失败，使用原文件:', error);
+        showNotification(
+            currentLanguage === 'zh'
+                ? `HEIC 转换失败，将使用原文件: ${error.message}`
+                : `HEIC conversion failed, using original file: ${error.message}`,
+            'warning'
+        );
+        return file;
+    }
+}
+
 async function compressImageForOCR(file) {
     const rawDataUrl = await fileToDataUrl(file);
 
@@ -2291,6 +2364,9 @@ function showHandwritingInsertModeModal() {
 
 async function handleHandwritingImageSelected(file, triggerButton) {
     if (!file) return;
+
+    // 首先尝试转换 HEIC 格式
+    file = await convertHeicIfNeeded(file);
 
     const isImage = /^image\//.test(file.type || '');
     const ext = getFileExt(file.name);
